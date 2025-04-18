@@ -1,7 +1,7 @@
 // Import necessary packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:camera/camera.dart';  // Add the camera package import
+import 'package:camera/camera.dart';
 
 import 'globals.dart';
 import 'c_video.dart';
