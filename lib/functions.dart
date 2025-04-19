@@ -208,7 +208,7 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
   late VideoPlayerController _controller;
   late VoidCallback _listener;
 
-  bool _isPlaying = false;
+  final bool _isPlaying = false;
 
   @override
   void initState() {
