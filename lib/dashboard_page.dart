@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'assessment/globals.dart';
+import 'package:percent_indicator/percent_indicator.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -15,40 +17,76 @@ class DashboardPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. Profile Header
-              Column(
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Image.asset('assets/profile_banner.jpg'),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Text(
-                        'YURI BROWN',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 20,
+                  // Profile Image
+                  Container(
+                    height: 60,
+                    width: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(100),
+                      border: Border.all(
+                        color: const Color(0xFF5E5E5E),
+                        width: 2,
+                      ),
+                      image: const DecorationImage(
+                        image: AssetImage('../../assets/images/profile/profile.jpg'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Right side: Texts and Icons
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // First row: Name and bell icon
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start, // Align all children to the left
+                              children: [
+                                Text(
+                                  'YURI BROWN',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                                const SizedBox(height: 0),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min, // Prevent Row from expanding full width
+                                  children: [
+                                    const Icon(Icons.bolt, color: Colors.green, size: 18),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Initiator',
+                                      style: GoogleFonts.ptSans(fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.grey,
+                              ),
+                              child: const Icon(Icons.notifications, color: Colors.white),
+                            ),
+                          ],
                         ),
-                      ),
-                      const Spacer(),
-                      Column(
-                        children: [
-                          Icon(Icons.bolt, color: Colors.green),
-                          Text(
-                            'Initiator',
-                            style: GoogleFonts.ptSans(),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 16),
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.grey,
-                        ),
-                        child: const Icon(Icons.notifications, color: Colors.white),
-                      ),
-                    ],
+
+                        const SizedBox(height: 4),
+
+                        
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -56,58 +94,123 @@ class DashboardPage extends StatelessWidget {
 
               // 2. Progress Container
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade300),
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFF8F6F4), Colors.white],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border.all(color: const Color(0xFFDEDAD6)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.shade200,
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
                     ),
                   ],
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('PROGRESS', style: GoogleFonts.poppins()),
-                        const Spacer(),
-                        Text('Lateral Raise', style: GoogleFonts.poppins(fontWeight: FontWeight.w900)),
-                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            'PROGRESS',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 18,
+                              color: const Color(0xFF5B5B5B), // Normal text
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('Biceps', style: GoogleFonts.ptSans()),
-                            Text('3 sets: 5-10 reps', style: GoogleFonts.ptSans()),
+                            Text(
+                              'Lateral Raise',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 26,
+                                color: const Color(0xFF2E2E2E), // Heading
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              UserAssess.specificMuscle,
+                              style: GoogleFonts.ptSans(
+                                fontSize: 16,
+                                color: const Color(0xFF557A95), // Detail color
+                              ),
+                            ),
+                            Text(
+                              '3 sets: 5-10 reps',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 14,
+                                color: const Color(0xFF5B5B5B),
+                              ),
+                            ),
                           ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Stack(
                           alignment: Alignment.center,
                           children: [
-                            SizedBox(
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFFF8F6F4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.15),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
                               height: 60,
                               width: 60,
                               child: CircularProgressIndicator(
                                 value: 0.6,
                                 backgroundColor: Colors.grey[300],
-                                color: Colors.green,
+                                color: const Color(0xFFC1574F), // Sub-color
                                 strokeWidth: 6,
                               ),
                             ),
-                            Text('60%', style: GoogleFonts.poppins(fontWeight: FontWeight.w900)),
+                            Text(
+                              '60%',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14,
+                                color: const Color(0xFF2E2E2E),
+                              ),
+                            ),
                           ],
                         ),
-                        Text('Resume >', style: GoogleFonts.ptSans(fontWeight: FontWeight.bold)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF709255), // Positive Button
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Text(
+                            'Resume >',
+                            style: GoogleFonts.ptSans(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -122,31 +225,58 @@ class DashboardPage extends StatelessWidget {
                   Expanded(
                     flex: 3,
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                       decoration: BoxDecoration(
+                        color: Colors.white,
                         border: Border.all(color: Colors.grey.shade300),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.grey.shade200,
+                            color: Colors.grey.withOpacity(0.15),
                             blurRadius: 10,
                             offset: const Offset(0, 5),
                           ),
                         ],
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.local_fire_department, color: Colors.orange),
+                              const Icon(Icons.local_fire_department, color: Colors.orange, size: 20),
                               const SizedBox(width: 6),
-                              Text('Streak', style: GoogleFonts.poppins(fontWeight: FontWeight.w900)),
+                              Text(
+                                'Streak',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: const Color(0xFF2E2E2E),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text('8', style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.w900)),
-                          Text('Days of Workout', style: GoogleFonts.ptSans(color: const Color(0xFF5B5B5B))),
+                          const SizedBox(height: 8),
+                          Text(
+                            '8',
+                            style: GoogleFonts.poppins(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF8B2E2E),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Days of Workout',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 14,
+                                color: const Color(0xFF5B5B5B),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -158,58 +288,91 @@ class DashboardPage extends StatelessWidget {
                     flex: 7,
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.fitness_center),
-                                    const SizedBox(width: 8),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Exercises', style: GoogleFonts.poppins(fontWeight: FontWeight.w900)),
-                                        Text('24 Completed Exercises', style: GoogleFonts.ptSans(color: const Color(0xFF5B5B5B))),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                        // Exercises Card
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.fitness_center, size: 28, color: Color(0xFF8B2E2E)), // main color
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Exercises',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 16,
+                                      color: const Color(0xFF2E2E2E),
+                                    ),
+                                  ),
+                                  Text(
+                                    '24 Completed Exercises',
+                                    style: GoogleFonts.ptSans(
+                                      fontSize: 14,
+                                      color: const Color(0xFF5B5B5B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.access_time),
-                                    const SizedBox(width: 8),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Time Spent', style: GoogleFonts.poppins(fontWeight: FontWeight.w900)),
-                                        Text('72 Minutes', style: GoogleFonts.ptSans(color: const Color(0xFF5B5B5B))),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+
+                        // Time Spent Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.access_time, size: 28, color: Color(0xFFC1574F)), // sub-color
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Time Spent',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 16,
+                                      color: const Color(0xFF2E2E2E),
+                                    ),
+                                  ),
+                                  Text(
+                                    '72 Minutes',
+                                    style: GoogleFonts.ptSans(
+                                      fontSize: 14,
+                                      color: const Color(0xFF5B5B5B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -224,33 +387,82 @@ class DashboardPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.grey.shade300),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.asset('assets/plan_week01.jpg'),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Week 01', style: GoogleFonts.poppins(fontWeight: FontWeight.w900)),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text('Push-Ups: 3 sets, 10 reps', style: GoogleFonts.ptSans(color: const Color(0xFF5B5B5B))),
-                            Text('Push-Ups: 3 sets, 10 reps', style: GoogleFonts.ptSans(color: const Color(0xFF5B5B5B))),
-                          ],
+                      borderRadius: BorderRadius.circular(16),
+                      child: SizedBox(
+                        height: 75,
+                        width: 100,
+                        child: Image.asset(
+                          '../../assets/images/welcome_1.jpg',
+                          fit: BoxFit.cover,
                         ),
-                      ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Week 01',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Push-Ups: 3 sets, 10 reps',
+                            style: GoogleFonts.ptSans(
+                              color: const Color(0xFF5B5B5B),
+                              fontSize: 14,
+                            ),
+                          ),
+                          Text(
+                            'Sit-Ups: 3 sets, 15 reps',
+                            style: GoogleFonts.ptSans(
+                              color: const Color(0xFF5B5B5B),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      height: 60,
+                      width: 60,
+                      child: CircularPercentIndicator(
+                        radius: 28.0,
+                        lineWidth: 5.0,
+                        percent: 0.7,
+                        center: Text(
+                          "70%",
+                          style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        progressColor: const Color(0xFF8B2E2E),
+                        backgroundColor: Colors.grey.shade300,
+                        circularStrokeCap: CircularStrokeCap.round,
+                      ),
                     ),
                   ],
                 ),
               ),
+
             ],
           ),
         ),

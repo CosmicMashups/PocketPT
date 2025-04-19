@@ -1,6 +1,7 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 // Import pages
 import 'dashboard_page.dart';
@@ -54,18 +55,18 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF800020),
-        title: Image.asset(
-          '../assets/images/logo.png', // Ensure this path is correct for assets
-          height: 60,
-          fit: BoxFit.contain,
-        ),
-        centerTitle: true,
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ),
-      ),
+      // appBar: AppBar(
+      //   backgroundColor: const Color(0xFF800020),
+      //   title: Image.asset(
+      //     '../assets/images/logo.png', // Ensure this path is correct for assets
+      //     height: 60,
+      //     fit: BoxFit.contain,
+      //   ),
+      //   centerTitle: true,
+      //   iconTheme: const IconThemeData(
+      //     color: Colors.white,
+      //   ),
+      // ),
 
       drawer: const Drawer(
         child: Center(child: Text('Hello, User!')),
@@ -82,30 +83,51 @@ class _HomePageState extends State<HomePage> {
         child: const Icon(Icons.add),
       ),
 
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
+      // New: NavBar
+      bottomNavigationBar: CurvedNavigationBar(
+        index: _currentIndex,
         onTap: (int index) {
           setState(() {
             _currentIndex = index;
           });
         },
+        backgroundColor: Colors.white, // Color behind the nav bar
+        color: const Color(0xFF800020), // Bar color
+        buttonBackgroundColor: const Color(0xFF800020), // Active icon background
+        animationCurve: Curves.easeInOut,
+        animationDuration: const Duration(milliseconds: 300),
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.fitness_center),
-            label: 'Exercise',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.face),
-            label: 'Profile',
-          ),
+          Icon(Icons.dashboard, color: Colors.white),
+          Icon(Icons.fitness_center, color: Colors.white),
+          Icon(Icons.face, color: Colors.white),
         ],
-        selectedItemColor: const Color(0xFF800020),
-        unselectedItemColor: Colors.grey,
       ),
+
+      // Old: NavBar
+      // bottomNavigationBar: BottomNavigationBar(
+      //   currentIndex: _currentIndex,
+      //   onTap: (int index) {
+      //     setState(() {
+      //       _currentIndex = index;
+      //     });
+      //   },
+      //   items: const [
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.dashboard),
+      //       label: 'Dashboard',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.fitness_center),
+      //       label: 'Exercise',
+      //     ),
+      //     BottomNavigationBarItem(
+      //       icon: Icon(Icons.face),
+      //       label: 'Profile',
+      //     ),
+      //   ],
+      //   selectedItemColor: const Color(0xFF800020),
+      //   unselectedItemColor: Colors.grey,
+      // ),
     );
   }
 }
