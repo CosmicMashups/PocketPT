@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
+import 'package:intl/intl.dart'; // For formatting duration
 
 // Route: Animation
 Route createMorphRoute(Widget page) {
@@ -195,9 +196,8 @@ class CustomImageRadioTile<T> extends StatelessWidget {
 
 // Custom Widget: Video Player
 class LocalVideoPlayer extends StatefulWidget {
-  final String videoPath;  // Path to the video file
+  final String videoPath;
 
-  // Constructor accepts the video path as a parameter
   const LocalVideoPlayer({super.key, required this.videoPath});
 
   @override
@@ -206,31 +206,72 @@ class LocalVideoPlayer extends StatefulWidget {
 
 class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
   late VideoPlayerController _controller;
+  late VoidCallback _listener;
+
+  bool _isPlaying = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize the video player with the provided video path
     _controller = VideoPlayerController.asset(widget.videoPath)
       ..initialize().then((_) {
         setState(() {});
-        _controller.play();
       });
+
+    _listener = () {
+      if (mounted) setState(() {});
+    };
+    _controller.addListener(_listener);
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_listener);
     _controller.dispose();
     super.dispose();
+  }
+
+  String _formatDuration(Duration duration) {
+    return DateFormat('mm:ss').format(DateTime.fromMillisecondsSinceEpoch(duration.inMilliseconds));
   }
 
   @override
   Widget build(BuildContext context) {
     return _controller.value.isInitialized
-        ? AspectRatio(
-            aspectRatio: _controller.value.aspectRatio,
-            child: VideoPlayer(_controller),
+        ? Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AspectRatio(
+                aspectRatio: _controller.value.aspectRatio,
+                child: VideoPlayer(_controller),
+              ),
+              VideoProgressIndicator(
+                _controller,
+                allowScrubbing: true,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _controller.value.isPlaying ? _controller.pause() : _controller.play();
+                      });
+                    },
+                  ),
+                  Text(
+                    '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(width: 16), // Spacer if needed
+                ],
+              ),
+            ],
           )
-        : const CircularProgressIndicator();
+        : const Center(child: CircularProgressIndicator());
   }
 }

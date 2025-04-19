@@ -39,6 +39,7 @@ dependencies:
   video_player: ^2.7.0
   camera: ^0.9.4+4
   dotted_border: ^2.0.0+3
+  intl: ^0.18.0
 
 dev_dependencies:
   flutter_test:
