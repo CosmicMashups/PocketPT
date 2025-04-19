@@ -7,7 +7,6 @@ import 'dart:io';
 import 'globals.dart';
 import 'c_video.dart';
 import 'c_upload.dart';
-import 'c_painlevel.dart';
 import 'c_videopreview.dart';
 
 class AssessPainCamera extends StatefulWidget {
