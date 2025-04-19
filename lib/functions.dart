@@ -28,6 +28,7 @@ Route createMorphRoute(Widget page) {
   );
 }
 
+// Custom Widget: Radio Tile
 class CustomRadioTile<T> extends StatelessWidget {
   final T value;
   final T groupValue;
@@ -207,20 +208,20 @@ class LocalVideoPlayer extends StatefulWidget {
 class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
   late VideoPlayerController _controller;
   late VoidCallback _listener;
-
-  final bool _isPlaying = false;
+  bool _isPlaying = false;
 
   @override
   void initState() {
     super.initState();
     _controller = VideoPlayerController.asset(widget.videoPath)
       ..initialize().then((_) {
-        setState(() {});
+        setState(() {}); // Updates the UI once the video is initialized
       });
 
     _listener = () {
       if (mounted) setState(() {});
     };
+
     _controller.addListener(_listener);
   }
 
@@ -231,7 +232,12 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
     super.dispose();
   }
 
+  // Safely format the duration and position
   String _formatDuration(Duration duration) {
+    // Ensure the duration is non-negative and within the valid range
+    if (duration.inMilliseconds < 0 || duration.inMilliseconds > 86400000) {
+      return '00:00';  // Return a default value if the duration is invalid
+    }
     return DateFormat('mm:ss').format(DateTime.fromMillisecondsSinceEpoch(duration.inMilliseconds));
   }
 
@@ -259,7 +265,11 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
                     ),
                     onPressed: () {
                       setState(() {
-                        _controller.value.isPlaying ? _controller.pause() : _controller.play();
+                        if (_controller.value.isPlaying) {
+                          _controller.pause();
+                        } else {
+                          _controller.play();
+                        }
                       });
                     },
                   ),

@@ -2,11 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:camera/camera.dart';
+import 'dart:io';
 
 import 'globals.dart';
 import 'c_video.dart';
 import 'c_upload.dart';
 import 'c_painlevel.dart';
+import 'c_videopreview.dart';
 
 class AssessPainCamera extends StatefulWidget {
   const AssessPainCamera({super.key});
@@ -21,6 +23,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   late List<CameraDescription> cameras;  // List of available cameras
   bool _isCameraInitialized = false;  // Flag to check if camera is initialized
 
+  // Start recording video
   Future<XFile?> _startRecording() async {
     if (!_controller.value.isInitialized || _controller.value.isRecordingVideo) {
       return null;
@@ -28,8 +31,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
     try {
       await _controller.startVideoRecording();
-
-      // Wait 10 seconds before stopping recording
+      // Wait for 10 seconds or until user presses stop
       await Future.delayed(const Duration(seconds: 10));
 
       // Stop and return the recorded file
@@ -72,9 +74,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height -
-        AppBar().preferredSize.height -
-        MediaQuery.of(context).padding.top;
+    final screenHeight = MediaQuery.of(context).size.height - AppBar().preferredSize.height - MediaQuery.of(context).padding.top;
 
     return Scaffold(
       appBar: AppBar(
@@ -137,10 +137,11 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
                 const SizedBox(height: 30),
 
-                // Buttons Row (Upload & Check)
+                // Buttons Row (Upload, Record, Check)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Upload Button
                     ElevatedButton(
                       onPressed: () => Navigator.push(
                         context,
@@ -154,38 +155,38 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                       child: const Icon(Icons.upload, size: 30, color: Colors.white),
                     ),
 
-                    // Record Button
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          XFile? videoFile = await _startRecording();
-                          if (videoFile != null) {
-                            print('Video recorded to: ${videoFile.path}');
-                            // Do something with the video file here if needed
-                          } else {
-                            print('Recording failed or was cancelled.');
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          shape: const CircleBorder(),
-                          padding: const EdgeInsets.all(20),
-                          backgroundColor: Colors.red,
-                        ),
-                        child: const Icon(Icons.videocam, color: Colors.white, size: 32),
-                      ),
-                    ),
+                    const SizedBox(width: 30), // Space between buttons
 
+                    // Record Button
                     ElevatedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => AssessPainLevel()),
-                      ),
+                      onPressed: () async {
+                        XFile? videoFile = await _startRecording();
+                        if (videoFile != null) {
+                          print('Video recorded to: ${videoFile.path}');
+                          File file = File(videoFile.path);
+
+                          // Store as File for future use
+                          UserAssess.painVideo = file;
+
+                          // Navigate to video preview
+                          if (context.mounted) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AssessPainVideoPreview(videoPath: file.path),
+                              ),
+                            );
+                          }
+                        } else {
+                          print('Recording failed or was cancelled.');
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
                         padding: const EdgeInsets.all(20),
-                        backgroundColor: const Color(0xFF800020),
+                        backgroundColor: Colors.red,
                       ),
-                      child: const Icon(Icons.check, size: 30, color: Colors.white),
+                      child: const Icon(Icons.videocam, color: Colors.white, size: 32),
                     ),
                   ],
                 ),
