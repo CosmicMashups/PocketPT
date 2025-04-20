@@ -213,9 +213,15 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
   @override
   void initState() {
     super.initState();
+
     _controller = VideoPlayerController.asset(widget.videoPath)
       ..initialize().then((_) {
-        setState(() {}); // Updates the UI once the video is initialized
+        if (mounted) {
+          // Defer the setState call until after the current frame
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() {});
+          });
+        }
       });
 
     _listener = () {

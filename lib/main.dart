@@ -91,9 +91,9 @@ class _HomePageState extends State<HomePage> {
             _currentIndex = index;
           });
         },
-        backgroundColor: Colors.white, // Color behind the nav bar
-        color: const Color(0xFF800020), // Bar color
-        buttonBackgroundColor: const Color(0xFF800020), // Active icon background
+        backgroundColor: Colors.white,
+        color: const Color(0xFF800020),
+        buttonBackgroundColor: const Color(0xFF800020),
         animationCurve: Curves.easeInOut,
         animationDuration: const Duration(milliseconds: 300),
         items: const [
@@ -102,32 +102,6 @@ class _HomePageState extends State<HomePage> {
           Icon(Icons.face, color: Colors.white),
         ],
       ),
-
-      // Old: NavBar
-      // bottomNavigationBar: BottomNavigationBar(
-      //   currentIndex: _currentIndex,
-      //   onTap: (int index) {
-      //     setState(() {
-      //       _currentIndex = index;
-      //     });
-      //   },
-      //   items: const [
-      //     BottomNavigationBarItem(
-      //       icon: Icon(Icons.dashboard),
-      //       label: 'Dashboard',
-      //     ),
-      //     BottomNavigationBarItem(
-      //       icon: Icon(Icons.fitness_center),
-      //       label: 'Exercise',
-      //     ),
-      //     BottomNavigationBarItem(
-      //       icon: Icon(Icons.face),
-      //       label: 'Profile',
-      //     ),
-      //   ],
-      //   selectedItemColor: const Color(0xFF800020),
-      //   unselectedItemColor: Colors.grey,
-      // ),
     );
   }
 }

@@ -38,68 +38,72 @@ class AssessPainVideoPreview extends StatelessWidget {
             color: const Color(0xFF800020),
             backgroundColor: const Color(0xFF404040),
           ),
-      
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: LocalVideoPlayer(videoPath: videoPath), // Replace with your video player widget
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AssessPainCamera()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF800020),
-                        side: const BorderSide(color: Color(0xFF800020), width: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      ),
-                      icon: const Icon(Icons.replay),
-                      label: Text(
-                        "Retake",
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                      ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: LocalVideoPlayer(videoPath: videoPath),
                     ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        // Save video or move to next step
-                        Navigator.pop(context); // Or navigate to the next step if necessary
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF800020),
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      ),
-                      icon: const Icon(Icons.check, color: Colors.white),
-                      label: Text(
-                        "Use Video",
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AssessPainCamera()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF800020),
+                          side: const BorderSide(color: Color(0xFF800020), width: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        icon: const Icon(Icons.replay),
+                        label: Text(
+                          "Retake",
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ],
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context); // Or navigate to the next step
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF800020),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        icon: const Icon(Icons.check, color: Colors.white),
+                        label: Text(
+                          "Use Video",
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
-        ]
-      )
+        ],
+      ),
     );
   }
 }
