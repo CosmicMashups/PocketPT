@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 // Import pages
+import 'assessment/globals.dart';
+import 'welcome/login_page.dart';
 import 'dashboard_page.dart';
 import 'exercises_page.dart';
 import 'profile_page.dart';
@@ -23,7 +25,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         textTheme: GoogleFonts.ptSansTextTheme(),
       ),
-      home: const HomePage(), // HomePage is now called here
+      home: AppDetails.isLogin ? const HomePage() : const LoginPage(),
     );
   }
 }

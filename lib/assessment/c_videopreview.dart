@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../functions.dart';
 import 'c_camera.dart';
+import 'c_painlevel.dart';
 
 class AssessPainVideoPreview extends StatelessWidget {
   final String videoPath;
@@ -77,7 +78,22 @@ class AssessPainVideoPreview extends StatelessWidget {
                       ),
                       ElevatedButton.icon(
                         onPressed: () {
-                          Navigator.pop(context); // Or navigate to the next step
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainLevel(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
+
+                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
+
+                                return SlideTransition(position: offsetAnimation, child: child);
+                              },
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF800020),

@@ -89,22 +89,27 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E1E1E)),
-          onPressed: () => Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideo(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
+          onPressed: () async {
+            await _controller.dispose(); // Dispose camera before going back
+            if (context.mounted) {
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideo(),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    const begin = Offset(1.0, 0.0);
+                    const end = Offset.zero;
+                    const curve = Curves.easeInOut;
 
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
+                    var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                    var offsetAnimation = animation.drive(tween);
 
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-            ),
-          ),
+                    return SlideTransition(position: offsetAnimation, child: child);
+                  },
+                ),
+              );
+            }
+          },
         ),
       ),
       body: Column(
@@ -142,10 +147,15 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                   children: [
                     // Upload Button
                     ElevatedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => AssessPainUpload()),
-                      ),
+                      onPressed: () async {
+                        await _controller.dispose(); // Dispose before navigating
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => AssessPainUpload()),
+                          );
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
                         padding: const EdgeInsets.all(20),
@@ -167,7 +177,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                           // Store as File for future use
                           UserAssess.painVideo = file;
 
-                          // Navigate to video preview
+                          // Dispose camera before navigating to preview
+                          await _controller.dispose();
+
                           if (context.mounted) {
                             Navigator.push(
                               context,

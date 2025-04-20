@@ -1,5 +1,9 @@
 import 'dart:io';
 
+class AppDetails {
+  static bool isLogin = false;
+}
+
 class UserAssess {
   static String rehabGoal = '';
   static String generalMuscle = '';
