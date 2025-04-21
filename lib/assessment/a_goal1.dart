@@ -120,9 +120,9 @@ class _AssessGoal1State extends State<AssessGoal1> {
                   ),
                   
                   CustomRadioTile<String>(
-                    value: 'Regain Strength',
+                    value: 'Strengthen Muscle',
                     groupValue: rehabGoal,
-                    title: 'Strengthening',
+                    title: 'Regain Strength',
                     description: 'Focus on rebuilding physical strength.',
                     onChanged: (val) {
                       setState(() {

@@ -29,6 +29,9 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
           _error = "⚠️ Not enough matching exercises found.";
         });
       } else {
+        // Update UserRehabilitation with new plan
+        UserRehabilitation.instance.rehabPlans = [plan];
+
         setState(() {
           _rehabPlan = plan;
           _isLoading = false;

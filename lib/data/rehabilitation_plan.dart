@@ -106,7 +106,7 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV() async {
 
   // Shuffle and pick 3 random rows
   filtered.shuffle(Random());
-  final selectedRows = filtered.take(2).toList();
+  final selectedRows = filtered.take(3).toList();
 
   // Convert to ExercisePlan
   final exercisePlans = selectedRows.map((row) {
@@ -127,30 +127,14 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV() async {
 
 // ============== INSTANCE ======================
 
-class Rehabilitation {
-  List<RehabilitationPlan> rehabPlans = [
-    RehabilitationPlan(
-      weekNumber: 1,
-      exercises: [
-        ExercisePlan(exerciseId: 'E001', exerciseName: '', repetitions: 10, sets: 3),
-        ExercisePlan(exerciseId: 'E002', exerciseName: '', repetitions: 8, sets: 2),
-      ],
-      daily: [
-        DailyProgress(
-          exerciseId: 'E001',
-          repsCompleted: 10,
-          setsCompleted: 3,
-          isCompleted: true,
-        ),
-        DailyProgress(
-          exerciseId: 'E002',
-          repsCompleted: 6,
-          setsCompleted: 2,
-          isCompleted: false,
-        ),
-      ],
-    )
-  ];
+class UserRehabilitation {
+  static final UserRehabilitation instance = UserRehabilitation._internal();
+
+  factory UserRehabilitation() => instance;
+
+  UserRehabilitation._internal();
+
+  List<RehabilitationPlan> rehabPlans = [];
 }
 
 // ============== SAMPLE USAGE ==================

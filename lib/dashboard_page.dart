@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'assessment/globals.dart';
 import 'package:percent_indicator/percent_indicator.dart';
+import 'data/rehabilitation_plan.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -81,7 +82,13 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) {    
+    final rehabPlans = UserRehabilitation.instance.rehabPlans;
+    final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
+    final currentExercise = rehabPlan?.exercises.isNotEmpty == true ? rehabPlan!.exercises.first : null;    
+    // double progress = currentExercise != null ? currentExercise.progress : 0.0;
+    double progress = currentExercise != null ? 0.0 : 0.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -211,7 +218,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              'Lateral Raise',
+                              currentExercise?.exerciseName ?? 'No Exercise',
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 26,
@@ -220,14 +227,14 @@ class _DashboardPageState extends State<DashboardPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              UserAssess.specificMuscle,
+                              UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'No target muscle',
                               style: GoogleFonts.ptSans(
                                 fontSize: 16,
                                 color: const Color(0xFF557A95),
                               ),
                             ),
                             Text(
-                              '3 sets: 5–10 reps',
+                              currentExercise != null ? '${currentExercise.sets} sets: ${currentExercise.repetitions} reps' : 'No set info',
                               style: GoogleFonts.ptSans(
                                 fontSize: 14,
                                 color: const Color(0xFF5B5B5B),
@@ -262,15 +269,18 @@ class _DashboardPageState extends State<DashboardPage> {
                                   ),
                                 ],
                               ),
-                              child: CircularProgressIndicator(
-                                value: 0.6,
-                                strokeWidth: 6,
-                                backgroundColor: Colors.grey[300],
-                                valueColor: const AlwaysStoppedAnimation(Color(0xFFC1574F)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(6.0), // Prevents the indicator from clipping
+                                child: CircularProgressIndicator(
+                                  value: progress, // must be between 0.0 and 1.0
+                                  strokeWidth: 6,
+                                  backgroundColor: Colors.grey[300],
+                                  valueColor: const AlwaysStoppedAnimation(Color(0xFFC1574F)),
+                                ),
                               ),
                             ),
                             Text(
-                              '60%',
+                              '${(progress * 100).toInt()}%',
                               style: GoogleFonts.poppins(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 14,
@@ -283,7 +293,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         /// Resume Button
                         InkWell(
                           onTap: () {
-                            // Handle resume action here
+                            Navigator.pushNamed(context, '/exercisePage', arguments: currentExercise);
                           },
                           borderRadius: BorderRadius.circular(30),
                           child: Container(
