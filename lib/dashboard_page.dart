@@ -132,21 +132,21 @@ class _DashboardPageState extends State<DashboardPage> {
                               crossAxisAlignment: CrossAxisAlignment.start, // Align all children to the left
                               children: [
                                 Text(
-                                  'YURI BROWN',
+                                  '${UserDetails.firstName.toUpperCase()} ${UserDetails.lastName.toUpperCase()}',
                                   style: GoogleFonts.poppins(
                                     fontWeight: FontWeight.w900,
-                                    fontSize: 20,
+                                    fontSize: 24,
                                   ),
                                 ),
                                 const SizedBox(height: 0),
                                 Row(
                                   mainAxisSize: MainAxisSize.min, // Prevent Row from expanding full width
                                   children: [
-                                    const Icon(Icons.bolt, color: Colors.green, size: 18),
+                                    const Icon(Icons.bolt, color: Colors.green, size: 20),
                                     const SizedBox(width: 4),
                                     Text(
                                       UserProgress.title,
-                                      style: GoogleFonts.ptSans(fontSize: 14),
+                                      style: GoogleFonts.ptSans(fontSize: 16),
                                     ),
                                   ],
                                 ),
@@ -492,84 +492,86 @@ class _DashboardPageState extends State<DashboardPage> {
               // 4. Your Plan
               Text('Your Plan', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w900)),
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey.shade300),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: SizedBox(
-                        height: 75,
-                        width: 100,
-                        child: Image.asset(
-                          '../../assets/images/welcome_1.jpg',
-                          fit: BoxFit.cover,
+              Column(
+                children: UserRehabilitation.instance.rehabPlans.map((plan) {
+                  final completedSets = plan.daily.fold<int>(0, (sum, progress) => sum + progress.setsCompleted);
+                  final totalSets = plan.exercises.fold<int>(0, (sum, ex) => sum + ex.sets);
+                  final percent = totalSets == 0 ? 0.0 : completedSets / totalSets;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey.shade300),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Week 01',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 16,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: SizedBox(
+                            height: 75,
+                            width: 100,
+                            child: Image.asset(
+                              '../../assets/images/welcome_1.jpg', // Optionally map exerciseId to an image later
+                              fit: BoxFit.cover,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Push-Ups: 3 sets, 10 reps',
-                            style: GoogleFonts.ptSans(
-                              color: const Color(0xFF5B5B5B),
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            'Sit-Ups: 3 sets, 15 reps',
-                            style: GoogleFonts.ptSans(
-                              color: const Color(0xFF5B5B5B),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      height: 60,
-                      width: 60,
-                      child: CircularPercentIndicator(
-                        radius: 28.0,
-                        lineWidth: 5.0,
-                        percent: 0.7,
-                        center: Text(
-                          "70%",
-                          style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
                         ),
-                        progressColor: const Color(0xFF8B2E2E),
-                        backgroundColor: Colors.grey.shade300,
-                        circularStrokeCap: CircularStrokeCap.round,
-                      ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Week ${plan.weekNumber.toString().padLeft(2, '0')}',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ...plan.exercises.map((exercise) => Text(
+                                '${exercise.exerciseName}: ${exercise.sets} sets, ${exercise.repetitions} reps',
+                                style: GoogleFonts.ptSans(
+                                  color: const Color(0xFF5B5B5B),
+                                  fontSize: 14,
+                                ),
+                              )),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          height: 60,
+                          width: 60,
+                          child: CircularPercentIndicator(
+                            radius: 28.0,
+                            lineWidth: 5.0,
+                            percent: percent.clamp(0.0, 1.0),
+                            center: Text(
+                              "${(percent * 100).toInt()}%",
+                              style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                            progressColor: const Color(0xFF8B2E2E),
+                            backgroundColor: Colors.grey.shade300,
+                            circularStrokeCap: CircularStrokeCap.round,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  );
+                }).toList(),
+              )
 
             ],
           ),
