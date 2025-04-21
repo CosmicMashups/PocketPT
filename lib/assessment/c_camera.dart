@@ -18,9 +18,10 @@ class AssessPainCamera extends StatefulWidget {
 
 class _AssessPainCameraState extends State<AssessPainCamera> {
   int painScale = UserAssess.painScale;
-  late CameraController _controller;  // Camera controller
-  late List<CameraDescription> cameras;  // List of available cameras
-  bool _isCameraInitialized = false;  // Flag to check if camera is initialized
+  late CameraController _controller;
+  late List<CameraDescription> cameras;
+  bool _isCameraInitialized = false;
+  bool _isRecording = false;
 
   // Start recording video
   Future<XFile?> _startRecording() async {
@@ -169,7 +170,12 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                     // Record Button
                     ElevatedButton(
                       onPressed: () async {
+                        setState(() => _isRecording = true); // Start visual change
+
                         XFile? videoFile = await _startRecording();
+
+                        setState(() => _isRecording = false); // Reset after recording
+
                         if (videoFile != null) {
                           print('Video recorded to: ${videoFile.path}');
                           File file = File(videoFile.path);
@@ -195,9 +201,18 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                       style: ElevatedButton.styleFrom(
                         shape: const CircleBorder(),
                         padding: const EdgeInsets.all(20),
-                        backgroundColor: Colors.red,
+                        backgroundColor: _isRecording ? Colors.grey : Colors.red,
                       ),
-                      child: const Icon(Icons.videocam, color: Colors.white, size: 32),
+                      child: _isRecording
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 3,
+                              ),
+                            )
+                          : const Icon(Icons.videocam, color: Colors.white, size: 32),
                     ),
                   ],
                 ),

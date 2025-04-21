@@ -91,12 +91,23 @@ class LoginPage extends StatelessWidget {
                     // Login Button
                     Center(
                       child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (context) => HomePage()),
-                          );
-                        },
+                        onPressed: () => Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) => HomePage(),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              // SlideTransition
+                              const begin = Offset(1.0, 0.0);
+                              const end = Offset.zero;
+                              const curve = Curves.easeInOut;
+
+                              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                              var offsetAnimation = animation.drive(tween);
+
+                              return SlideTransition(position: offsetAnimation, child: child);
+                            },
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF800020),
                           padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 16),
@@ -131,9 +142,23 @@ class LoginPage extends StatelessWidget {
                                 color: Color(0xFF800020),
                               ),
                               recognizer: TapGestureRecognizer()
-                                ..onTap = () {
-                                  Navigator.of(context).push(createMorphRoute(RegisterPage()));
-                                },
+                                ..onTap = () => Navigator.push(
+                                  context,
+                                  PageRouteBuilder(
+                                    pageBuilder: (context, animation, secondaryAnimation) => RegisterPage(),
+                                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                      // SlideTransition
+                                      const begin = Offset(1.0, 0.0);
+                                      const end = Offset.zero;
+                                      const curve = Curves.easeInOut;
+
+                                      var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                      var offsetAnimation = animation.drive(tween);
+
+                                      return SlideTransition(position: offsetAnimation, child: child);
+                                    },
+                                  ),
+                                ),
                             ),
                             const TextSpan(text: ' here.'),
                           ],

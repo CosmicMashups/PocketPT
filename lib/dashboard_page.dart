@@ -64,7 +64,7 @@ class DashboardPage extends StatelessWidget {
                                     const Icon(Icons.bolt, color: Colors.green, size: 18),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Initiator',
+                                      UserProgress.title,
                                       style: GoogleFonts.ptSans(fontSize: 14),
                                     ),
                                   ],
@@ -258,7 +258,7 @@ class DashboardPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '8',
+                            '${UserProgress.streak}',
                             style: GoogleFonts.poppins(
                               fontSize: 36,
                               fontWeight: FontWeight.w900,
@@ -320,7 +320,7 @@ class DashboardPage extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    '24 Completed Exercises',
+                                    '${UserProgress.totalExercises} Completed Exercises',
                                     style: GoogleFonts.ptSans(
                                       fontSize: 14,
                                       color: const Color(0xFF5B5B5B),
@@ -363,7 +363,7 @@ class DashboardPage extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    '72 Minutes',
+                                    '${UserProgress.totalMinutes} Minutes',
                                     style: GoogleFonts.ptSans(
                                       fontSize: 14,
                                       color: const Color(0xFF5B5B5B),

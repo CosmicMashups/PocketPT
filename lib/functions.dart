@@ -291,3 +291,108 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
         : const Center(child: CircularProgressIndicator());
   }
 }
+
+// Custom Widget: Dialog Box
+class ReusableInfoDialog extends StatelessWidget {
+  final String title;
+  final List<String> contentParagraphs;
+
+  const ReusableInfoDialog({
+    super.key,
+    required this.title,
+    required this.contentParagraphs,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(title),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: contentParagraphs
+              .map((paragraph) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: Text(
+                      paragraph,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ))
+              .toList(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+void showReusableDialog(BuildContext context, String title, List<String> paragraphs) {
+  showDialog(
+    context: context,
+    builder: (context) => ReusableInfoDialog(
+      title: title,
+      contentParagraphs: paragraphs,
+    ),
+  );
+}
+
+// Custom Widget: Dialog Box with TextField
+Future<void> showCustomInputDialog({
+  required BuildContext context,
+  required String title,
+  required List<String> fieldLabels,
+  required List<String> initialValues,
+  required void Function(List<String>) onSave,
+}) async {
+  assert(fieldLabels.length == initialValues.length,
+      'Each field must have a corresponding initial value');
+
+  List<TextEditingController> controllers = List.generate(
+    fieldLabels.length,
+    (index) => TextEditingController(text: initialValues[index]),
+  );
+
+  await showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            children: List.generate(fieldLabels.length, (index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TextField(
+                  controller: controllers[index],
+                  obscureText: title.toLowerCase().contains('password'),
+                  decoration: InputDecoration(
+                    labelText: fieldLabels[index],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              List<String> values = controllers.map((c) => c.text.trim()).toList();
+              onSave(values);
+              Navigator.of(context).pop();
+            },
+            child: Text('Save'),
+          ),
+        ],
+      );
+    },
+  );
+}

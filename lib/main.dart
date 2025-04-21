@@ -15,6 +15,14 @@ void main() {
   runApp(const MyApp());
 }
 
+// Color Theme
+const Color kBackgroundColor = Color(0xFFF8F6F4);
+const Color kMainColor = Color(0xFF8B2E2E);
+const Color kSubColor = Color(0xFFC1574F);
+// const Color kDetailColor = Color(0xFF557A95);
+const Color kTextHeading = Color(0xFF2E2E2E);
+const Color kTextNormal = Color(0xFF5B5B5B);
+
 // Stateless Widget: Main (Entry Point of the App)
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -22,8 +30,67 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        textTheme: GoogleFonts.ptSansTextTheme(),
+        scaffoldBackgroundColor: kBackgroundColor,
+        primaryColor: kMainColor,
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          primary: kMainColor,
+          secondary: kSubColor,
+          surface: kBackgroundColor,
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: kMainColor,
+          foregroundColor: Colors.white,
+        ),
+        textTheme: TextTheme(
+          // Headings: Poppins
+          displayLarge: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w700, // Bold
+          ),
+          displayMedium: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w700,
+          ),
+          displaySmall: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w600, // Semi-Bold
+          ),
+          headlineLarge: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w600,
+          ),
+          headlineMedium: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w600,
+          ),
+          headlineSmall: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w500, // Medium
+          ),
+          titleLarge: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w600,
+          ),
+          titleMedium: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w500,
+          ),
+          titleSmall: GoogleFonts.poppins(
+            color: kTextHeading,
+            fontWeight: FontWeight.w500,
+          ),
+          
+          // Body: PT Sans
+          bodyLarge: GoogleFonts.ptSans(color: kTextNormal),
+          bodyMedium: GoogleFonts.ptSans(color: kTextNormal),
+          bodySmall: GoogleFonts.ptSans(color: kTextNormal),
+          labelLarge: GoogleFonts.ptSans(color: kTextNormal),
+          labelMedium: GoogleFonts.ptSans(color: kTextNormal),
+          labelSmall: GoogleFonts.ptSans(color: kTextNormal),
+        ),
+        iconTheme: const IconThemeData(color: kSubColor),
       ),
       home: AppDetails.isLogin ? const HomePage() : const LoginPage(),
     );
@@ -76,14 +143,14 @@ class _HomePageState extends State<HomePage> {
 
       body: _pages[_currentIndex],
 
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            count++;
-          });
-        },
-        child: const Icon(Icons.add),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: () {
+      //     setState(() {
+      //       count++;
+      //     });
+      //   },
+      //   child: const Icon(Icons.add),
+      // ),
 
       // New: NavBar
       bottomNavigationBar: CurvedNavigationBar(
@@ -99,9 +166,39 @@ class _HomePageState extends State<HomePage> {
         animationCurve: Curves.easeInOut,
         animationDuration: const Duration(milliseconds: 300),
         items: const [
-          Icon(Icons.dashboard, color: Colors.white),
-          Icon(Icons.fitness_center, color: Colors.white),
-          Icon(Icons.face, color: Colors.white),
+          // Dashboard
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.dashboard, color: Colors.white),
+                Text("Dashboard", style: TextStyle(color: Colors.white, fontSize: 10)),
+              ],
+            ),
+          ),
+          // Fitness
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.fitness_center, color: Colors.white),
+                Text("Exercise", style: TextStyle(color: Colors.white, fontSize: 10)),
+              ],
+            ),
+          ),
+          // Face (e.g., Profile or Mood)
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.face, color: Colors.white),
+                Text("Profile", style: TextStyle(color: Colors.white, fontSize: 10)),
+              ],
+            ),
+          ),
         ],
       ),
     );
