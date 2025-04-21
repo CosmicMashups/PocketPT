@@ -1,9 +1,11 @@
 import 'dart:io';
 
+// Class: AppDetails
 class AppDetails {
   static bool isLogin = false;
 }
 
+// Class: Details of the User
 class UserDetails {
   static String firstName = 'Yuri';
   static String lastName = 'Brown';
@@ -23,6 +25,7 @@ class UserDetails {
   ];
 }
 
+// Class: Tracking the progress of the user
 class UserProgress {
   static String title = 'Initiator';
   static String titleColor = '';
@@ -32,6 +35,7 @@ class UserProgress {
   static int totalMinutes = 0;
 }
 
+// Class: Initial Assessment Data
 class UserAssess {
   static String rehabGoal = '';
   static String generalMuscle = '';
@@ -44,6 +48,7 @@ class UserAssess {
   static bool isInjured = false;
 }
 
+// Class: Preferences of the User
 class UserSettings {
   static bool isDailyReminder = true;
   static bool isStreakAlert = true;

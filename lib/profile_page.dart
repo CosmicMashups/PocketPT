@@ -88,22 +88,40 @@ class _ProfilePageState extends State<ProfilePage> {
           // Notification Settings
           Text('Notification Settings', style: Theme.of(context).textTheme.titleMedium),
           SwitchListTile(
+            activeColor: const Color(0xFFC1574F), // Sub-Color for active switch
+            inactiveThumbColor: const Color(0xFF8B2E2E), // Main Color for inactive thumb
+            inactiveTrackColor: const Color(0xFF8B2E2E).withOpacity(0.3),
             value: UserSettings.isDailyReminder,
             onChanged: (val) {
               setState(() {
                 UserSettings.isDailyReminder = val;
               });
             },
-            title: Text('Daily Exercise Reminders'),
+            title: const Text(
+              'Daily Exercise Reminders',
+              style: TextStyle(
+                color: Color(0xFF8B2E2E), // Main Color for text
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           SwitchListTile(
+            activeColor: const Color(0xFFC1574F), // Sub-Color for active switch
+            inactiveThumbColor: const Color(0xFF8B2E2E),
+            inactiveTrackColor: const Color(0xFF8B2E2E).withOpacity(0.3),
             value: UserSettings.isStreakAlert,
             onChanged: (val) {
               setState(() {
                 UserSettings.isStreakAlert = val;
               });
             },
-            title: Text('Streak Alert Notifications'),
+            title: const Text(
+              'Streak Alert Notifications',
+              style: TextStyle(
+                color: Color(0xFF8B2E2E),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
 
           Divider(height: 32),

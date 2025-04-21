@@ -174,24 +174,25 @@ class _DashboardPageState extends State<DashboardPage> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFF8F6F4), Colors.white],
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF9F8F7), Colors.white],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  border: Border.all(color: const Color(0xFFDEDAD6)),
+                  border: Border.all(color: Color(0xFFDEDAD6)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
+                      color: Colors.grey.withOpacity(0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
                     ),
                   ],
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(22),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    /// Top Header Row
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -201,8 +202,8 @@ class _DashboardPageState extends State<DashboardPage> {
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w600,
                               fontSize: 18,
-                              color: const Color(0xFF5B5B5B), // Normal text
-                              letterSpacing: 1,
+                              letterSpacing: 1.2,
+                              color: const Color(0xFF5B5B5B),
                             ),
                           ),
                         ),
@@ -212,9 +213,9 @@ class _DashboardPageState extends State<DashboardPage> {
                             Text(
                               'Lateral Raise',
                               style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w800,
                                 fontSize: 26,
-                                color: const Color(0xFF2E2E2E), // Heading
+                                color: const Color(0xFF2E2E2E),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -222,11 +223,11 @@ class _DashboardPageState extends State<DashboardPage> {
                               UserAssess.specificMuscle,
                               style: GoogleFonts.ptSans(
                                 fontSize: 16,
-                                color: const Color(0xFF557A95), // Detail color
+                                color: const Color(0xFF557A95),
                               ),
                             ),
                             Text(
-                              '3 sets: 5-10 reps',
+                              '3 sets: 5–10 reps',
                               style: GoogleFonts.ptSans(
                                 fontSize: 14,
                                 color: const Color(0xFF5B5B5B),
@@ -236,32 +237,36 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+
+                    const SizedBox(height: 28),
+
+                    /// Progress & Resume Button
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        /// Progress Circle
                         Stack(
                           alignment: Alignment.center,
                           children: [
                             Container(
+                              height: 66,
+                              width: 66,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: const Color(0xFFF8F6F4),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.grey.withOpacity(0.15),
-                                    blurRadius: 8,
+                                    blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              height: 60,
-                              width: 60,
                               child: CircularProgressIndicator(
                                 value: 0.6,
-                                backgroundColor: Colors.grey[300],
-                                color: const Color(0xFFC1574F), // Sub-color
                                 strokeWidth: 6,
+                                backgroundColor: Colors.grey[300],
+                                valueColor: const AlwaysStoppedAnimation(Color(0xFFC1574F)),
                               ),
                             ),
                             Text(
@@ -274,18 +279,33 @@ class _DashboardPageState extends State<DashboardPage> {
                             ),
                           ],
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF709255), // Positive Button
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Text(
-                            'Resume >',
-                            style: GoogleFonts.ptSans(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.white,
+
+                        /// Resume Button
+                        InkWell(
+                          onTap: () {
+                            // Handle resume action here
+                          },
+                          borderRadius: BorderRadius.circular(30),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF709255),
+                              borderRadius: BorderRadius.circular(30),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF709255).withOpacity(0.3),
+                                  offset: const Offset(0, 4),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              'Resume >',
+                              style: GoogleFonts.ptSans(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),

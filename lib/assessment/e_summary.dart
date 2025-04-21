@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'globals.dart';
 import 'd_history.dart';
-import '../main.dart';
+import 'generate_plan.dart';
 
 class AssessSummary extends StatefulWidget {
   const AssessSummary({super.key});
@@ -149,7 +149,7 @@ class _AssessSummaryState extends State<AssessSummary> {
                         Navigator.push(
                           context,
                           PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => HomePage(),
+                            pageBuilder: (context, animation, secondaryAnimation) => GeneratePlanPage(),
                             transitionsBuilder: (context, animation, secondaryAnimation, child) {
                               // SlideTransition
                               const begin = Offset(1.0, 0.0);

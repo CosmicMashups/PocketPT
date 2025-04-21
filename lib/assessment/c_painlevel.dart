@@ -98,7 +98,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                       double sliderValue = UserAssess.painScale.toDouble(); // Use your class value here
 
                       String getPainDescription(double value) {
-                        if (value <= 3) return "Mild";
+                        if (value <= 3) return "Low";
                         if (value <= 7) return "Moderate";
                         return "Severe";
                       }

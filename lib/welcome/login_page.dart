@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 // Import pages
 import '../main.dart';
 import 'register_page.dart';
-import '../functions.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
