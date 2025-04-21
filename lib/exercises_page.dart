@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'exercise_detail.dart';
 
 class Exercise {
   final String name;
@@ -101,8 +102,8 @@ class _ExercisesPageState extends State<ExercisesPage> {
 // Custom ExerciseCard widget with palette applied
 class ExerciseCard extends StatelessWidget {
   final Exercise exercise;
-  
-  const ExerciseCard({required this.exercise});
+
+  const ExerciseCard({super.key, required this.exercise});
 
   @override
   Widget build(BuildContext context) {
@@ -113,9 +114,9 @@ class ExerciseCard extends StatelessWidget {
       elevation: 5,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
-        side: BorderSide(color: Color(0xFF557A95), width: 1), // Detail color for the card border
+        side: BorderSide(color: Color(0xFF557A95), width: 1),
       ),
-      color: Colors.white, // Card background color
+      color: Colors.white,
       child: ListTile(
         contentPadding: EdgeInsets.all(10),
         leading: ClipRRect(
@@ -135,7 +136,7 @@ class ExerciseCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2E2E2E), // Text heading color
+            color: Color(0xFF2E2E2E),
           ),
         ),
         subtitle: Padding(
@@ -143,83 +144,20 @@ class ExerciseCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Muscles: ${exercise.muscles}',
-                style: TextStyle(color: Color(0xFF5B5B5B)), // Normal text color
-              ),
-              Text(
-                'Pain Level: ${exercise.painLevel}',
-                style: TextStyle(color: Color(0xFF5B5B5B)), // Normal text color
-              ),
+              Text('Muscles: ${exercise.muscles}', style: TextStyle(color: Color(0xFF5B5B5B))),
+              Text('Pain Level: ${exercise.painLevel}', style: TextStyle(color: Color(0xFF5B5B5B))),
             ],
           ),
         ),
         onTap: () {
-          _showExerciseDetails(context, exercise);
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ExerciseDetailPage(exercise: exercise),
+            ),
+          );
         },
       ),
-    );
-  }
-
-  // Display exercise details in a dialog with color palette
-  void _showExerciseDetails(BuildContext context, Exercise exercise) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-            side: BorderSide(color: Color(0xFF557A95), width: 1), // Detail color for dialog border
-          ),
-          title: Text(
-            exercise.name,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF8B2E2E), // Main color
-            ),
-          ),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Description: ${exercise.description}',
-                style: TextStyle(fontSize: 16, color: Color(0xFF5B5B5B)), // Normal text color
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Muscles Involved: ${exercise.muscles}',
-                style: TextStyle(fontSize: 16, color: Color(0xFF5B5B5B)), // Normal text color
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Pain Level: ${exercise.painLevel}',
-                style: TextStyle(fontSize: 16, color: Color(0xFF5B5B5B)), // Normal text color
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Functional Goal: ${exercise.functionalGoal}',
-                style: TextStyle(fontSize: 16, color: Color(0xFF5B5B5B)), // Normal text color
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text(
-                'Close',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF709255), // Button color (positive)
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
