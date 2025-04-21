@@ -17,6 +17,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile'),
+        automaticallyImplyLeading: false,
       ),
       body: ListView(
         padding: EdgeInsets.all(16),
@@ -87,13 +88,21 @@ class _ProfilePageState extends State<ProfilePage> {
           // Notification Settings
           Text('Notification Settings', style: Theme.of(context).textTheme.titleMedium),
           SwitchListTile(
-            value: true,
-            onChanged: (val) {},
+            value: UserSettings.isDailyReminder,
+            onChanged: (val) {
+              setState(() {
+                UserSettings.isDailyReminder = val;
+              });
+            },
             title: Text('Daily Exercise Reminders'),
           ),
           SwitchListTile(
-            value: true,
-            onChanged: (val) {},
+            value: UserSettings.isStreakAlert,
+            onChanged: (val) {
+              setState(() {
+                UserSettings.isStreakAlert = val;
+              });
+            },
             title: Text('Streak Alert Notifications'),
           ),
 

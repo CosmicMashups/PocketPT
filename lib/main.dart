@@ -19,7 +19,7 @@ void main() {
 const Color kBackgroundColor = Color(0xFFF8F6F4);
 const Color kMainColor = Color(0xFF8B2E2E);
 const Color kSubColor = Color(0xFFC1574F);
-// const Color kDetailColor = Color(0xFF557A95);
+const Color kDetailColor = Color(0xFF557A95);
 const Color kTextHeading = Color(0xFF2E2E2E);
 const Color kTextNormal = Color(0xFF5B5B5B);
 
@@ -117,7 +117,7 @@ class _HomePageState extends State<HomePage> {
   // List: Pages (for Navigation)
   final List<Widget> _pages = const [
     DashboardPage(),
-    ExercisePage(),
+    ExercisesPage(),
     ProfilePage(),
   ];
 

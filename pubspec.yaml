@@ -43,6 +43,7 @@ dependencies:
   file_picker: 10.1.2
   percent_indicator: ^4.2.2
   curved_navigation_bar: ^1.0.6
+  csv: ^5.0.2
 
 dev_dependencies:
   flutter_test:

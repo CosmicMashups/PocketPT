@@ -1,45 +1,225 @@
-// Import packages
 import 'package:flutter/material.dart';
-import 'welcome/login_page.dart';
+import 'package:csv/csv.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
-class ExercisePage extends StatelessWidget {
-  const ExercisePage({super.key});
+class Exercise {
+  final String name;
+  final String description;
+  final String muscles;
+  final String painLevel;
+  final String functionalGoal;
+  final String imagePath;
+  final String videoLink;
+
+  Exercise({
+    required this.name,
+    required this.description,
+    required this.muscles,
+    required this.painLevel,
+    required this.functionalGoal,
+    required this.imagePath,
+    required this.videoLink,
+  });
+}
+
+class ExercisesPage extends StatefulWidget {
+  const ExercisesPage({super.key});
+
+  @override
+  State<ExercisesPage> createState() => _ExercisesPageState();
+}
+
+class _ExercisesPageState extends State<ExercisesPage> {
+  late Future<List<Exercise>> exercisesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    exercisesFuture = loadCSVData();
+  }
+
+  // Load CSV data asynchronously
+  Future<List<Exercise>> loadCSVData() async {
+    try {
+      final data = await rootBundle.loadString('../assets/data/exercises.csv');
+      List<List<dynamic>> csvData = CsvToListConverter().convert(data);
+
+      return csvData.skip(1).map((e) {
+        return Exercise(
+          name: e[0],
+          description: e[1],
+          muscles: e[2],
+          painLevel: e[3],
+          functionalGoal: e[4],
+          imagePath: e[5], 
+          videoLink: e[6],
+        );
+      }).toList();
+    } catch (e) {
+      // Handle error if CSV load fails
+      throw Exception("Failed to load exercise data");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => LoginPage(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                // SlideTransition
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
+    return Scaffold(
+      backgroundColor: Color(0xFFF8F6F4), // Background color
+      appBar: AppBar(
+        title: Text(
+          'Exercises',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Color(0xFFF8F6F4)), // Heading color
+        ),
+        backgroundColor: Color(0xFF8B2E2E), // Main color
+        automaticallyImplyLeading: false,
+      ),
+      body: FutureBuilder<List<Exercise>>(
+        future: exercisesFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error loading data'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text('No exercises found.'));
+          }
 
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
+          List<Exercise> exercises = snapshot.data!;
 
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-            ),
+          return ListView.builder(
+            itemCount: exercises.length,
+            itemBuilder: (context, index) {
+              return ExerciseCard(exercise: exercises[index]);
+            },
           );
         },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xFF800020),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        ),
-        child: const Text(
-          "Take Test",
-          style: TextStyle(
-            fontSize: 18,
-            color: Colors.white,
+      ),
+    );
+  }
+}
+
+// Custom ExerciseCard widget with palette applied
+class ExerciseCard extends StatelessWidget {
+  final Exercise exercise;
+  
+  const ExerciseCard({required this.exercise});
+
+  @override
+  Widget build(BuildContext context) {
+    String imagePath = '../assets/images/exercise/${exercise.imagePath}';
+
+    return Card(
+      margin: EdgeInsets.all(15),
+      elevation: 5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Color(0xFF557A95), width: 1), // Detail color for the card border
+      ),
+      color: Colors.white, // Card background color
+      child: ListTile(
+        contentPadding: EdgeInsets.all(10),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.asset(
+            imagePath,
+            width: 70,
+            height: 70,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Icon(Icons.error, color: Colors.red);
+            },
           ),
         ),
-      )
+        title: Text(
+          exercise.name,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF2E2E2E), // Text heading color
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 5.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Muscles: ${exercise.muscles}',
+                style: TextStyle(color: Color(0xFF5B5B5B)), // Normal text color
+              ),
+              Text(
+                'Pain Level: ${exercise.painLevel}',
+                style: TextStyle(color: Color(0xFF5B5B5B)), // Normal text color
+              ),
+            ],
+          ),
+        ),
+        onTap: () {
+          _showExerciseDetails(context, exercise);
+        },
+      ),
+    );
+  }
+
+  // Display exercise details in a dialog with color palette
+  void _showExerciseDetails(BuildContext context, Exercise exercise) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+            side: BorderSide(color: Color(0xFF557A95), width: 1), // Detail color for dialog border
+          ),
+          title: Text(
+            exercise.name,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF8B2E2E), // Main color
+            ),
+          ),
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Description: ${exercise.description}',
+                style: TextStyle(fontSize: 16, color: Color(0xFF5B5B5B)), // Normal text color
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Muscles Involved: ${exercise.muscles}',
+                style: TextStyle(fontSize: 16, color: Color(0xFF5B5B5B)), // Normal text color
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Pain Level: ${exercise.painLevel}',
+                style: TextStyle(fontSize: 16, color: Color(0xFF5B5B5B)), // Normal text color
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Functional Goal: ${exercise.functionalGoal}',
+                style: TextStyle(fontSize: 16, color: Color(0xFF5B5B5B)), // Normal text color
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Close',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF709255), // Button color (positive)
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

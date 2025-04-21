@@ -3,8 +3,82 @@ import 'package:google_fonts/google_fonts.dart';
 import 'assessment/globals.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  // Sample notifications data
+  List<String> notifications = UserDetails.notifications;
+
+  // Function to show notifications dialog
+  void _showNotificationsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Notifications',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w900),
+          ),
+          content: notifications.isEmpty
+              ? Text('No new notifications', style: GoogleFonts.poppins())
+              : SingleChildScrollView(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: notifications
+                        .map((notification) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8.0),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.grey.shade200,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withOpacity(0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.notifications, color: Colors.blue, size: 28),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        notification,
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 16,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+              ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Close', style: GoogleFonts.poppins()),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,20 +145,23 @@ class DashboardPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.grey,
+                            GestureDetector(
+                              onTap: () {
+                                _showNotificationsDialog(context); // Show notifications when tapped
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.grey,
+                                ),
+                                child: const Icon(Icons.notifications, color: Colors.white),
                               ),
-                              child: const Icon(Icons.notifications, color: Colors.white),
                             ),
                           ],
                         ),
 
                         const SizedBox(height: 4),
-
-                        
                       ],
                     ),
                   ),
@@ -92,6 +169,7 @@ class DashboardPage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
+              // Other UI elements (e.g., Progress Container, Stats, etc.)
               // 2. Progress Container
               Container(
                 padding: const EdgeInsets.all(20),
