@@ -12,6 +12,12 @@ class AssessPainVideoPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final appBarHeight = AppBar().preferredSize.height;
+    final statusBarHeight = MediaQuery.of(context).padding.top;
+    final availableHeight = screenHeight - appBarHeight - statusBarHeight - 100; // 100 for buttons and padding
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F6F4),
       appBar: AppBar(
@@ -44,7 +50,13 @@ class AssessPainVideoPreview extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Column(
                 children: [
-                  Expanded(
+                  Container(
+                    height: availableHeight,
+                    width: screenWidth,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.black,
+                    ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: LocalVideoPlayer(videoPath: videoPath),
@@ -113,7 +125,6 @@ class AssessPainVideoPreview extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
 import 'package:intl/intl.dart'; // For formatting duration
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 // Route: Animation
 Route createMorphRoute(Widget page) {
@@ -209,26 +211,49 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
   late VideoPlayerController _controller;
   late VoidCallback _listener;
   bool _isPlaying = false;
+  bool _isInitialized = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _initializeVideo();
+  }
 
-    _controller = VideoPlayerController.asset(widget.videoPath)
-      ..initialize().then((_) {
-        if (mounted) {
-          // Defer the setState call until after the current frame
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() {});
-          });
-        }
-      });
+  Future<void> _initializeVideo() async {
+    try {
+      // Check if running on web
+      if (kIsWeb) {
+        // For web, use network controller with a data URL
+        _controller = VideoPlayerController.networkUrl(
+          Uri.parse(widget.videoPath),
+        );
+      } else {
+        // For mobile, use file controller
+        _controller = VideoPlayerController.file(File(widget.videoPath));
+      }
 
-    _listener = () {
-      if (mounted) setState(() {});
-    };
+      await _controller.initialize();
+      
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
 
-    _controller.addListener(_listener);
+      _listener = () {
+        if (mounted) setState(() {});
+      };
+
+      _controller.addListener(_listener);
+    } catch (e) {
+      print('Error initializing video: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load video: ${e.toString()}';
+        });
+      }
+    }
   }
 
   @override
@@ -249,46 +274,62 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    return _controller.value.isInitialized
-        ? Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AspectRatio(
-                aspectRatio: _controller.value.aspectRatio,
-                child: VideoPlayer(_controller),
-              ),
-              VideoProgressIndicator(
-                _controller,
-                allowScrubbing: true,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        if (_controller.value.isPlaying) {
-                          _controller.pause();
-                        } else {
-                          _controller.play();
-                        }
-                      });
-                    },
-                  ),
-                  Text(
-                    '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(width: 16), // Spacer if needed
-                ],
-              ),
-            ],
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Video player
+        if (_isInitialized)
+          AspectRatio(
+            aspectRatio: _controller.value.aspectRatio,
+            child: VideoPlayer(_controller),
           )
-        : const Center(child: CircularProgressIndicator());
+        else
+          const Center(
+            child: CircularProgressIndicator(),
+          ),
+
+        // Play/Pause button overlay
+        if (_isInitialized)
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                if (_controller.value.isPlaying) {
+                  _controller.pause();
+                } else {
+                  _controller.play();
+                }
+              });
+            },
+            child: Container(
+              color: Colors.black.withOpacity(0.3),
+              child: Center(
+                child: Icon(
+                  _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
+                  size: 50.0,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 }
 

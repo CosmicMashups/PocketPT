@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'globals.dart';
 import 'c_video.dart';
@@ -18,24 +19,25 @@ class AssessPainCamera extends StatefulWidget {
 
 class _AssessPainCameraState extends State<AssessPainCamera> {
   int painScale = UserAssess.painScale;
-  late CameraController _controller;
+  CameraController? _controller;  // Make controller nullable
   late List<CameraDescription> cameras;
   bool _isCameraInitialized = false;
   bool _isRecording = false;
+  bool _hasCameraError = false;  // Add error state
 
   // Start recording video
   Future<XFile?> _startRecording() async {
-    if (!_controller.value.isInitialized || _controller.value.isRecordingVideo) {
+    if (_controller == null || !_controller!.value.isInitialized || _controller!.value.isRecordingVideo) {
       return null;
     }
 
     try {
-      await _controller.startVideoRecording();
+      await _controller!.startVideoRecording();
       // Wait for 10 seconds or until user presses stop
       await Future.delayed(const Duration(seconds: 10));
 
       // Stop and return the recorded file
-      XFile videoFile = await _controller.stopVideoRecording();
+      XFile videoFile = await _controller!.stopVideoRecording();
       return videoFile;
     } catch (e) {
       print('Error recording video: $e');
@@ -52,23 +54,71 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   // Initialize the camera and set the controller
   Future<void> _initializeCamera() async {
-    cameras = await availableCameras();  // Get available cameras
-    _controller = CameraController(
-      cameras.first,  // Use the first available camera
-      ResolutionPreset.high,  // Set the camera resolution
-    );
+    try {
+      // Check if running on emulator
+      final isEmulator = await _isEmulator();
+      if (isEmulator) {
+        print('Running on emulator - camera may not be available');
+        setState(() {
+          _hasCameraError = true;
+        });
+        return;
+      }
 
-    await _controller.initialize();  // Initialize the camera
-    if (!mounted) return;
-    setState(() {
-      _isCameraInitialized = true;  // Camera is initialized
-    });
+      // Request camera permission
+      final status = await Permission.camera.request();
+      if (status.isDenied) {
+        print('Camera permission denied');
+        setState(() {
+          _hasCameraError = true;
+        });
+        return;
+      }
+
+      // Get available cameras
+      cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        print('No cameras available on this device');
+        setState(() {
+          _hasCameraError = true;
+        });
+        return;
+      }
+
+      // Initialize camera controller
+      _controller = CameraController(
+        cameras.first,
+        ResolutionPreset.high,
+      );
+
+      await _controller!.initialize();
+      if (!mounted) return;
+      
+      setState(() {
+        _isCameraInitialized = true;
+      });
+    } catch (e) {
+      print('Error initializing camera: $e');
+      setState(() {
+        _hasCameraError = true;
+      });
+    }
+  }
+
+  // Helper method to check if running on emulator
+  Future<bool> _isEmulator() async {
+    try {
+      final result = await Process.run('adb', ['shell', 'getprop', 'ro.kernel.qemu']);
+      return result.exitCode == 0 && result.stdout.toString().trim() == '1';
+    } catch (e) {
+      return false;
+    }
   }
 
   // Dispose of the camera controller when not needed
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -91,7 +141,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E1E1E)),
           onPressed: () async {
-            await _controller.dispose(); // Dispose camera before going back
+            await _controller?.dispose(); // Safe dispose
             if (context.mounted) {
               Navigator.push(
                 context,
@@ -126,19 +176,46 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _isCameraInitialized
-                    ? SizedBox(
-                        height: screenHeight * 0.75,
-                        width: double.infinity,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: AspectRatio(
-                            aspectRatio: _controller.value.aspectRatio,
-                            child: CameraPreview(_controller),
+                if (_hasCameraError)
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.no_photography, size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Camera not available',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey,
                           ),
                         ),
-                      )
-                    : const Center(child: CircularProgressIndicator()),
+                        const SizedBox(height: 8),
+                        Text(
+                          'You can still upload a video',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (_isCameraInitialized)
+                  SizedBox(
+                    height: screenHeight * 0.75,
+                    width: double.infinity,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: _controller!.value.aspectRatio,
+                        child: CameraPreview(_controller!),
+                      ),
+                    ),
+                  )
+                else
+                  const Center(child: CircularProgressIndicator()),
 
                 const SizedBox(height: 30),
 
@@ -149,7 +226,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                     // Upload Button
                     ElevatedButton(
                       onPressed: () async {
-                        await _controller.dispose(); // Dispose before navigating
+                        await _controller?.dispose(); // Safe dispose
                         if (context.mounted) {
                           Navigator.push(
                             context,
@@ -167,53 +244,54 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
                     const SizedBox(width: 30), // Space between buttons
 
-                    // Record Button
-                    ElevatedButton(
-                      onPressed: () async {
-                        setState(() => _isRecording = true); // Start visual change
+                    // Record Button - Only show if camera is available
+                    if (!_hasCameraError)
+                      ElevatedButton(
+                        onPressed: () async {
+                          setState(() => _isRecording = true); // Start visual change
 
-                        XFile? videoFile = await _startRecording();
+                          XFile? videoFile = await _startRecording();
 
-                        setState(() => _isRecording = false); // Reset after recording
+                          setState(() => _isRecording = false); // Reset after recording
 
-                        if (videoFile != null) {
-                          print('Video recorded to: ${videoFile.path}');
-                          File file = File(videoFile.path);
+                          if (videoFile != null) {
+                            print('Video recorded to: ${videoFile.path}');
+                            File file = File(videoFile.path);
 
-                          // Store as File for future use
-                          UserAssess.painVideo = file;
+                            // Store as File for future use
+                            UserAssess.painVideo = file;
 
-                          // Dispose camera before navigating to preview
-                          await _controller.dispose();
+                            // Dispose camera before navigating to preview
+                            await _controller?.dispose();
 
-                          if (context.mounted) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AssessPainVideoPreview(videoPath: file.path),
-                              ),
-                            );
+                            if (context.mounted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AssessPainVideoPreview(videoPath: file.path),
+                                ),
+                              );
+                            }
+                          } else {
+                            print('Recording failed or was cancelled.');
                           }
-                        } else {
-                          print('Recording failed or was cancelled.');
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(20),
-                        backgroundColor: _isRecording ? Colors.grey : Colors.red,
+                        },
+                        style: ElevatedButton.styleFrom(
+                          shape: const CircleBorder(),
+                          padding: const EdgeInsets.all(20),
+                          backgroundColor: _isRecording ? Colors.grey : Colors.red,
+                        ),
+                        child: _isRecording
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
+                                ),
+                              )
+                            : const Icon(Icons.videocam, color: Colors.white, size: 32),
                       ),
-                      child: _isRecording
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 3,
-                              ),
-                            )
-                          : const Icon(Icons.videocam, color: Colors.white, size: 32),
-                    ),
                   ],
                 ),
               ],
