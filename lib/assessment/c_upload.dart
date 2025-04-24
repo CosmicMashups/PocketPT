@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import 'globals.dart';
 import 'c_camera.dart';
@@ -20,11 +21,48 @@ class _AssessPainUploadState extends State<AssessPainUpload> {
   String painLevel = UserAssess.painLevel;
   int painScale = UserAssess.painScale;
   File? _selectedVideoFile = UserAssess.painVideo;  
+  bool _isUploading = false;
+  String? _selectedVideoPath;
 
   Future<bool> uploadVideoFile() async {
-    // Simulate file upload and return success (replace with actual file upload logic)
-    await Future.delayed(Duration(seconds: 2));  // Simulate a delay
-    return true;  // Return true if upload is successful, false if not
+    if (_selectedVideoFile == null && _selectedVideoPath == null) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("No Video Selected"),
+          content: const Text("Please select a video file first."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+
+    try {
+      setState(() => _isUploading = true);
+      
+      if (kIsWeb) {
+        // For web, store the path directly
+        UserAssess.painVideoPath = _selectedVideoPath;
+      } else {
+        // For mobile, store the file
+        UserAssess.painVideo = _selectedVideoFile;
+      }
+      
+      // Simulate upload delay (remove this in production)
+      await Future.delayed(const Duration(seconds: 1));
+      
+      return true;
+    } catch (e) {
+      print('Error uploading video: $e');
+      return false;
+    } finally {
+      setState(() => _isUploading = false);
+    }
   }
 
   @override
@@ -112,12 +150,22 @@ class _AssessPainUploadState extends State<AssessPainUpload> {
                                   type: FileType.video,
                                 );
 
-                                if (result != null && result.files.single.path != null) {
-                                  setState(() {
-                                    _selectedVideoFile = File(result.files.single.path!);
-                                  });
-
-                                  print('Selected video path: ${_selectedVideoFile!.path}');
+                                if (result != null) {
+                                  if (kIsWeb) {
+                                    // For web, get the path directly
+                                    setState(() {
+                                      _selectedVideoPath = result.files.single.path;
+                                    });
+                                    print('Selected video path: $_selectedVideoPath');
+                                  } else {
+                                    // For mobile, create a File object
+                                    if (result.files.single.path != null) {
+                                      setState(() {
+                                        _selectedVideoFile = File(result.files.single.path!);
+                                      });
+                                      print('Selected video path: ${_selectedVideoFile!.path}');
+                                    }
+                                  }
                                 } else {
                                   print('No video selected.');
                                 }
@@ -173,16 +221,16 @@ class _AssessPainUploadState extends State<AssessPainUpload> {
                     // Row 4: Upload Button
                     Center(
                       child: ElevatedButton(
-                        onPressed: () async {
-                          // Simulate file upload process (Replace with actual file upload logic)
-                          bool isUploadSuccessful = await uploadVideoFile();  // Replace with your actual file upload function
+                        onPressed: _isUploading ? null : () async {
+                          bool isUploadSuccessful = await uploadVideoFile();
 
-                          // If upload is successful, navigate to AssessPainVideoPreview
                           if (isUploadSuccessful) {
+                            String videoPath = kIsWeb ? _selectedVideoPath! : _selectedVideoFile!.path;
                             Navigator.push(
                               context,
                               PageRouteBuilder(
-                                pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideoPreview(videoPath: 'path/to/video'),  // Replace with actual video path
+                                pageBuilder: (context, animation, secondaryAnimation) => 
+                                  AssessPainVideoPreview(videoPath: videoPath),
                                 transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                   const begin = Offset(1.0, 0.0);
                                   const end = Offset.zero;
@@ -195,19 +243,16 @@ class _AssessPainUploadState extends State<AssessPainUpload> {
                                 },
                               ),
                             );
-                          } else {
-                            // If upload fails, you can display an error message or handle it accordingly
+                          } else if (!isUploadSuccessful) {
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: Text("Upload Failed"),
-                                content: Text("The video upload was not successful. Please try again."),
+                                title: const Text("Upload Failed"),
+                                content: const Text("Failed to upload the video. Please try again."),
                                 actions: [
                                   TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                    },
-                                    child: Text("OK"),
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text("OK"),
                                   ),
                                 ],
                               ),
@@ -218,14 +263,23 @@ class _AssessPainUploadState extends State<AssessPainUpload> {
                           padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 18),
                           backgroundColor: const Color(0xFF800020),
                         ),
-                        child: Text(
-                          'Upload Video',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: Colors.white,
-                          ),
-                        ),
+                        child: _isUploading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
+                                ),
+                              )
+                            : Text(
+                                'Upload Video',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
                     ),
                 

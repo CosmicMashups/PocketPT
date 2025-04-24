@@ -41,6 +41,7 @@ class UserAssess {
   static String generalMuscle = '';
   static String specificMuscle = '';
   static File? painVideo;
+  static String? painVideoPath;
   static int painScale = 0;
   static String painLevel = '';
   static String painType = '';
