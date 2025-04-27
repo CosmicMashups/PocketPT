@@ -8,7 +8,7 @@ import 'assessment/globals.dart';
 import 'welcome/login_page.dart';
 import 'dashboard_page.dart';
 import 'exercises_page.dart';
-import 'record_progress.dart';
+import 'pre_record_page.dart';
 import 'progress_report.dart';
 import 'profile_page.dart';
 
@@ -120,7 +120,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = const [
     DashboardPage(),
     ExercisesPage(),
-    RecordProgressPage(),
+    PreRecordPage(),
     ProgressReportPage(),
     ProfilePage(),
   ];
@@ -159,9 +159,30 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
         onTap: (int index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          if (index == 2) {  // If it's the PreRecordPage index (index 2)
+            // Use pushReplacement to completely navigate to PreRecordPage
+            Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => PreRecordPage(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  // SlideTransition
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+
+                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                  var offsetAnimation = animation.drive(tween);
+
+                  return SlideTransition(position: offsetAnimation, child: child);
+                },
+              ),
+            );
+          } else {
+            setState(() {
+              _currentIndex = index; 
+            });
+          }
         },
         backgroundColor: Colors.white,
         color: const Color(0xFF800020),

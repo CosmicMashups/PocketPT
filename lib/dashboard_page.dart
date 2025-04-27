@@ -541,7 +541,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               ),
                               const SizedBox(height: 8),
                               ...plan.exercises.map((exercise) => Text(
-                                '${exercise.exerciseName}: ${exercise.sets} sets, ${exercise.repetitions} reps',
+                                exercise.exerciseName,
                                 style: GoogleFonts.ptSans(
                                   color: const Color(0xFF5B5B5B),
                                   fontSize: 14,
