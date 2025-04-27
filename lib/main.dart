@@ -8,6 +8,8 @@ import 'assessment/globals.dart';
 import 'welcome/login_page.dart';
 import 'dashboard_page.dart';
 import 'exercises_page.dart';
+import 'record_progress.dart';
+import 'progress_report.dart';
 import 'profile_page.dart';
 
 // Main Function: To run the app
@@ -118,6 +120,8 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = const [
     DashboardPage(),
     ExercisesPage(),
+    RecordProgressPage(),
+    ProgressReportPage(),
     ProfilePage(),
   ];
 
@@ -152,7 +156,6 @@ class _HomePageState extends State<HomePage> {
       //   child: const Icon(Icons.add),
       // ),
 
-      // New: NavBar
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
         onTap: (int index) {
@@ -177,7 +180,8 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-          // Fitness
+
+          // Exercise
           Padding(
             padding: EdgeInsets.all(8.0),
             child: Column(
@@ -188,7 +192,32 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-          // Face (e.g., Profile or Mood)
+
+          // Record (Center Button)
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.radio_button_checked, color: Colors.white, size: 35),
+                Text("Record", style: TextStyle(color: Colors.white, fontSize: 10)),
+              ],
+            ),
+          ),
+
+          // reports
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bar_chart, color: Colors.white),
+                Text("Report", style: TextStyle(color: Colors.white, fontSize: 10)),
+              ],
+            ),
+          ),
+
+          // Profile
           Padding(
             padding: EdgeInsets.all(8.0),
             child: Column(
