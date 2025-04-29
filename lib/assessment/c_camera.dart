@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
+// import '../services/pose_bridge.dart'; // TODO: Re-enable after implementing pose_bridge.dart
+// import 'c_analyzing.dart'; // TODO: Uncomment when AssessPainAnalyzing is implemented
 
 import 'globals.dart';
 import 'c_video.dart';
@@ -255,22 +257,28 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                           setState(() => _isRecording = false); // Reset after recording
 
                           if (videoFile != null) {
-                            print('Video recorded to: ${videoFile.path}');
+                            print('Video recorded to: [38;5;2m${videoFile.path}[0m');
                             File file = File(videoFile.path);
 
                             // Store as File for future use
                             UserAssess.painVideo = file;
 
-                            // Dispose camera before navigating to preview
+                            // Analyze Pose
+                            // String poseData = await PoseBridge.runPoseEstimation(file.path);
+                            // print("Pose Data: $poseData");
+                            // TODO: Re-enable pose analysis after implementing pose_bridge.dart
+
+                            // Dispose camera before navigating to analyzing page
                             await _controller?.dispose();
 
                             if (context.mounted) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AssessPainVideoPreview(videoPath: file.path),
-                                ),
-                              );
+                              // TODO: Implement AssessPainAnalyzing and navigate here
+                              // Navigator.push(
+                              //   context,
+                              //   MaterialPageRoute(
+                              //     builder: (_) => AssessPainAnalyzing(videoPath: file.path, poseData: poseData),
+                              //   ),
+                              // );
                             }
                           } else {
                             print('Recording failed or was cancelled.');

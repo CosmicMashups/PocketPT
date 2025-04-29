@@ -5,6 +5,8 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+// import '../services/pose_bridge.dart'; // TODO: Uncomment after implementing pose_bridge.dart
+// import 'c_analyzing.dart'; // TODO: Uncomment when AssessPainAnalyzing is implemented
 
 import 'globals.dart';
 import 'c_camera.dart';
@@ -226,6 +228,15 @@ class _AssessPainUploadState extends State<AssessPainUpload> {
 
                           if (isUploadSuccessful) {
                             String videoPath = kIsWeb ? _selectedVideoPath! : _selectedVideoFile!.path;
+                            // String poseData = await PoseBridge.runPoseEstimation(videoPath);
+                            // print("Pose Data: $poseData");
+                            // TODO: Implement AssessPainAnalyzing and navigate here
+                            // Navigator.push(
+                            //   context,
+                            //   MaterialPageRoute(
+                            //     builder: (_) => AssessPainAnalyzing(videoPath: videoPath, poseData: poseData),
+                            //   ),
+                            // );
                             Navigator.push(
                               context,
                               PageRouteBuilder(

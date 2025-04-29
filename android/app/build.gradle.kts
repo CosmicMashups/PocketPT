@@ -39,6 +39,18 @@ android {
     }
 }
 
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation("com.google.mediapipe:tasks-vision:0.10.0")
+    implementation("org.tensorflow:tensorflow-lite:2.12.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.12.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+}
+
 flutter {
     source = "../.."
 }

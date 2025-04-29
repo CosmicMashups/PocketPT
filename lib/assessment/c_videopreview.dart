@@ -1,14 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:video_player/video_player.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 
-import '../functions.dart';
+import 'c_analyzing.dart';
 import 'c_camera.dart';
-import 'c_painlevel.dart';
 
-class AssessPainVideoPreview extends StatelessWidget {
+class AssessPainVideoPreview extends StatefulWidget {
   final String videoPath;
 
-  const AssessPainVideoPreview({super.key, required this.videoPath});
+  const AssessPainVideoPreview({required this.videoPath, super.key});
+
+  @override
+  State<AssessPainVideoPreview> createState() => _AssessPainVideoPreviewState();
+}
+
+class _AssessPainVideoPreviewState extends State<AssessPainVideoPreview> {
+  late VideoPlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      _controller = VideoPlayerController.network(widget.videoPath)
+        ..initialize().then((_) {
+          setState(() {});
+        });
+    } else {
+      _controller = VideoPlayerController.file(File(widget.videoPath))
+        ..initialize().then((_) {
+          setState(() {});
+        });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +47,7 @@ class AssessPainVideoPreview extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final appBarHeight = AppBar().preferredSize.height;
     final statusBarHeight = MediaQuery.of(context).padding.top;
-    final availableHeight = screenHeight - appBarHeight - statusBarHeight - 100; // 100 for buttons and padding
+    final availableHeight = screenHeight - appBarHeight - statusBarHeight - 100;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F6F4),
@@ -24,7 +55,7 @@ class AssessPainVideoPreview extends StatelessWidget {
         backgroundColor: const Color(0xFFF8F6F4),
         elevation: 0,
         title: Text(
-          "Pain: Level (Camera)",
+          "Video Preview",
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w800,
             fontSize: 24,
@@ -59,7 +90,12 @@ class AssessPainVideoPreview extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: LocalVideoPlayer(videoPath: videoPath),
+                      child: _controller.value.isInitialized
+                          ? AspectRatio(
+                              aspectRatio: _controller.value.aspectRatio,
+                              child: VideoPlayer(_controller),
+                            )
+                          : const Center(child: CircularProgressIndicator()),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -92,18 +128,10 @@ class AssessPainVideoPreview extends StatelessWidget {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainLevel(),
-                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                const begin = Offset(1.0, 0.0);
-                                const end = Offset.zero;
-                                const curve = Curves.easeInOut;
-
-                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                var offsetAnimation = animation.drive(tween);
-
-                                return SlideTransition(position: offsetAnimation, child: child);
-                              },
+                            MaterialPageRoute(
+                              builder: (_) => AssessPainAnalyzing(
+                                videoPath: widget.videoPath,
+                              ),
                             ),
                           );
                         },
@@ -114,9 +142,9 @@ class AssessPainVideoPreview extends StatelessWidget {
                             borderRadius: BorderRadius.circular(30),
                           ),
                         ),
-                        icon: const Icon(Icons.check, color: Colors.white),
+                        icon: const Icon(Icons.analytics, color: Colors.white),
                         label: Text(
-                          "Use Video",
+                          "Analyze Video",
                           style: GoogleFonts.poppins(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -130,6 +158,18 @@ class AssessPainVideoPreview extends StatelessWidget {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            _controller.value.isPlaying ? _controller.pause() : _controller.play();
+          });
+        },
+        backgroundColor: const Color(0xFF800020),
+        child: Icon(
+          _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+          color: Colors.white,
+        ),
       ),
     );
   }
