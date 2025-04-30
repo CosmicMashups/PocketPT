@@ -46,6 +46,13 @@ dependencies:
   csv: ^5.0.2
   
   flutter_native_splash: ^2.4.6
+  flutter_launcher_icons: ^0.14.3
+
+# App Icon
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo/pocketpt.png"
 
 dev_dependencies:
   flutter_test:
@@ -81,7 +88,7 @@ flutter:
 
     - assets/videos/
     - assets/data/
-    - assets/model/
+    # - assets/model/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
