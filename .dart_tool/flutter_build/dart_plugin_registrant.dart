@@ -6,7 +6,7 @@
 // @dart = 3.7
 
 import 'dart:io'; // flutter_ignore: dart_io_import.
-import 'package:camera_android/camera_android.dart';
+import 'package:camera_android_camerax/camera_android_camerax.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider_android/path_provider_android.dart';
 import 'package:video_player_android/video_player_android.dart';
@@ -29,10 +29,10 @@ class _PluginRegistrant {
   static void register() {
     if (Platform.isAndroid) {
       try {
-        AndroidCamera.registerWith();
+        AndroidCameraCameraX.registerWith();
       } catch (err) {
         print(
-          '`camera_android` threw an error: $err. '
+          '`camera_android_camerax` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }

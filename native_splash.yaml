@@ -1,0 +1,15 @@
+flutter_native_splash:
+  android: true
+  ios: true
+  web: true
+  
+  background_image: "assets/images/logo/bg.png"
+  image: "assets/images/logo/pocketpt.png"
+
+  branding: "assets/images/logo/branding.png"
+  branding_mode: "bottom"
+
+  android_12:
+    color: "#8B2E2E"
+    image: "assets/images/logo/pocketpt.png"
+    branding: "assets/images/logo/branding.png"

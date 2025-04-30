@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.pocketpt.app-mergeDebugResources-37:/values-v25/values-v25.xml",
+            "outputFile": "com.example.pocketpt.app-mergeDebugResources-34:/values-v25/values-v25.xml",
             "map": [
                 {
                     "source": "C:\\Users\\sheila brown\\.gradle\\caches\\8.10.2\\transforms\\37c9757273d42d5a9fb8fafd595f355e\\transformed\\appcompat-1.6.1\\res\\values-v25\\values-v25.xml",

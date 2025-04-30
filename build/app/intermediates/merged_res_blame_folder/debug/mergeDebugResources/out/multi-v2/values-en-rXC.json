@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.pocketpt.app-mergeDebugResources-37:/values-en-rXC/values-en-rXC.xml",
+            "outputFile": "com.example.pocketpt.app-mergeDebugResources-34:/values-en-rXC/values-en-rXC.xml",
             "map": [
                 {
                     "source": "C:\\Users\\sheila brown\\.gradle\\caches\\8.10.2\\transforms\\68e16af6c15662845d99d29588edd163\\transformed\\core-1.15.0\\res\\values-en-rXC\\values-en-rXC.xml",

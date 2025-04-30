@@ -1,27 +1,8 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.pocketpt.app-mergeDebugResources-37:/values-large-v4/values-large-v4.xml",
+            "outputFile": "com.example.pocketpt.app-mergeDebugResources-34:/values-large-v4/values-large-v4.xml",
             "map": [
-                {
-                    "source": "C:\\Users\\sheila brown\\.gradle\\caches\\8.10.2\\transforms\\10d17790f6d6a95ec46bd68f81a8cd4a\\transformed\\material-1.9.0\\res\\values-large-v4\\values-large-v4.xml",
-                    "from": {
-                        "startLines": "2,3,4,10",
-                        "startColumns": "4,4,4,4",
-                        "startOffsets": "55,177,311,752",
-                        "endLines": "2,3,9,15",
-                        "endColumns": "121,133,10,10",
-                        "endOffsets": "172,306,747,1190"
-                    },
-                    "to": {
-                        "startLines": "11,12,13,19",
-                        "startColumns": "4,4,4,4",
-                        "startOffsets": "752,874,1008,1449",
-                        "endLines": "11,12,18,24",
-                        "endColumns": "121,133,10,10",
-                        "endOffsets": "869,1003,1444,1887"
-                    }
-                },
                 {
                     "source": "C:\\Users\\sheila brown\\.gradle\\caches\\8.10.2\\transforms\\37c9757273d42d5a9fb8fafd595f355e\\transformed\\appcompat-1.6.1\\res\\values-large-v4\\values-large-v4.xml",
                     "from": {

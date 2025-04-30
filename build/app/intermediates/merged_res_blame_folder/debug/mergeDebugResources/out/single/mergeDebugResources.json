@@ -1,30 +1,274 @@
 [
     {
-        "merged": "com.example.pocketpt.app-debug-39:/mipmap-xxhdpi_ic_launcher.png.flat",
-        "source": "com.example.pocketpt.app-main-34:/mipmap-xxhdpi/ic_launcher.png"
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xxhdpi_branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xxhdpi\\branding.png"
     },
     {
-        "merged": "com.example.pocketpt.app-debug-39:/mipmap-xhdpi_ic_launcher.png.flat",
-        "source": "com.example.pocketpt.app-main-34:/mipmap-xhdpi/ic_launcher.png"
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xhdpi_branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xhdpi/branding.png"
     },
     {
-        "merged": "com.example.pocketpt.app-debug-39:/drawable-v21_launch_background.xml.flat",
-        "source": "com.example.pocketpt.app-main-34:/drawable-v21/launch_background.xml"
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-mdpi_branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-mdpi\\branding.png"
     },
     {
-        "merged": "com.example.pocketpt.app-debug-39:/drawable_logo.png.flat",
-        "source": "com.example.pocketpt.app-main-34:/drawable/logo.png"
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xhdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xhdpi-v31\\android12branding.png"
     },
     {
-        "merged": "com.example.pocketpt.app-debug-39:/mipmap-mdpi_ic_launcher.png.flat",
-        "source": "com.example.pocketpt.app-main-34:/mipmap-mdpi/ic_launcher.png"
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-xhdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-xhdpi\\android12splash.png"
     },
     {
-        "merged": "com.example.pocketpt.app-debug-39:/mipmap-xxxhdpi_ic_launcher.png.flat",
-        "source": "com.example.pocketpt.app-main-34:/mipmap-xxxhdpi/ic_launcher.png"
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xxxhdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xxxhdpi\\android12splash.png"
     },
     {
-        "merged": "com.example.pocketpt.app-debug-39:/mipmap-hdpi_ic_launcher.png.flat",
-        "source": "com.example.pocketpt.app-main-34:/mipmap-hdpi/ic_launcher.png"
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xxhdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xxhdpi-v31\\android12branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xxhdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xxhdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-mdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-mdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-hdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-hdpi/android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xhdpi_splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xhdpi\\splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-xxxhdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-xxxhdpi\\android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xhdpi_branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xhdpi\\branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xxhdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xxhdpi/android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\mipmap-mdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\mipmap-mdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\mipmap-xhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-v21_background.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-v21\\background.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-xxhdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-xxhdpi\\android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xxhdpi_branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xxhdpi/branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-mdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-mdpi-v31\\android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xxxhdpi_splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xxxhdpi\\splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-v21_launch_background.xml.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-v21\\launch_background.xml"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xxxhdpi_branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xxxhdpi/branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-xxxhdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-xxxhdpi-v31\\android12branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xxxhdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xxxhdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xxhdpi_splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xxhdpi\\splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xxxhdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xxxhdpi-v31\\android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-xhdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-xhdpi-v31\\android12branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-mdpi_branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-mdpi/branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-hdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-hdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\mipmap-hdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\mipmap-hdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-xxhdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-xxhdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-hdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-hdpi-v31\\android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xxxhdpi_branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xxxhdpi\\branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-hdpi_splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-hdpi/splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-xhdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-xhdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-hdpi_branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-hdpi\\branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-mdpi_splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-mdpi/splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xxhdpi_splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xxhdpi/splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xxhdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xxhdpi\\android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xxxhdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xxxhdpi/android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-hdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-hdpi-v31\\android12branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-xxxhdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-xxxhdpi/android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-mdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-mdpi/android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xhdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xhdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xhdpi_splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xhdpi/splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\mipmap-xxxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xhdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xhdpi/android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-mdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-mdpi-v31\\android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-hdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-hdpi\\android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-mdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-mdpi\\android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable_logo.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable\\logo.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-hdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-hdpi/android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-hdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-hdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-hdpi_splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-hdpi\\splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-mdpi_splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-mdpi\\splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-xxxhdpi_splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-xxxhdpi/splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-hdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-hdpi\\android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\mipmap-xxhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-xhdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-xhdpi\\android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-xhdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-xhdpi/android12splash.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-mdpi_android12splash.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-mdpi\\android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-xxhdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-xxhdpi/android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-xxxhdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-xxxhdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-hdpi_branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-hdpi/branding.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-mdpi_android12splash.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-mdpi/android12splash.png"
+    },
+    {
+        "merged": "com.example.pocketpt.app-debug-36:/drawable-night-mdpi-v31_android12branding.png.flat",
+        "source": "com.example.pocketpt.app-main-31:/drawable-night-mdpi-v31/android12branding.png"
+    },
+    {
+        "merged": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-debug-36:\\drawable-night-xxhdpi-v31_android12branding.png.flat",
+        "source": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-main-31:\\drawable-night-xxhdpi-v31\\android12branding.png"
     }
 ]
