@@ -203,44 +203,59 @@ class _DashboardPageState extends State<DashboardPage> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            'PROGRESS',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 18,
-                              letterSpacing: 1.2,
-                              color: const Color(0xFF5B5B5B),
-                            ),
+                        // Static 'PROGRESS' Text
+                        Text(
+                          'PROGRESS',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                            letterSpacing: 1.2,
+                            color: const Color(0xFF5B5B5B),
                           ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              currentExercise?.exerciseName ?? 'No Exercise',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 26,
-                                color: const Color(0xFF2E2E2E),
+                        const SizedBox(width: 8), // Small space between 'PROGRESS' and exercise name
+                        
+                        /// Expanded space for exercise details
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end, // Align text to the right
+                            children: [
+                              // Exercise Name Text with maxLines and overflow handling
+                              Align(
+                                alignment: Alignment.centerRight, // Align the text to the right
+                                child: Text(
+                                  currentExercise?.exerciseName ?? 'No Exercise',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 26,
+                                    color: const Color(0xFF2E2E2E),
+                                  ),
+                                  maxLines: 2, // Allows the text to span across two lines if needed
+                                  overflow: TextOverflow.ellipsis, // Ensures text is truncated with '...' if it overflows
+                                  textAlign: TextAlign.right, // Aligns text to the right
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'No target muscle',
-                              style: GoogleFonts.ptSans(
-                                fontSize: 16,
-                                color: const Color(0xFF557A95),
+                              const SizedBox(height: 4),
+                              // Specific Muscle Text
+                              Text(
+                                UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'No target muscle',
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 16,
+                                  color: const Color(0xFF557A95),
+                                ),
                               ),
-                            ),
-                            Text(
-                              currentExercise != null ? '${currentExercise.sets} sets: ${currentExercise.repetitions} reps' : 'No set info',
-                              style: GoogleFonts.ptSans(
-                                fontSize: 14,
-                                color: const Color(0xFF5B5B5B),
+                              // Set and Repetition Information
+                              Text(
+                                currentExercise != null
+                                    ? '${currentExercise.sets} sets: ${currentExercise.repetitions} reps'
+                                    : 'No set info',
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 14,
+                                  color: const Color(0xFF5B5B5B),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),

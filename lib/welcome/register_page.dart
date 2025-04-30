@@ -1,0 +1,258 @@
+// Import packages
+import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+// Import pages
+import 'login_page.dart';
+import '../assessment/preliminary.dart';
+import '../functions.dart';
+
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  bool _agreedToTerms = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: screenHeight * 0.2 + 50,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Opacity(
+                  opacity: 0.5,
+                  child: Image.asset(
+                    'assets/images/welcome_1.jpg',
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                ),
+                Positioned(
+                  top: -60,
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 300,
+                    height: 300,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Positioned(
+            top: screenHeight * 0.2,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 50.0, vertical: 20.0),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(50.0),
+                  topRight: Radius.circular(50.0),
+                ),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Join PocketPT Now!',
+                        style: GoogleFonts.poppins(fontSize: 26, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
+                    Text("Recover Smart: Treat, Rehabilitate, Strengthen.",
+                        style: GoogleFonts.ptSans(fontSize: 16)),
+                    const SizedBox(height: 24),
+
+                    _buildInputField(label: 'First Name'),
+                    const SizedBox(height: 14),
+                    _buildInputField(label: 'Last Name'),
+                    const SizedBox(height: 14),
+                    _buildInputField(label: 'E-mail Address'),
+                    const SizedBox(height: 14),
+                    _buildInputField(label: 'Password', isPassword: true),
+                    const SizedBox(height: 14),
+
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: _agreedToTerms,
+                      onChanged: (value) {
+                        setState(() {
+                          _agreedToTerms = value ?? false;
+                        });
+                      },
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: DefaultTextStyle(
+                        style: const TextStyle(fontSize: 12.0, color: Colors.black),
+                        child: Wrap(
+                          children: [
+                            const Text("By checking this, you agree to the "),
+                            GestureDetector(
+                              onTap: () => showReusableDialog(context, 'Terms of Service', [
+                                'The information provided above is intended for general informational purposes only and should not be considered as a substitute for professional medical advice, diagnosis, or treatment.',
+                                'It is crucial that you consult with a qualified healthcare provider before beginning any new exercise regimen.',
+                                'Your health and safety are of the utmost importance, and professional guidance ensures appropriate choices.',
+                                'By using this application, you acknowledge and agree that the developers are not responsible for any injuries or complications that may arise.',
+                              ]),
+                              child: const Text(
+                                "Terms of Service",
+                                style: TextStyle(
+                                  fontSize: 12.0,
+                                  color: Color(0xFF800020),
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            const Text(" and "),
+                            GestureDetector(
+                              onTap: () => showReusableDialog(context, 'Privacy Policy', [
+                                'The developers are committed to upholding the highest standards of data privacy, security, and ethical conduct in the development and implementation of this academic research project.',
+                                'All information collected throughout the phases of data gathering, model development, and system evaluation shall be strictly utilized for academic purposes within the defined scope of the study. At no point shall any data be disclosed, shared, or used beyond the objectives of this research.',
+                                'The developers fully recognize that some of the data collected may contain personal, sensitive, or confidential information. As such, they commit to full compliance with the provisions of Republic Act No. 10173, also known as the Data Privacy Act of 2012. This includes the lawful collection, handling, processing, storage, and disposal of personal data.',
+                                'Appropriate technical, administrative, and organizational measures will be employed to protect the confidentiality, integrity, and security of all collected data. These measures aim to prevent unauthorized access, misuse, or data breaches at every stage of the research.',
+                                'This policy affirms the developers’ responsibility to safeguard the rights and privacy of all individuals involved and to maintain the trust and confidence of all stakeholders participating in the study.',
+                              ]),
+                              child: const Text(
+                                "Privacy Policy",
+                                style: TextStyle(
+                                  fontSize: 12.0,
+                                  color: Color(0xFF800020),
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                            const Text("."),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    Center(
+                      child: FractionallySizedBox(
+                        widthFactor: 0.85,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (!_agreedToTerms) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('You must agree to the Terms of Service and Privacy Policy.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                        
+                            Navigator.push(
+                              context,
+                              PageRouteBuilder(
+                                pageBuilder: (context, animation, secondaryAnimation) => AssessPrelim(),
+                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                  const begin = Offset(1.0, 0.0);
+                                  const end = Offset.zero;
+                                  const curve = Curves.easeInOut;
+                        
+                                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                  var offsetAnimation = animation.drive(tween);
+                        
+                                  return SlideTransition(position: offsetAnimation, child: child);
+                                },
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF800020),
+                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          ),
+                          child: Text("Register",
+                              style: GoogleFonts.ptSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              )),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Center(
+                      child: RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: GoogleFonts.ptSans(
+                            fontStyle: FontStyle.italic,
+                            fontSize: 14,
+                            color: const Color(0xFF5B5B5B),
+                          ),
+                          children: [
+                            const TextSpan(text: "Already have an account, "),
+                            TextSpan(
+                              text: 'login',
+                              style: GoogleFonts.ptSans(
+                                fontStyle: FontStyle.italic,
+                                fontSize: 14,
+                                color: Color(0xFF800020),
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  Navigator.of(context).push(createMorphRoute(LoginPage()));
+                                },
+                            ),
+                            const TextSpan(text: ' here.'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField({required String label, bool isPassword = false}) {
+    return Center(
+      child: SizedBox(
+        height: 60,
+        child: TextField(
+          obscureText: isPassword,
+          decoration: InputDecoration(
+            labelText: label,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: const BorderSide(color: Color(0xFF2E2E2E)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: const BorderSide(color: Color(0xFF8B2E2E), width: 2),
+            ),
+          ),
+          style: GoogleFonts.ptSans(),
+        ),
+      ),
+    );
+  }
+}
