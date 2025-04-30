@@ -1,0 +1,192 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.pocketpt"
+4    android:versionCode="1"
+5    android:versionName="1.0.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="35" />
+10    <!--
+11         The INTERNET permission is required for development. Specifically,
+12         the Flutter tool needs it to communicate with the running application
+13         to allow setting breakpoints, to provide hot reload, etc.
+14    -->
+15    <uses-permission android:name="android.permission.INTERNET" />
+15-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\debug\AndroidManifest.xml:6:5-66
+15-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\debug\AndroidManifest.xml:6:22-64
+16    <uses-permission android:name="android.permission.CAMERA" />
+16-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:2:5-65
+16-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:2:22-62
+17    <!--
+18 Required to query activities that can process text, see:
+19         https://developer.android.com/training/package-visibility and
+20         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+21
+22         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin.
+23    -->
+24    <queries>
+24-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:40:5-45:15
+25        <intent>
+25-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:41:9-44:18
+26            <action android:name="android.intent.action.PROCESS_TEXT" />
+26-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:42:13-72
+26-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:42:21-70
+27
+28            <data android:mimeType="text/plain" />
+28-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:43:13-50
+28-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:43:19-48
+29        </intent>
+30        <intent>
+30-->[:file_picker] D:\Projects\Research Projects\pocketpt\pocketpt\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-12:18
+31            <action android:name="android.intent.action.GET_CONTENT" />
+31-->[:file_picker] D:\Projects\Research Projects\pocketpt\pocketpt\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-72
+31-->[:file_picker] D:\Projects\Research Projects\pocketpt\pocketpt\build\file_picker\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:21-69
+32
+33            <data android:mimeType="*/*" />
+33-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:43:13-50
+33-->D:\Projects\Research Projects\pocketpt\pocketpt\android\app\src\main\AndroidManifest.xml:43:19-48
+34        </intent>
+35    </queries>
+36
+37    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+37-->[:camera_android] D:\Projects\Research Projects\pocketpt\pocketpt\build\camera_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:5-71
+37-->[:camera_android] D:\Projects\Research Projects\pocketpt\pocketpt\build\camera_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:22-68
+38    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+38-->[androidx.media3:media3-common:1.4.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\784c75164cbdfbd8765b78e0df7f6470\transformed\jetified-media3-common-1.4.1\AndroidManifest.xml:22:5-79
+38-->[androidx.media3:media3-common:1.4.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\784c75164cbdfbd8765b78e0df7f6470\transformed\jetified-media3-common-1.4.1\AndroidManifest.xml:22:22-76
+39
+40    <permission
+40-->[androidx.core:core:1.15.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\68e16af6c15662845d99d29588edd163\transformed\core-1.15.0\AndroidManifest.xml:22:5-24:47
+41        android:name="com.example.pocketpt.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+41-->[androidx.core:core:1.15.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\68e16af6c15662845d99d29588edd163\transformed\core-1.15.0\AndroidManifest.xml:23:9-81
+42        android:protectionLevel="signature" />
+42-->[androidx.core:core:1.15.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\68e16af6c15662845d99d29588edd163\transformed\core-1.15.0\AndroidManifest.xml:24:9-44
+43
+44    <uses-permission android:name="com.example.pocketpt.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+44-->[androidx.core:core:1.15.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\68e16af6c15662845d99d29588edd163\transformed\core-1.15.0\AndroidManifest.xml:26:5-97
+44-->[androidx.core:core:1.15.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\68e16af6c15662845d99d29588edd163\transformed\core-1.15.0\AndroidManifest.xml:26:22-94
+45
+46    <application
+47        android:name="android.app.Application"
+48        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+48-->[androidx.core:core:1.15.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\68e16af6c15662845d99d29588edd163\transformed\core-1.15.0\AndroidManifest.xml:28:18-86
+49        android:debuggable="true"
+50        android:extractNativeLibs="true"
+51        android:icon="@mipmap/ic_launcher"
+52        android:label="pocketpt" >
+53        <activity
+54            android:name="com.example.pocketpt.MainActivity"
+55            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+56            android:exported="true"
+57            android:hardwareAccelerated="true"
+58            android:launchMode="singleTop"
+59            android:taskAffinity=""
+60            android:theme="@style/LaunchTheme"
+61            android:windowSoftInputMode="adjustResize" >
+62
+63            <!--
+64                 Specifies an Android theme to apply to this Activity as soon as
+65                 the Android process has started. This theme is visible to the user
+66                 while the Flutter UI initializes. After that, this theme continues
+67                 to determine the Window background behind the Flutter UI.
+68            -->
+69            <meta-data
+70                android:name="flutterEmbedding"
+71                android:value="2" />
+72
+73            <intent-filter>
+74                <action android:name="android.intent.action.MAIN" />
+75
+76                <category android:name="android.intent.category.LAUNCHER" />
+77            </intent-filter>
+78        </activity>
+79        <!--
+80             Don't delete the meta-data below.
+81             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java
+82        -->
+83        <meta-data
+84            android:name="flutterEmbedding"
+85            android:value="2" />
+86
+87        <provider
+87-->[androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:24:9-32:20
+88            android:name="androidx.startup.InitializationProvider"
+88-->[androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:25:13-67
+89            android:authorities="com.example.pocketpt.androidx-startup"
+89-->[androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:26:13-68
+90            android:exported="false" >
+90-->[androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:27:13-37
+91            <meta-data
+91-->[androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:29:13-31:52
+92                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+92-->[androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:30:17-75
+93                android:value="androidx.startup" />
+93-->[androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:31:17-49
+94            <meta-data
+94-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\dc3934e7b5992873779b6c0d978229f8\transformed\jetified-lifecycle-process-2.8.7\AndroidManifest.xml:29:13-31:52
+95                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+95-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\dc3934e7b5992873779b6c0d978229f8\transformed\jetified-lifecycle-process-2.8.7\AndroidManifest.xml:30:17-78
+96                android:value="androidx.startup" />
+96-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\dc3934e7b5992873779b6c0d978229f8\transformed\jetified-lifecycle-process-2.8.7\AndroidManifest.xml:31:17-49
+97            <meta-data
+97-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+98                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+98-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+99                android:value="androidx.startup" />
+99-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+100        </provider>
+101
+102        <uses-library
+102-->[androidx.window:window:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\aed2861b2b6894f7067df3f3f96b791f\transformed\jetified-window-1.2.0\AndroidManifest.xml:23:9-25:40
+103            android:name="androidx.window.extensions"
+103-->[androidx.window:window:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\aed2861b2b6894f7067df3f3f96b791f\transformed\jetified-window-1.2.0\AndroidManifest.xml:24:13-54
+104            android:required="false" />
+104-->[androidx.window:window:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\aed2861b2b6894f7067df3f3f96b791f\transformed\jetified-window-1.2.0\AndroidManifest.xml:25:13-37
+105        <uses-library
+105-->[androidx.window:window:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\aed2861b2b6894f7067df3f3f96b791f\transformed\jetified-window-1.2.0\AndroidManifest.xml:26:9-28:40
+106            android:name="androidx.window.sidecar"
+106-->[androidx.window:window:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\aed2861b2b6894f7067df3f3f96b791f\transformed\jetified-window-1.2.0\AndroidManifest.xml:27:13-51
+107            android:required="false" />
+107-->[androidx.window:window:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\aed2861b2b6894f7067df3f3f96b791f\transformed\jetified-window-1.2.0\AndroidManifest.xml:28:13-37
+108
+109        <receiver
+109-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+110            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+110-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+111            android:directBootAware="false"
+111-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+112            android:enabled="true"
+112-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+113            android:exported="true"
+113-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+114            android:permission="android.permission.DUMP" >
+114-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+115            <intent-filter>
+115-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+116                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+116-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+116-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+117            </intent-filter>
+118            <intent-filter>
+118-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+119                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+119-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+119-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+120            </intent-filter>
+121            <intent-filter>
+121-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+122                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+122-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+122-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+123            </intent-filter>
+124            <intent-filter>
+124-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+125                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+125-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+125-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5aacd87baa6feaa7bece87b01e7698f0\transformed\jetified-profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+126            </intent-filter>
+127        </receiver>
+128    </application>
+129
+130</manifest>

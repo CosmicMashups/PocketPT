@@ -1,0 +1,2 @@
+D:/Projects/Research Projects/pocketpt/pocketpt/android/app/.cxx/Debug/26172c56/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/Projects/Research Projects/pocketpt/pocketpt/android/app/.cxx/Debug/26172c56/armeabi-v7a/CMakeFiles/rebuild_cache.dir
