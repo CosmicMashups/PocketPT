@@ -50,6 +50,9 @@ dependencies:
   video_thumbnail: ^0.5.3
   image: ^4.1.7
   uuid: ^4.3.3
+  flutter_riverpod: ^2.5.1  # State management
+  pdf: ^3.10.8  # PDF generation
+  printing: ^5.12.0  # PDF preview and printing
 
 dev_dependencies:
   flutter_test:

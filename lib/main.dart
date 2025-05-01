@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Import pages
 import 'assessment/globals.dart';
@@ -9,10 +10,11 @@ import 'welcome/login_page.dart';
 import 'dashboard_page.dart';
 import 'exercises_page.dart';
 import 'profile_page.dart';
+import 'reports/report_page.dart';
 
 // Main Function: To run the app
 void main() {
-  runApp(const MyApp());
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 // Color Theme
@@ -118,6 +120,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> _pages = const [
     DashboardPage(),
     ExercisesPage(),
+    ReportPage(),
     ProfilePage(),
   ];
 
@@ -185,6 +188,17 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Icon(Icons.fitness_center, color: Colors.white),
                 Text("Exercise", style: TextStyle(color: Colors.white, fontSize: 10)),
+              ],
+            ),
+          ),
+          // Reports
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.assessment, color: Colors.white),
+                Text("Reports", style: TextStyle(color: Colors.white, fontSize: 10)),
               ],
             ),
           ),
