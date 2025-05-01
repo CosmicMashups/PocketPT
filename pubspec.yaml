@@ -1,4 +1,4 @@
-name: pocketpt
+name: PocketPT
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -44,9 +44,21 @@ dependencies:
   percent_indicator: ^4.2.2
   curved_navigation_bar: ^1.0.6
   csv: ^5.0.2
-  
+
+  # For icons
+  font_awesome_flutter: ^10.8.0
+
+  # For main application  
   flutter_native_splash: ^2.4.6
   flutter_launcher_icons: ^0.14.3
+  
+  # For reports
+  flutter_riverpod: ^2.5.1  # State management
+  pdf: ^3.10.8  # PDF generation
+  printing: ^5.12.0  # PDF preview and printing
+
+  # For animations
+  lottie: ^3.3.1
 
 # App Icon
 flutter_icons:
@@ -88,6 +100,8 @@ flutter:
 
     - assets/videos/
     - assets/data/
+
+    - assets/lottie/
     # - assets/model/
 
   # An image asset can refer to one or more resolution-specific "variants", see

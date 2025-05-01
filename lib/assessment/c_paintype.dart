@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/globals.dart';
 import 'c_painlevel.dart';
-import '../functions.dart';
+import '../data/functions.dart';
 
 import 'c_painduration.dart';
 

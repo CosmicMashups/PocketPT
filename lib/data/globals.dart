@@ -32,7 +32,8 @@ class UserProgress {
   static int streak = 0;
   static int totalDays = 0;
   static int totalExercises = 0;
-  static int totalMinutes = 0;
+  static int totalMinutes = (totalSeconds / 60).toInt();
+  static int totalSeconds = 0;
 }
 
 // Class: Initial Assessment Data

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/globals.dart';
 import 'a_goal1.dart';
-import '../functions.dart';
+import '../data/functions.dart';
 
 import 'b_upperbody.dart';
 import 'b_lowerbody.dart';

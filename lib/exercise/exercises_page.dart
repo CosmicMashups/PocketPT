@@ -62,7 +62,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
 
   Future<List<Exercise>> loadCSVData() async {
     try {
-      final data = await rootBundle.loadString('assets/data/exercises.csv'); // Make sure this path is correct in pubspec.yaml
+      final data = await rootBundle.loadString('assets/data/exercises.csv');
       List<List<dynamic>> csvData = const CsvToListConverter().convert(data);
 
       return csvData.skip(1).map((row) => Exercise.fromCsv(row)).toList();
@@ -74,17 +74,17 @@ class _ExercisesPageState extends State<ExercisesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F6F4),
+      backgroundColor: Colors.grey.shade200,
       appBar: AppBar(
         title: const Text(
           'Exercises',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24,
-            color: Color(0xFFF8F6F4),
+            color: Colors.white,
           ),
         ),
-        backgroundColor: const Color(0xFF8B2E2E),
+        backgroundColor: const Color(0xFF8B2E2E), // Main theme color
         automaticallyImplyLeading: false,
       ),
       body: FutureBuilder<List<Exercise>>(
@@ -123,20 +123,20 @@ class ExerciseCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.all(15),
-      elevation: 5,
+      elevation: 10,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
-        side: const BorderSide(color: Color(0xFF557A95), width: 1),
+        side: const BorderSide(color: Color(0xFF8B2E2E), width: 1), // Main theme color for borders
       ),
       color: Colors.white,
       child: ListTile(
-        contentPadding: const EdgeInsets.all(10),
+        contentPadding: const EdgeInsets.all(15),
         leading: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           child: Image.asset(
             imagePath,
-            width: 70,
-            height: 70,
+            width: 80,
+            height: 80,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
               return const Icon(Icons.error, color: Colors.red);
@@ -146,9 +146,9 @@ class ExerciseCard extends StatelessWidget {
         title: Text(
           exercise.name,
           style: const TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2E2E2E),
+            color: Color(0xFF8B2E2E), // Main theme color for title
           ),
         ),
         subtitle: Padding(
@@ -156,8 +156,35 @@ class ExerciseCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Muscles: ${exercise.muscle}', style: const TextStyle(color: Color(0xFF5B5B5B))),
-              Text('Pain Level: ${exercise.painLevel}', style: const TextStyle(color: Color(0xFF5B5B5B))),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.fitness_center,
+                    color: Color(0xFF8B2E2E), // Main theme color for icons
+                    size: 18,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Muscles: ${exercise.muscle}',
+                    style: const TextStyle(color: Color(0xFF5B5B5B)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFF8B2E2E), // Main theme color for icons
+                    size: 18,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'Pain Level: ${exercise.painLevel}',
+                    style: const TextStyle(color: Color(0xFF5B5B5B)),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
