@@ -6,6 +6,8 @@ MERGED from [androidx.camera:camera-camera2:1.4.1] C:\Users\sheila brown\.gradle
 MERGED from [androidx.camera:camera-camera2:1.4.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5075620209bdfe9a54b1b31bacd46a9f\transformed\jetified-camera-camera2-1.4.1\AndroidManifest.xml:23:5-34:19
 MERGED from [androidx.camera:camera-core:1.4.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\7ead12b878b4ca16f11e58c623d32431\transformed\jetified-camera-core-1.4.1\AndroidManifest.xml:23:5-34:19
 MERGED from [androidx.camera:camera-core:1.4.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\7ead12b878b4ca16f11e58c623d32431\transformed\jetified-camera-core-1.4.1\AndroidManifest.xml:23:5-34:19
+MERGED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:5-17:19
+MERGED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:5-17:19
 MERGED from [androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:23:5-33:19
 MERGED from [androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:23:5-33:19
 MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\dc3934e7b5992873779b6c0d978229f8\transformed\jetified-lifecycle-process-2.8.7\AndroidManifest.xml:23:5-33:19
@@ -43,6 +45,7 @@ MERGED from [androidx.appcompat:appcompat:1.6.1] C:\Users\sheila brown\.gradle\c
 MERGED from [:flutter_native_splash] D:\Projects\Research Projects\pocketpt\pocketpt\build\flutter_native_splash\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
 MERGED from [:flutter_plugin_android_lifecycle] D:\Projects\Research Projects\pocketpt\pocketpt\build\flutter_plugin_android_lifecycle\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
 MERGED from [:path_provider_android] D:\Projects\Research Projects\pocketpt\pocketpt\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
+MERGED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-19:12
 MERGED from [:video_player_android] D:\Projects\Research Projects\pocketpt\pocketpt\build\video_player_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.fragment:fragment:1.7.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\cf3a986fc94dc98dab92da85e4b25558\transformed\fragment-1.7.1\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.activity:activity:1.8.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\1118da8128d511195e65ca01fd969642\transformed\jetified-activity-1.8.1\AndroidManifest.xml:17:1-22:12
@@ -148,6 +151,8 @@ MERGED from [:flutter_plugin_android_lifecycle] D:\Projects\Research Projects\po
 MERGED from [:flutter_plugin_android_lifecycle] D:\Projects\Research Projects\pocketpt\pocketpt\build\flutter_plugin_android_lifecycle\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
 MERGED from [:path_provider_android] D:\Projects\Research Projects\pocketpt\pocketpt\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
 MERGED from [:path_provider_android] D:\Projects\Research Projects\pocketpt\pocketpt\build\path_provider_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
+MERGED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
 MERGED from [:video_player_android] D:\Projects\Research Projects\pocketpt\pocketpt\build\video_player_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
 MERGED from [:video_player_android] D:\Projects\Research Projects\pocketpt\pocketpt\build\video_player_android\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:5:5-44
 MERGED from [androidx.fragment:fragment:1.7.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\cf3a986fc94dc98dab92da85e4b25558\transformed\fragment-1.7.1\AndroidManifest.xml:5:5-44
@@ -288,6 +293,22 @@ ADDED from [androidx.camera:camera-camera2:1.4.1] C:\Users\sheila brown\.gradle\
 		ADDED from [androidx.camera:camera-camera2:1.4.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5075620209bdfe9a54b1b31bacd46a9f\transformed\jetified-camera-camera2-1.4.1\AndroidManifest.xml:32:17-86
 	android:name
 		ADDED from [androidx.camera:camera-camera2:1.4.1] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\5075620209bdfe9a54b1b31bacd46a9f\transformed\jetified-camera-camera2-1.4.1\AndroidManifest.xml:31:17-103
+provider#net.nfet.flutter.printing.PrintFileProvider
+ADDED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:9-16:20
+	android:grantUriPermissions
+		ADDED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:13-47
+	android:authorities
+		ADDED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:10:13-68
+	android:exported
+		ADDED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:11:13-37
+	android:name
+		ADDED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:13-71
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:13:13-15:71
+	android:resource
+		ADDED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:15:17-68
+	android:name
+		ADDED from [:printing] D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:14:17-67
 provider#androidx.startup.InitializationProvider
 ADDED from [androidx.emoji2:emoji2:1.2.0] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\2572c773145932f08e3b72fd0d530e61\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:24:9-32:20
 MERGED from [androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\sheila brown\.gradle\caches\8.10.2\transforms\dc3934e7b5992873779b6c0d978229f8\transformed\jetified-lifecycle-process-2.8.7\AndroidManifest.xml:24:9-32:20

@@ -1,20 +1,22 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 // Import pages
 import 'data/globals.dart';
 import 'welcome/login_page.dart';
-import 'dashboard_page.dart';
-import 'exercises_page.dart';
-import 'pre_record_page.dart';
-import 'progress_report.dart';
-import 'profile_page.dart';
+import 'dashboard/dashboard_page.dart';
+import 'exercise/exercises_page.dart';
+import 'record/pre_record_page.dart';
+// import 'progress_report.dart';
+import 'profile/profile_page.dart';
+import 'reports/report_page.dart';
 
 // Main Function: To run the app
 void main() {
-  runApp(const MyApp());
+  runApp(ProviderScope(child: MyApp()));
 }
 
 // Color Theme
@@ -121,7 +123,7 @@ class _HomePageState extends State<HomePage> {
     DashboardPage(),
     ExercisesPage(),
     PreRecordPage(),
-    ProgressReportPage(),
+    ReportPage(),
     ProfilePage(),
   ];
 

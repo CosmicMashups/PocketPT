@@ -40,4 +40,5 @@ com.example.pocketpt.app-debug-38 D:\Projects\Research Projects\pocketpt\pocketp
 com.example.pocketpt.app-debug-39 D:\Projects\Research Projects\pocketpt\pocketpt\build\flutter_native_splash\intermediates\packaged_res\debug\packageDebugResources
 com.example.pocketpt.app-debug-40 D:\Projects\Research Projects\pocketpt\pocketpt\build\flutter_plugin_android_lifecycle\intermediates\packaged_res\debug\packageDebugResources
 com.example.pocketpt.app-debug-41 D:\Projects\Research Projects\pocketpt\pocketpt\build\path_provider_android\intermediates\packaged_res\debug\packageDebugResources
-com.example.pocketpt.app-debug-42 D:\Projects\Research Projects\pocketpt\pocketpt\build\video_player_android\intermediates\packaged_res\debug\packageDebugResources
+com.example.pocketpt.app-debug-42 D:\Projects\Research Projects\pocketpt\pocketpt\build\printing\intermediates\packaged_res\debug\packageDebugResources
+com.example.pocketpt.app-debug-43 D:\Projects\Research Projects\pocketpt\pocketpt\build\video_player_android\intermediates\packaged_res\debug\packageDebugResources

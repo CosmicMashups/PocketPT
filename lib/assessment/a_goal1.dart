@@ -1,11 +1,10 @@
-// Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/globals.dart';
 import 'preliminary.dart';
 import 'b_focus1.dart';
-import '../functions.dart';
+import '../data/functions.dart';
 
 class AssessGoal1 extends StatefulWidget {
   const AssessGoal1({super.key});
@@ -55,7 +54,7 @@ class _AssessGoal1State extends State<AssessGoal1> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Progress Line
+            // Progress Line with custom design
             LinearProgressIndicator(
               value: 0.2,
               minHeight: 8,
@@ -68,19 +67,25 @@ class _AssessGoal1State extends State<AssessGoal1> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // "Question 1 of 5"
-                  Text(
-                    "Question 1 of 5",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF800020),
-                    ),
+                  // "Question 1 of 5" with icon and style
+                  Row(
+                    children: [
+                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Question 1 of 5",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF800020),
+                        ),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
 
-                  // Question Text
+                  // Question Text with a nice font style
                   Text(
                     "What specific goal would you like to prioritize?",
                     style: GoogleFonts.ptSans(
@@ -92,8 +97,8 @@ class _AssessGoal1State extends State<AssessGoal1> {
 
                   const SizedBox(height: 20),
 
-                  // Custom Radio Tiles
-                  CustomRadioTile<String>(
+                  // Custom Radio Tiles with descriptions and icons
+                  CustomRadioTile(
                     value: 'Alleviate Pain',
                     groupValue: rehabGoal,
                     title: 'Alleviate Pain',
@@ -104,9 +109,10 @@ class _AssessGoal1State extends State<AssessGoal1> {
                         UserAssess.rehabGoal = val;
                       });
                     },
+                    icon: Icons.healing,
                   ),
                   
-                  CustomRadioTile<String>(
+                  CustomRadioTile(
                     value: 'Improve Mobility',
                     groupValue: rehabGoal,
                     title: 'Improve Mobility',
@@ -117,9 +123,10 @@ class _AssessGoal1State extends State<AssessGoal1> {
                         UserAssess.rehabGoal = val;
                       });
                     },
+                    icon: Icons.directions_walk,
                   ),
                   
-                  CustomRadioTile<String>(
+                  CustomRadioTile(
                     value: 'Strengthen Muscle',
                     groupValue: rehabGoal,
                     title: 'Regain Strength',
@@ -130,17 +137,12 @@ class _AssessGoal1State extends State<AssessGoal1> {
                         UserAssess.rehabGoal = val;
                       });
                     },
+                    icon: Icons.fitness_center,
                   ),
 
                   const SizedBox(height: 30),
 
-                  // Text(
-                  //   'Selected Choice: $rehabGoal',
-                  //   style: const TextStyle(
-                  //     fontSize: 20,
-                  //   ),
-                  // ),
-
+                  // Next Button with icon and smooth transition
                   Center(
                     child: ElevatedButton(
                       onPressed: () {
@@ -149,9 +151,8 @@ class _AssessGoal1State extends State<AssessGoal1> {
                           PageRouteBuilder(
                             pageBuilder: (context, animation, secondaryAnimation) => AssessFocus1(),
                             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              // SlideTransition with custom offset (slide left)
-                              const begin = Offset(1.0, 0.0); // Starting from the right
-                              const end = Offset.zero; // Ending at the normal position
+                              const begin = Offset(1.0, 0.0);
+                              const end = Offset.zero;
                               const curve = Curves.easeInOut;
 
                               var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
@@ -160,13 +161,6 @@ class _AssessGoal1State extends State<AssessGoal1> {
                               return SlideTransition(position: offsetAnimation, child: child);
                             },
                           ),
-                          ).then((result) {
-                            if (result != null) {
-                              setState(() {
-                                rehabGoal = result as String;
-                              });
-                            }
-                          }
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -193,7 +187,6 @@ class _AssessGoal1State extends State<AssessGoal1> {
                       ),
                     ),
                   ),
-
                 ],
               ),
             ),

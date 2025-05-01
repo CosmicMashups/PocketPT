@@ -3,160 +3,160 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:csv/csv.dart';
 import 'globals.dart';
 
-// Class: For rehabilitation plan
-class ExercisePlan {
+class Exercise {
   final String exerciseId;
-  final int repetitions;
   final String exerciseName;
+  final String description;
+  final String muscle;
+  final String painLevel;
+  final String goal;
+  final int repetitions;
   final int sets;
+  final String imageUrl;
+  final String videoUrl;
 
-  ExercisePlan({
+  Exercise({
     required this.exerciseId,
     required this.exerciseName,
+    required this.description,
+    required this.muscle,
+    required this.painLevel,
+    required this.goal,
     required this.repetitions,
     required this.sets,
+    required this.imageUrl,
+    required this.videoUrl,
   });
 
   @override
   String toString() {
-    return 'ExercisePlan(exerciseId: $exerciseId, exerciseName: $exerciseName, reps: $repetitions, sets: $sets)';
-  }
-}
-
-class DailyProgress {
-  final String exerciseId;
-  bool isCompleted;
-  int repsCompleted;
-  int setsCompleted;
-
-  DailyProgress({
-    required this.exerciseId,
-    this.isCompleted = false,
-    this.repsCompleted = 0,
-    this.setsCompleted = 0,
-  });
-
-  @override
-  String toString() {
-    return 'Progress($exerciseId: $setsCompleted sets of $repsCompleted reps - Completed: $isCompleted)';
+    return '$exerciseName ($repetitions x $sets)';
   }
 }
 
 class RehabilitationPlan {
   final int weekNumber;
-  final List<ExercisePlan> exercises;
+  final List<Exercise> exercises;
   final List<DailyProgress> daily;
 
   RehabilitationPlan({
     required this.weekNumber,
     required this.exercises,
-    List<DailyProgress>? daily,
-  }) : daily = daily ??
-            exercises
-                .map((e) => DailyProgress(exerciseId: e.exerciseId))
-                .toList();
-
-  @override
-  String toString() {
-    return 'Week $weekNumber:\nExercises: $exercises\nDaily Progress: $daily';
-  }
+    this.daily = const [],
+  });
 }
-
-// ======================
-
-Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV() async {
-  // Load the CSV file from assets
-  final rawData = await rootBundle.loadString('assets/data/exercises.csv');
-  final List<List<dynamic>> csvData = const CsvToListConverter(eol: '\n').convert(rawData, shouldParseNumbers: false);
-
-  // Extract header and rows
-  final header = csvData.first;
-  final rows = csvData.sublist(1);
-
-  // Helper to get column index
-  int col(String name) => header.indexOf(name);
-
-  // Print: For debugging purposes
-  print('Matching with:');
-  print('Goal: ${UserAssess.rehabGoal}');
-  print('Muscle: ${UserAssess.specificMuscle}');
-  print('Pain Level: ${UserAssess.painLevel}');
-
-  for (var row in rows) {
-    print('Row: Functional_Goal=${row[col('Functional_Goal')]} | '
-        'Muscle_Involved=${row[col('Muscle_Involved')]} | '
-        'Pain_Level=${row[col('Pain_Level')]}');
-  }
-
-  // Filter rows
-  final filtered = rows.where((row) =>
-    row[col('Functional_Goal')].toString().toLowerCase().trim() ==
-        UserAssess.rehabGoal.toLowerCase().trim() &&
-    row[col('Muscle_Involved')].toString().toLowerCase().trim() ==
-        UserAssess.specificMuscle.toLowerCase().trim() &&
-    row[col('Pain_Level')].toString().toLowerCase().trim() ==
-        UserAssess.painLevel.toLowerCase().trim()
-  ).toList();
-
-
-  if (filtered.length < 2) {
-    print("Not enough exercises found based on user's assessment.");
-    return null;
-  }
-
-  // Shuffle and pick 3 random rows
-  filtered.shuffle(Random());
-  final selectedRows = filtered.take(3).toList();
-
-  // Convert to ExercisePlan
-  final exercisePlans = selectedRows.map((row) {
-    return ExercisePlan(
-      exerciseId: row[col('Exercise_ID')],
-      exerciseName: row[col('Exercise')],
-      repetitions: int.tryParse(row[col('Repetition')]) ?? 10,
-      sets: int.tryParse(row[col('Set')]) ?? 3,
-    );
-  }).toList();
-
-  // Return the rehabilitation plan
-  return RehabilitationPlan(
-    weekNumber: 1,
-    exercises: exercisePlans,
-  );
-}
-
-// ============== INSTANCE ======================
 
 class UserRehabilitation {
-  static final UserRehabilitation instance = UserRehabilitation._internal();
-
-  factory UserRehabilitation() => instance;
-
+  static final UserRehabilitation _instance = UserRehabilitation._internal();
+  static UserRehabilitation get instance => _instance;
   UserRehabilitation._internal();
+
+  String selectedMuscle = '';
+  String selectedPainLevel = '';
+  String selectedGoal = '';
 
   List<RehabilitationPlan> rehabPlans = [];
 }
 
-// ============== SAMPLE USAGE ==================
+/// Class to track daily progress of exercises.
+class DailyProgress {
+  final DateTime date;
+  final Map<String, bool> completedExercises;
 
-// final plan = RehabilitationPlan(
-//   weekNumber: 1,
-//   exercises: [
-//     ExercisePlan(exerciseId: 'E001', exerciseName: '', repetitions: 10, sets: 3),
-//     ExercisePlan(exerciseId: 'E002', exerciseName: '', repetitions: 8, sets: 2),
-//   ],
-//   daily: [
-//     DailyProgress(
-//       exerciseId: 'E001',
-//       repsCompleted: 10,
-//       setsCompleted: 3,
-//       isCompleted: true,
-//     ),
-//     DailyProgress(
-//       exerciseId: 'E002',
-//       repsCompleted: 6,
-//       setsCompleted: 2,
-//       isCompleted: false,
-//     ),
-//   ],
-// );
+  DailyProgress({
+    required this.date,
+    required this.completedExercises,
+  });
+}
+
+/// Reads the CSV from assets and parses the data.
+Future<List<List<dynamic>>> loadCSVFromAsset(String path) async {
+  try {
+    final rawCSV = await rootBundle.loadString(path);
+    print('CSV data loaded from $path');
+    final parsedCSV = const CsvToListConverter().convert(rawCSV);
+    print('CSV parsed successfully');
+    return parsedCSV;
+  } catch (e) {
+    print('Error loading CSV: $e');
+    rethrow; // Re-throw the exception after logging
+  }
+}
+
+/// Generates a rehabilitation plan from the CSV based on selected user inputs.
+Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV() async {
+  try {
+    final csvData = await loadCSVFromAsset('assets/data/exercises.csv');
+    print('CSV data: $csvData');
+
+    final header = csvData.first;
+    final data = csvData.sublist(1); // remove header row
+    print('CSV Header: $header');
+    print('CSV Data: ${data.length} rows');
+
+    // Validate headers
+    final requiredHeaders = [
+      'Exercise_ID',
+      'Exercise',
+      'Exercise_Description',
+      'Muscle_Involved',
+      'Pain_Level',
+      'Functional_Goal',
+      'Repetition',
+      'Set',
+      'Image_Link',
+      'Video_Link',
+    ];
+
+    for (final field in requiredHeaders) {
+      if (!header.contains(field)) {
+        print('Missing column: $field');
+        throw Exception('Missing column: $field in CSV header');
+      }
+    }
+
+    int col(String name) => header.indexOf(name);
+
+    // Filter exercises based on selected criteria
+    final filteredExercises = data.where((row) {
+      bool muscleMatch = row[col('Muscle_Involved')].toString().toLowerCase() == UserAssess.specificMuscle.toLowerCase().trim();
+      bool painLevelMatch = row[col('Pain_Level')].toString().toLowerCase() == UserAssess.painLevel.toLowerCase().trim();
+      bool goalMatch = row[col('Functional_Goal')].toString().toLowerCase() ==UserAssess.rehabGoal.toLowerCase().trim();
+
+      print('Matching row: ${row[col('Exercise')]}, Muscle Match: $muscleMatch, Pain Level Match: $painLevelMatch, Goal Match: $goalMatch \n CSV: ${row[col('Muscle_Involved')].toString().toLowerCase()}, Input: ${UserAssess.painLevel.toLowerCase().trim()}');
+
+      return muscleMatch && painLevelMatch && goalMatch;
+    }).toList();
+
+    print('Filtered exercises: ${filteredExercises.length} exercises found');
+
+    if (filteredExercises.length < 2) {
+      print('Not enough exercises found, returning null');
+      return null;
+    }
+
+    final random = Random();
+    filteredExercises.shuffle(random);
+
+    final selected = filteredExercises.take(3).map((row) {
+      print('Selected exercise: ${row[col('Exercise')]}');
+      return Exercise(
+        exerciseId: row[col('Exercise_ID')].toString(),
+        exerciseName: row[col('Exercise')].toString(),
+        description: row[col('Exercise_Description')].toString(),
+        muscle: row[col('Muscle_Involved')].toString(),
+        painLevel: row[col('Pain_Level')].toString(),
+        goal: row[col('Functional_Goal')].toString(),
+        repetitions: int.tryParse(row[col('Repetition')].toString()) ?? 0,
+        sets: int.tryParse(row[col('Set')].toString()) ?? 0,
+        imageUrl: row[col('Image_Link')].toString(),
+        videoUrl: row[col('Video_Link')].toString(),
+      );
+    }).toList();
+
+    return RehabilitationPlan(weekNumber: 1, exercises: selected);
+  } catch (e) {
+    print('Error generating rehabilitation plan: $e');
+    return null; // Return null if an error occurs
+  }
+}

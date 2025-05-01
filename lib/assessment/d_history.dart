@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'c_painduration.dart';
 import 'e_summary.dart';
-import '../functions.dart';
+import '../data/functions.dart';
 
 class AssessHistory extends StatefulWidget {
   const AssessHistory({super.key});

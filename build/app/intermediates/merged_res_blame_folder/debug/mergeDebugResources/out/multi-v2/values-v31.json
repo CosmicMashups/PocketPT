@@ -1,41 +1,17 @@
 {
     "logs": [
         {
-            "outputFile": "C:\\Users\\sheila brown\\.gradle\\daemon\\8.10.2\\com.example.pocketpt.app-mergeDebugResources-34:\\values-v31\\values-v31.xml",
-            "map": [
-                {
-                    "source": "D:\\Projects\\Research Projects\\pocketpt\\pocketpt\\android\\app\\src\\main\\res\\values-v31\\styles.xml",
-                    "from": {
-                        "startLines": "3,15",
-                        "startColumns": "4,4",
-                        "startOffsets": "173,881",
-                        "endLines": "8,17",
-                        "endColumns": "12,12",
-                        "endOffsets": "530,1045"
-                    },
-                    "to": {
-                        "startLines": "2,8",
-                        "startColumns": "4,4",
-                        "startOffsets": "55,417",
-                        "endLines": "7,10",
-                        "endColumns": "12,12",
-                        "endOffsets": "412,581"
-                    }
-                }
-            ]
-        },
-        {
             "outputFile": "com.example.pocketpt.app-mergeDebugResources-34:/values-v31/values-v31.xml",
             "map": [
                 {
                     "source": "D:\\Projects\\Research Projects\\pocketpt\\pocketpt\\android\\app\\src\\main\\res\\values-v31\\styles.xml",
                     "from": {
-                        "startLines": "3,-1",
-                        "startColumns": "4,-1",
-                        "startOffsets": "173,-1",
-                        "endLines": "11,-1",
-                        "endColumns": "12,-1",
-                        "endOffsets": "792,-1"
+                        "startLines": "3,18",
+                        "startColumns": "4,4",
+                        "startOffsets": "173,1143",
+                        "endLines": "11,20",
+                        "endColumns": "12,12",
+                        "endOffsets": "792,1307"
                     },
                     "to": {
                         "startLines": "2,11",

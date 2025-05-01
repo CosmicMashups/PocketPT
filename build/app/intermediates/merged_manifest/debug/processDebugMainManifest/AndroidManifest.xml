@@ -100,6 +100,15 @@
         </service>
 
         <provider
+            android:name="net.nfet.flutter.printing.PrintFileProvider"
+            android:authorities="com.example.pocketpt.flutter.printing"
+            android:exported="false"
+            android:grantUriPermissions="true" >
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/flutter_printing_file_paths" />
+        </provider>
+        <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="com.example.pocketpt.androidx-startup"
             android:exported="false" >

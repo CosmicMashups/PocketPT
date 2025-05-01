@@ -26,6 +26,18 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "barcode",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/barcode-2.2.9",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
+      "name": "bidi",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/bidi-2.0.13",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "boolean_selector",
       "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/boolean_selector-2.1.2",
       "packageUri": "lib/",
@@ -182,6 +194,12 @@
       "languageVersion": "3.6"
     },
     {
+      "name": "flutter_riverpod",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_riverpod-2.6.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
       "name": "flutter_test",
       "rootUri": "file:///C:/flutter/flutter/packages/flutter_test",
       "packageUri": "lib/",
@@ -192,6 +210,12 @@
       "rootUri": "file:///C:/flutter/flutter/packages/flutter_web_plugins",
       "packageUri": "lib/",
       "languageVersion": "3.7"
+    },
+    {
+      "name": "font_awesome_flutter",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/font_awesome_flutter-10.8.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
     },
     {
       "name": "google_fonts",
@@ -256,6 +280,12 @@
     {
       "name": "lints",
       "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/lints-5.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "lottie",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/lottie-3.3.1",
       "packageUri": "lib/",
       "languageVersion": "3.6"
     },
@@ -332,6 +362,18 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "pdf",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/pdf-3.11.3",
+      "packageUri": "lib/",
+      "languageVersion": "2.19"
+    },
+    {
+      "name": "pdf_widget_wrapper",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/pdf_widget_wrapper-1.0.4",
+      "packageUri": "lib/",
+      "languageVersion": "2.18"
+    },
+    {
       "name": "percent_indicator",
       "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/percent_indicator-4.2.5",
       "packageUri": "lib/",
@@ -362,6 +404,24 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "printing",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/printing-5.14.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.3"
+    },
+    {
+      "name": "qr",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/qr-3.0.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.4"
+    },
+    {
+      "name": "riverpod",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/riverpod-2.6.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
       "name": "simple_animations",
       "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/simple_animations-5.1.0",
       "packageUri": "lib/",
@@ -384,6 +444,12 @@
       "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/stack_trace-1.12.1",
       "packageUri": "lib/",
       "languageVersion": "3.4"
+    },
+    {
+      "name": "state_notifier",
+      "rootUri": "file:///C:/Users/sheila%20brown/AppData/Local/Pub/Cache/hosted/pub.dev/state_notifier-1.0.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
     },
     {
       "name": "stream_channel",
@@ -500,13 +566,13 @@
       "languageVersion": "3.4"
     },
     {
-      "name": "pocketpt",
+      "name": "PocketPT",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "3.7"
     }
   ],
-  "generated": "2025-04-30T10:25:52.341068Z",
+  "generated": "2025-05-01T15:46:47.240627Z",
   "generator": "pub",
   "generatorVersion": "3.7.2",
   "flutterRoot": "file:///C:/flutter/flutter",

@@ -11,7 +11,7 @@ class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 
   void _handleGoogleSignIn() {
-  // TODO: Implement Google Sign-In (e.g., using firebase_auth and google_sign_in)
+    // TODO: Implement Google Sign-In (e.g., using firebase_auth and google_sign_in)
     print("Google Sign-In button pressed");
   }
 
@@ -28,7 +28,7 @@ class LoginPage extends StatelessWidget {
             top: 0,
             left: 0,
             right: 0,
-            height: screenHeight * 0.2 + 50,
+            height: screenHeight * 0.3 + 50,
             child: Stack(
               alignment: Alignment.center,
               children: [
@@ -42,11 +42,11 @@ class LoginPage extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  top: 80,
+                  top: 0,
                   child: Image.asset(
                     'assets/images/logo.png',
-                    width: 300,
-                    height: 300,
+                    width: 250,
+                    height: 250,
                   ),
                 ),
               ],
@@ -55,7 +55,7 @@ class LoginPage extends StatelessWidget {
 
           // Bottom Section
           Positioned(
-            top: screenHeight * 0.2,
+            top: screenHeight * 0.3,
             left: 0,
             right: 0,
             bottom: 0,
@@ -64,8 +64,8 @@ class LoginPage extends StatelessWidget {
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(50.0),
-                  topRight: Radius.circular(50.0),
+                  topLeft: Radius.circular(40.0),
+                  topRight: Radius.circular(40.0),
                 ),
               ),
               child: SingleChildScrollView(
@@ -74,22 +74,22 @@ class LoginPage extends StatelessWidget {
                   children: [
                     Text(
                       'Welcome back!',
-                      style: GoogleFonts.poppins(fontSize: 26, fontWeight: FontWeight.w800),
+                      style: GoogleFonts.poppins(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.black),
                     ),
                     const SizedBox(height: 8),
                     Text("Let's pick up where you left off.",
-                        style: GoogleFonts.ptSans(fontSize: 16)),
+                        style: GoogleFonts.ptSans(fontSize: 16, color: Colors.black.withOpacity(0.7))),
                     const SizedBox(height: 4),
                     Text("Stay smart, stay strong.",
-                        style: GoogleFonts.ptSans(fontSize: 16)),
+                        style: GoogleFonts.ptSans(fontSize: 16, color: Colors.black.withOpacity(0.7))),
                     const SizedBox(height: 24),
 
                     // Email Field
-                    _buildInputField(label: 'E-mail Address'),
+                    _buildInputField(label: 'E-mail Address', icon: Icons.email),
                     const SizedBox(height: 16),
 
                     // Password Field
-                    _buildInputField(label: 'Password', isPassword: true),
+                    _buildInputField(label: 'Password', isPassword: true, icon: Icons.lock),
                     const SizedBox(height: 24),
 
                     // Login Button
@@ -106,10 +106,10 @@ class LoginPage extends StatelessWidget {
                                 const begin = Offset(1.0, 0.0);
                                 const end = Offset.zero;
                                 const curve = Curves.easeInOut;
-                        
+
                                 var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
                                 var offsetAnimation = animation.drive(tween);
-                        
+
                                 return SlideTransition(position: offsetAnimation, child: child);
                               },
                             ),
@@ -147,7 +147,7 @@ class LoginPage extends StatelessWidget {
                       child: FractionallySizedBox(
                         widthFactor: 0.85,
                         child: OutlinedButton.icon(
-                          icon: Image.asset('assets/images/logo/google.png', height: 14),
+                          icon: Image.asset('assets/images/logo/google.png', height: 16),
                           label: Text(
                             'Sign in with Google',
                             style: GoogleFonts.ptSans(
@@ -220,13 +220,14 @@ class LoginPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInputField({required String label, bool isPassword = false}) {
+  Widget _buildInputField({required String label, bool isPassword = false, IconData? icon}) {
     return Center(
       child: SizedBox(
         height: 60,
         child: TextField(
           obscureText: isPassword,
           decoration: InputDecoration(
+            prefixIcon: icon != null ? Icon(icon, color: Colors.black45) : null,
             labelText: label,
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             border: OutlineInputBorder(
@@ -234,7 +235,7 @@ class LoginPage extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(color: Colors.grey),
+              borderSide: const BorderSide(color: Color(0xFF2E2E2E)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),

@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'b_focus1.dart';
 import 'c_video.dart';
-import '../functions.dart';
+import '../data/functions.dart';
 
 class AssessUpperBody extends StatefulWidget {
   const AssessUpperBody({super.key});

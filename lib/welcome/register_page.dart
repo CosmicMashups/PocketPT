@@ -1,4 +1,3 @@
-// Import packages
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 // Import pages
 import 'login_page.dart';
 import '../assessment/preliminary.dart';
-import '../functions.dart';
+import '../data/functions.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -35,7 +34,7 @@ class _RegisterPageState extends State<RegisterPage> {
               alignment: Alignment.center,
               children: [
                 Opacity(
-                  opacity: 0.5,
+                  opacity: 0.6,
                   child: Image.asset(
                     'assets/images/welcome_1.jpg',
                     fit: BoxFit.cover,
@@ -44,11 +43,11 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
                 Positioned(
-                  top: -60,
+                  top: 0,
                   child: Image.asset(
                     'assets/images/logo.png',
-                    width: 300,
-                    height: 300,
+                    width: 250,
+                    height: 250,
                   ),
                 ),
               ],
@@ -61,32 +60,47 @@ class _RegisterPageState extends State<RegisterPage> {
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 50.0, vertical: 20.0),
-              decoration: const BoxDecoration(
+              padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 30.0),
+              decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.only(
+                borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(50.0),
                   topRight: Radius.circular(50.0),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: Offset(0, -5),
+                  ),
+                ],
               ),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Join PocketPT Now!',
-                        style: GoogleFonts.poppins(fontSize: 26, fontWeight: FontWeight.w800)),
+                    Text(
+                      'Join PocketPT Now!',
+                      style: GoogleFonts.poppins(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF800020),
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text("Recover Smart: Treat, Rehabilitate, Strengthen.",
-                        style: GoogleFonts.ptSans(fontSize: 16)),
+                    Text(
+                      "Recover Smart: Treat, Rehabilitate, Strengthen.",
+                      style: GoogleFonts.ptSans(fontSize: 16),
+                    ),
                     const SizedBox(height: 24),
 
-                    _buildInputField(label: 'First Name'),
+                    _buildInputField(label: 'First Name', icon: Icons.person),
                     const SizedBox(height: 14),
-                    _buildInputField(label: 'Last Name'),
+                    _buildInputField(label: 'Last Name', icon: Icons.person),
                     const SizedBox(height: 14),
-                    _buildInputField(label: 'E-mail Address'),
+                    _buildInputField(label: 'E-mail Address', icon: Icons.email),
                     const SizedBox(height: 14),
-                    _buildInputField(label: 'Password', isPassword: true),
+                    _buildInputField(label: 'Password', isPassword: true, icon: Icons.lock),
                     const SizedBox(height: 14),
 
                     CheckboxListTile(
@@ -158,7 +172,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               );
                               return;
                             }
-                        
+
                             Navigator.push(
                               context,
                               PageRouteBuilder(
@@ -167,10 +181,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                   const begin = Offset(1.0, 0.0);
                                   const end = Offset.zero;
                                   const curve = Curves.easeInOut;
-                        
+
                                   var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
                                   var offsetAnimation = animation.drive(tween);
-                        
+
                                   return SlideTransition(position: offsetAnimation, child: child);
                                 },
                               ),
@@ -179,6 +193,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF800020),
                             padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
                           ),
                           child: Text("Register",
                               style: GoogleFonts.ptSans(
@@ -229,13 +246,14 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildInputField({required String label, bool isPassword = false}) {
+  Widget _buildInputField({required String label, bool isPassword = false, IconData? icon}) {
     return Center(
       child: SizedBox(
         height: 60,
         child: TextField(
           obscureText: isPassword,
           decoration: InputDecoration(
+            prefixIcon: icon != null ? Icon(icon, color: Colors.black45) : null,
             labelText: label,
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             border: OutlineInputBorder(
