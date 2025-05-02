@@ -16,6 +16,7 @@ import 'reports/report_page.dart';
 
 // Main Function: To run the app
 void main() {
+  // await Firebase.initializeApp();
   runApp(ProviderScope(child: MyApp()));
 }
 

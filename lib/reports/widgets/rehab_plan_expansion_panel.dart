@@ -17,13 +17,13 @@ class RehabPlanExpansionPanel extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),  // Rounded corners for the card
       ),
       child: ExpansionTile(
-        leading: const Icon(Icons.medical_services, color: Colors.blue), // Icon on the title of ExpansionTile
+        leading: const Icon(Icons.medical_services, color: Color(0xFF557A95)), // Icon on the title of ExpansionTile
         title: const Text(
           'Rehabilitation Plans History',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.blueAccent, // Custom title color
+            color: Color(0xFF557A95), // Custom title color
           ),
         ),
         children: rehabPlans.map((plan) => _buildRehabPlanItem(
@@ -59,7 +59,7 @@ class RehabPlanExpansionPanel extends ConsumerWidget {
       child: ListTile(
         leading: Icon(
           Icons.fitness_center,  // Icon related to fitness for rehab plan
-          color: status == 'ongoing' ? Colors.blue : Colors.green,
+          color: status == 'ongoing' ? Color(0xFF557A95) : Colors.green,
         ),
         title: Text(
           title,
@@ -81,7 +81,7 @@ class RehabPlanExpansionPanel extends ConsumerWidget {
             status,
             style: const TextStyle(color: Colors.white),
           ),
-          backgroundColor: status == 'ongoing' ? Colors.blue : Colors.green,
+          backgroundColor: status == 'ongoing' ? Color(0xFF557A95) : Colors.green,
         ),
         onTap: onTap,
       ),

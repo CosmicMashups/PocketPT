@@ -69,13 +69,19 @@ class _AssessCoreState extends State<AssessCore> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // "Question 2 of 5"
-                  Text(
-                    "Question 2 of 5",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF800020),
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Question 2 of 5",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF800020),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 10),
@@ -99,7 +105,7 @@ class _AssessCoreState extends State<AssessCore> {
                     title: 'Abdominals',
                     description: 'Muscles in the front of the abdomen that support trunk movement and maintain posture.',
                     image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
+                      'assets/images/muscle_region/core_area.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
@@ -118,7 +124,7 @@ class _AssessCoreState extends State<AssessCore> {
                     title: 'Obliques',
                     description: 'Side abdominal muscles that assist in trunk rotation and lateral flexion.',
                     image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
+                      'assets/images/muscle_region/core_area.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
@@ -137,7 +143,7 @@ class _AssessCoreState extends State<AssessCore> {
                     title: 'Lower Back',
                     description: 'Muscles supporting spinal stability and helping with trunk extension.',
                     image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
+                      'assets/images/muscle_region/core_area.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
@@ -156,7 +162,7 @@ class _AssessCoreState extends State<AssessCore> {
                     title: 'Diaphragm',
                     description: 'Dome-shaped muscle under the lungs essential for breathing.',
                     image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
+                      'assets/images/muscle_region/core_area.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
@@ -175,7 +181,7 @@ class _AssessCoreState extends State<AssessCore> {
                     title: 'Multifidus',
                     description: 'Deep spinal muscles that stabilize vertebrae during movement.',
                     image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
+                      'assets/images/muscle_region/core_area.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,

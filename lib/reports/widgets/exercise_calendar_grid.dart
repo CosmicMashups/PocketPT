@@ -124,11 +124,11 @@ class ExerciseCalendarGrid extends ConsumerWidget {
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey[300]!),
             borderRadius: BorderRadius.circular(12),
-            color: hasExercises ? Colors.blue.withOpacity(0.2) : null,
+            color: hasExercises ? Color(0xFF557A95).withOpacity(0.2) : null,
             boxShadow: [
               if (hasExercises)
                 BoxShadow(
-                  color: Colors.blue.withOpacity(0.3),
+                  color: Color(0xFF557A95).withOpacity(0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -142,7 +142,7 @@ class ExerciseCalendarGrid extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: hasExercises ? FontWeight.bold : FontWeight.normal,
-                    color: hasExercises ? Colors.blue : Colors.black,
+                    color: hasExercises ? Color(0xFF557A95) : Colors.black,
                   ),
                 ),
               ),
@@ -153,7 +153,7 @@ class ExerciseCalendarGrid extends ConsumerWidget {
                   child: Icon(
                     Icons.fitness_center,
                     size: 12,
-                    color: Colors.blue[600],
+                    color: Color(0xFF557A95),
                   ),
                 ),
             ],

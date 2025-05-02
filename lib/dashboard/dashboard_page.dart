@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:pocketpt/record/pre_record_page.dart';
+import '../record/pre_record_page.dart';
 import '../data/globals.dart';
 // import 'package:percent_indicator/percent_indicator.dart';
 import '../data/rehabilitation_plan.dart';
@@ -172,182 +172,62 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 30),
 
               // 2. Progress Container
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFF9F8F7), Colors.white],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              Stack(
+                children: [
+                  // Gradient image background using ShaderMask
+                  ShaderMask(
+                    shaderCallback: (Rect bounds) {
+                      return LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [
+                          Colors.black,
+                          Colors.transparent,
+                        ],
+                      ).createShader(bounds);
+                    },
+                    blendMode: BlendMode.dstIn,
+                    child: Image.asset(
+                      'assets/images/exercise/exercise.jpg', // Replace with your actual asset path
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
                   ),
-                  border: Border.all(color: Color(0xFFDEDAD6)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.08),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    /// Top Header Row
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Static 'PROGRESS' Text
-                        Text(
-                          'PROGRESS',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 18,
-                            letterSpacing: 1.2,
-                            color: const Color(0xFF5B5B5B),
-                          ),
-                        ),
-                        const SizedBox(width: 8), // Small space between 'PROGRESS' and exercise name
-                        
-                        /// Expanded space for exercise details
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end, // Align text to the right
-                            children: [
-                              // Exercise Name Text with maxLines and overflow handling
-                              Align(
-                                alignment: Alignment.centerRight, // Align the text to the right
-                                child: Text(
-                                  currentExercise?.exerciseName ?? 'No Exercise',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 26,
-                                    color: const Color(0xFF2E2E2E),
-                                  ),
-                                  maxLines: 2, // Allows the text to span across two lines if needed
-                                  overflow: TextOverflow.ellipsis, // Ensures text is truncated with '...' if it overflows
-                                  textAlign: TextAlign.right, // Aligns text to the right
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              // Specific Muscle Text
-                              Text(
-                                UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'No target muscle',
-                                style: GoogleFonts.ptSans(
-                                  fontSize: 16,
-                                  color: const Color(0xFF557A95),
-                                ),
-                              ),
-                              // Set and Repetition Information
-                              Text(
-                                currentExercise != null
-                                    ? '${currentExercise.sets} sets: ${currentExercise.repetitions} reps'
-                                    : 'No set info',
-                                style: GoogleFonts.ptSans(
-                                  fontSize: 14,
-                                  color: const Color(0xFF5B5B5B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
 
-                    const SizedBox(height: 28),
-
-                    /// Progress & Resume Button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        /// Progress Circle
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              height: 66,
-                              width: 66,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFFF8F6F4),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.15),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(6.0), // Prevents the indicator from clipping
-                                child: CircularProgressIndicator(
-                                  value: progress, // must be between 0.0 and 1.0
-                                  strokeWidth: 6,
-                                  backgroundColor: Colors.grey[300],
-                                  valueColor: const AlwaysStoppedAnimation(Color(0xFFC1574F)),
-                                ),
-                              ),
+                  // Foreground dashboard content
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome to the Dashboard',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
-                            Text(
-                              '${(progress * 100).toInt()}%',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 14,
-                                color: const Color(0xFF2E2E2E),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        /// Resume Button
-                        InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder: (context, animation, secondaryAnimation) => PreRecordPage(),
-                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                  // SlideTransition
-                                  const begin = Offset(1.0, 0.0);
-                                  const end = Offset.zero;
-                                  const curve = Curves.easeInOut;
-
-                                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                  var offsetAnimation = animation.drive(tween);
-
-                                  return SlideTransition(position: offsetAnimation, child: child);
-                                },
-                              ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(30),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                          ),
+                          SizedBox(height: 20),
+                          // Add your dashboard widgets here
+                          Container(
+                            padding: EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF709255),
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF709255).withOpacity(0.3),
-                                  offset: const Offset(0, 4),
-                                  blurRadius: 10,
-                                ),
-                              ],
+                              color: Colors.white.withOpacity(0.8),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'Resume >',
-                              style: GoogleFonts.ptSans(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.white,
-                              ),
+                              'This is a sample card on top of the background.',
+                              style: TextStyle(fontSize: 16),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
 
@@ -531,23 +411,29 @@ class _DashboardPageState extends State<DashboardPage> {
                               ),
                               const SizedBox(height: 10),
                               // List Exercises for this Plan
-                              ...plan.exercises.map((exercise) => Row(
-                                    children: [
-                                      Icon(
-                                        Icons.fitness_center,
-                                        size: 18,
-                                        color: const Color(0xFF8B2E2E),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
+                              ...plan.exercises.map(
+                                (exercise) => Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start, // Align items at the top
+                                  children: [
+                                    Icon(
+                                      Icons.fitness_center,
+                                      size: 18,
+                                      color: const Color(0xFF8B2E2E),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
                                         exercise.exerciseName,
                                         style: GoogleFonts.ptSans(
                                           color: const Color(0xFF7A7A7A),
                                           fontSize: 14,
                                         ),
+                                        softWrap: true,
                                       ),
-                                    ],
-                                  )),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),

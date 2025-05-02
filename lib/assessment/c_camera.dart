@@ -81,17 +81,23 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFF8F6F4),
         elevation: 0,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(Icons.local_hospital, color: Color(0xFF800020), size: 26),
-            const SizedBox(width: 8),
             Text(
-              "Pain Level (Camera)",
+              "Pain: Level",
               style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w800,
                 fontSize: 22,
                 color: const Color(0xFF1E1E1E),
+              ),
+            ),
+            Text(
+              "Camera",
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w400,
+                fontSize: 14,
+                color: Colors.grey[700],
               ),
             ),
           ],

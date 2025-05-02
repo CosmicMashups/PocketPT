@@ -23,7 +23,7 @@ class ExportPDFButton extends ConsumerWidget {
           ),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            backgroundColor: Colors.blueAccent,  // Custom blue background color
+            backgroundColor: Color(0xFF557A95),  // Custom blue background color
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),  // Rounded corners
             ),
