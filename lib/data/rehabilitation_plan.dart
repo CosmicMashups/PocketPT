@@ -53,6 +53,7 @@ class UserRehabilitation {
 
   String selectedMuscle = '';
   String selectedPainLevel = '';
+  String selectedPainDuration = '';
   String selectedGoal = '';
 
   List<RehabilitationPlan> rehabPlans = [];

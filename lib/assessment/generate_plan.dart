@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../data/rehabilitation_plan.dart';
 import '../main.dart';
+import '../data/treatment.dart';
+import 'generate_treatment.dart';
+import '../data/globals.dart';
 
 class GeneratePlanPage extends StatefulWidget {
   const GeneratePlanPage({super.key});
@@ -12,7 +15,9 @@ class GeneratePlanPage extends StatefulWidget {
 class _GeneratePlanPageState extends State<GeneratePlanPage> {
   bool _isLoading = true;
   RehabilitationPlan? _rehabPlan;
+  List<Treatment>? _treatments;
   String? _error;
+  // bool _showExerciseWarning = false;
 
   @override
   void initState() {
@@ -22,16 +27,49 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
 
   Future<void> _loadPlan() async {
     try {
-      final plan = await generateRehabilitationPlanFromCSV();
-      if (plan == null) {
+      // Set the treatment parameters based on user assessment
+      UserRehabilitation.instance.selectedMuscle = UserAssess.specificMuscle;
+      UserRehabilitation.instance.selectedPainLevel = UserAssess.painLevel;
+      UserRehabilitation.instance.selectedPainDuration = UserAssess.painDuration;
+
+      final selectedPainLevel = UserRehabilitation.instance.selectedPainLevel;
+      final selectedPainDuration = UserRehabilitation.instance.selectedPainDuration;
+
+      RehabilitationPlan? plan;
+
+      // Only generate plan if condition is not met
+      if (selectedPainLevel != "Severe" || selectedPainDuration != "Less than 48 hours ago") {
+        plan = await generateRehabilitationPlanFromCSV();
+      }
+      
+      final treatments = await generateTreatmentPlan(
+        specificMuscle: UserRehabilitation.instance.selectedMuscle,
+        painLevel: UserRehabilitation.instance.selectedPainLevel,
+        painDuration: UserRehabilitation.instance.selectedPainDuration,
+      );
+      
+      // Determine whether to show warning
+      final shouldShowExerciseWarning = selectedPainLevel == "Severe" || selectedPainDuration == "Less than 48 hours ago";
+
+      if (shouldShowExerciseWarning) {
         setState(() {
+          _treatments = treatments;
+          _rehabPlan = null;
           _isLoading = false;
-          _error = "⚠️ Not enough matching exercises found.";
+        });
+      } else if (plan == null && (treatments == null || treatments.isEmpty)) {
+        setState(() {
+          _error = "⚠️ Not enough matching exercises or treatments found.";
+          _rehabPlan = null;
+          _treatments = null;
+          _isLoading = false;
         });
       } else {
-        UserRehabilitation.instance.rehabPlans = [plan];
+        UserRehabilitation.instance.rehabPlans = plan != null ? [plan] : [];
         setState(() {
           _rehabPlan = plan;
+          _treatments = treatments;
+          _error = null;
           _isLoading = false;
         });
       }
@@ -89,7 +127,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '🗓 Week ${_rehabPlan!.weekNumber}',
+            '🗓 Week ${_rehabPlan?.weekNumber ?? 1}',
             style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w700,
@@ -97,82 +135,36 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
             ),
           ),
           const SizedBox(height: 16),
-          ..._rehabPlan!.exercises.map((e) => Card(
-                color: Colors.white,
-                elevation: 5,
-                margin: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.sports_gymnastics, size: 28, color: Color(0xFF800020)),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              e.exerciseName,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(e.description),
-                      const Divider(height: 24),
-                      _buildDetailRow(Icons.fitness_center, '${e.sets} sets of ${e.repetitions} reps'),
-                      _buildDetailRow(Icons.tag, 'ID: ${e.exerciseId}'),
-                      _buildDetailRow(Icons.accessibility_new, 'Muscle: ${e.muscle}'),
-                      _buildDetailRow(Icons.favorite, 'Pain Level: ${e.painLevel}'),
-                      _buildDetailRow(Icons.flag, 'Goal: ${e.goal}'),
-
-                      // Optional image
-                      // if (e.imageUrl.isNotEmpty)
-                      //   Padding(
-                      //     padding: const EdgeInsets.only(top: 16),
-                      //     child: ClipRRect(
-                      //       borderRadius: BorderRadius.circular(12),
-                      //       child: Image.asset(
-                      //         'assets/images/exercise/${e.imageUrl}',
-                      //         height: 160,
-                      //         fit: BoxFit.cover,
-                      //         errorBuilder: (context, error, stackTrace) =>
-                      //             const Text('❌ Could not load image.'),
-                      //       ),
-                      //     ),
-                      //   ),
-
-                      // Optional video URL text
-                      if (e.videoUrl.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.ondemand_video, size: 20, color: Colors.blue),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Video Guide: ${e.videoUrl}',
-                                  style: const TextStyle(
-                                    color: Colors.blue,
-                                    decoration: TextDecoration.underline,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              )),
+          
+          // Treatments Section
+          if (_treatments != null && _treatments!.isNotEmpty) ...[
+            const Text(
+              '💊 Recommended Treatments',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2E5A88),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ..._treatments!.map((t) => _buildTreatmentCard(t)),
+            const SizedBox(height: 20),
+          ],
+          
+          // Exercises Section
+          if (_rehabPlan != null && _rehabPlan!.exercises.isNotEmpty) ...[
+            const Text(
+              '🏋️‍♂️ Recommended Exercises',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2E5A88),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ..._rehabPlan!.exercises.map((e) => _buildExerciseCard(e)),
+          ],
+          
           const SizedBox(height: 30),
           Center(
             child: ElevatedButton.icon(
@@ -199,6 +191,108 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTreatmentCard(Treatment treatment) {
+    return Card(
+      color: Colors.white,
+      elevation: 5,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.medical_services, size: 28, color: Color(0xFF800020)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    treatment.treatmentName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(treatment.description),
+            const Divider(height: 24),
+            _buildDetailRow(Icons.assignment, 'ID: ${treatment.treatmentId}'),
+            _buildDetailRow(Icons.accessibility_new, 'Muscles: ${treatment.musclesInvolved}'),
+            _buildDetailRow(Icons.health_and_safety, 'Pain Level: ${treatment.painLevel}'),
+            _buildDetailRow(Icons.timer, 'Pain Duration: ${treatment.painDuration}'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExerciseCard(Exercise exercise) {
+    return Card(
+      color: Colors.white,
+      elevation: 5,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.sports_gymnastics, size: 28, color: Color(0xFF800020)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    exercise.exerciseName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(exercise.description),
+            const Divider(height: 24),
+            _buildDetailRow(Icons.fitness_center, '${exercise.sets} sets of ${exercise.repetitions} reps'),
+            _buildDetailRow(Icons.tag, 'ID: ${exercise.exerciseId}'),
+            _buildDetailRow(Icons.accessibility_new, 'Muscle: ${exercise.muscle}'),
+            _buildDetailRow(Icons.favorite, 'Pain Level: ${exercise.painLevel}'),
+            _buildDetailRow(Icons.flag, 'Goal: ${exercise.goal}'),
+            if (exercise.videoUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.ondemand_video, size: 20, color: Colors.blue),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Video Guide: ${exercise.videoUrl}',
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

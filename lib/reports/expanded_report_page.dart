@@ -105,7 +105,7 @@ class ExpandedReportPage extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                    color: Color(0xFF557A95),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -116,7 +116,7 @@ class ExpandedReportPage extends ConsumerWidget {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.fitness_center, color: Colors.blue[800]),
+                              Icon(Icons.fitness_center, color: Color(0xFF557A95)),
                               const SizedBox(width: 8),
                               Text(
                                 '${record.exerciseName} (${record.sets} sets x ${record.reps} reps)',

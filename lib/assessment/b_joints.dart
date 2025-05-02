@@ -69,13 +69,19 @@ class _AssessJointsState extends State<AssessJoints> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // "Question 2 of 5"
-                  Text(
-                    "Question 2 of 5",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF800020),
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Question 2 of 5",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF800020),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 10),
@@ -99,7 +105,7 @@ class _AssessJointsState extends State<AssessJoints> {
                     title: 'Elbow',
                     description: 'A hinge joint enabling arm bending and extension, supported by surrounding muscles and tendons.',
                     image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
+                      'assets/images/muscle_region/joints.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
@@ -118,7 +124,7 @@ class _AssessJointsState extends State<AssessJoints> {
                     title: 'Knee',
                     description: 'A complex joint that allows leg bending and straightening, vital for standing and movement.',
                     image: Image.asset(
-                      'assets/images/muscle_region/lower_body.png',
+                      'assets/images/muscle_region/joints.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
@@ -137,7 +143,7 @@ class _AssessJointsState extends State<AssessJoints> {
                     title: 'Ankle',
                     description: 'A flexible joint connecting the foot to the leg, essential for walking, running, and balance.',
                     image: Image.asset(
-                      'assets/images/muscle_region/lower_body.png',
+                      'assets/images/muscle_region/joints.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,

@@ -85,11 +85,11 @@ class LoginPage extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // Email Field
-                    _buildInputField(label: 'E-mail Address', icon: Icons.email),
+                    ReusableInputField(label: 'E-mail Address', icon: Icons.email),
                     const SizedBox(height: 16),
 
                     // Password Field
-                    _buildInputField(label: 'Password', isPassword: true, icon: Icons.lock),
+                    ReusableInputField(label: 'Password', isPassword: true, icon: Icons.lock),
                     const SizedBox(height: 24),
 
                     // Login Button
@@ -219,16 +219,43 @@ class LoginPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildInputField({required String label, bool isPassword = false, IconData? icon}) {
+class ReusableInputField extends StatefulWidget {
+  final String label;
+  final bool isPassword;
+  final IconData? icon;
+
+  const ReusableInputField({
+    super.key,
+    required this.label,
+    this.isPassword = false,
+    this.icon,
+  });
+
+  @override
+  State<ReusableInputField> createState() => _ReusableInputFieldState();
+}
+
+class _ReusableInputFieldState extends State<ReusableInputField> {
+  late bool isObscured;
+
+  @override
+  void initState() {
+    super.initState();
+    isObscured = widget.isPassword;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: SizedBox(
         height: 60,
         child: TextField(
-          obscureText: isPassword,
+          obscureText: widget.isPassword ? isObscured : false,
           decoration: InputDecoration(
-            prefixIcon: icon != null ? Icon(icon, color: Colors.black45) : null,
-            labelText: label,
+            prefixIcon: widget.icon != null ? Icon(widget.icon, color: Colors.black45) : null,
+            labelText: widget.label,
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
@@ -241,6 +268,19 @@ class LoginPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               borderSide: const BorderSide(color: Color(0xFF8B2E2E), width: 2),
             ),
+            suffixIcon: widget.isPassword
+                ? IconButton(
+                    icon: Icon(
+                      isObscured ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.black45,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isObscured = !isObscured;
+                      });
+                    },
+                  )
+                : null,
           ),
           style: GoogleFonts.ptSans(),
         ),

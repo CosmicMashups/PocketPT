@@ -69,13 +69,19 @@ class _AssessHistoryState extends State<AssessHistory> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // "Question 4 of 5"
-                  Text(
-                    "Question 4 of 5",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF800020),
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Question 4 of 5",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF800020),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 10),

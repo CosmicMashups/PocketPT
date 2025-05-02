@@ -21,7 +21,7 @@ class AssessPainVideoPreview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              "Pain: Level (Camera)",
+              "Pain: Level",
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w800,
                 fontSize: 22,
@@ -29,7 +29,7 @@ class AssessPainVideoPreview extends StatelessWidget {
               ),
             ),
             Text(
-              "Video Review",
+              "Video Preview",
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w400,
                 fontSize: 14,
@@ -49,9 +49,9 @@ class AssessPainVideoPreview extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 6.0),
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
+              // margin: const EdgeInsets.symmetric(horizontal: 20),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                // borderRadius: BorderRadius.circular(12),
                 child: LinearProgressIndicator(
                   value: 0.6,
                   minHeight: 10,
@@ -68,13 +68,20 @@ class AssessPainVideoPreview extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Step 3 of 5",
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF800020),
-                    ),
+                  // "Question 3 of 5"
+                  Row(
+                    children: [
+                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Question 3 of 5",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF800020),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(

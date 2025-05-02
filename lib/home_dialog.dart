@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:pocketpt/main.dart';
+import 'main.dart';
 
 class HomePageWithDialog extends StatefulWidget {
   const HomePageWithDialog({super.key});

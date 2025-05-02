@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:camera/camera.dart';
-import 'package:pocketpt/data/globals.dart';
-import 'package:pocketpt/home_dialog.dart';
+import '../data/globals.dart';
+import '../home_dialog.dart';
 import '../data/rehabilitation_plan.dart';
 import 'pre_record_page.dart';
 import 'stopwatch_service.dart';

@@ -69,13 +69,19 @@ class _AssessNeckState extends State<AssessNeck> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // "Question 2 of 5"
-                  Text(
-                    "Question 2 of 5",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF800020),
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Question 2 of 5",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF800020),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 10),
@@ -94,12 +100,12 @@ class _AssessNeckState extends State<AssessNeck> {
 
                   // Custom Radio Tiles
                   CustomImageRadioTile<String>(
-                    value: 'Neck',
+                    value: 'Cervical Muscle',
                     groupValue: specificMuscle,
                     title: 'Cervical Muscles',
                     description: 'Muscles supporting head movement and maintaining posture.',
                     image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
+                      'assets/images/muscle_region/neck.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,
@@ -113,12 +119,12 @@ class _AssessNeckState extends State<AssessNeck> {
                   ),
                   
                   CustomImageRadioTile<String>(
-                    value: 'Upper Back',
+                    value: 'Thoracic Region',
                     groupValue: specificMuscle,
                     title: 'Thoracic Region',
                     description: 'Muscles like the trapezius that support shoulder movement and spinal alignment.',
                     image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
+                      'assets/images/muscle_region/neck.png',
                       width: 48,
                       height: 48,
                       fit: BoxFit.cover,

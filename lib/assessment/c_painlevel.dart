@@ -88,14 +88,20 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Question count
-                      Text(
-                        "Question 3 of 5",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF800020),
-                        ),
+                      // "Question 3 of 5"
+                      Row(
+                        children: [
+                          Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Question 3 of 5",
+                            style: GoogleFonts.ptSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF800020),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
 
