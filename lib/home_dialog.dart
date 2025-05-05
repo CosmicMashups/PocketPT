@@ -54,7 +54,7 @@ class _HomePageWithDialogState extends State<HomePageWithDialog> with SingleTick
                       ),
                       const SizedBox(height: 10),
                       const Text(
-                        'You’ve completed today’s exercise session. 🎯 Keep it up!',
+                        'You’ve completed today’s exercise session.\n🎯 Keep it up!',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16,

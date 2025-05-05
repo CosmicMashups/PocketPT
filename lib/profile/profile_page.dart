@@ -12,6 +12,11 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  // Color constants
+  static const mainColor = Color(0xFF800020); // Burgundy/Maroon
+  // static const detailColor = Color(0xFF6A5D7B); // Muted Purple
+  // static const backgroundColor = Color(0xFFF8F6F4); // Light background
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,18 +26,25 @@ class _ProfilePageState extends State<ProfilePage> {
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
-        backgroundColor: Color(0xFF8B2E2E), // Main color for AppBar
+        backgroundColor: mainColor,
         automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.settings),
-            onPressed: () {
-              // Add settings page navigation if necessary
-            },
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(16),
           ),
-        ],
+        ),
+        // actions: [
+        //   IconButton(
+        //     icon: Icon(Icons.settings, color: Colors.white),
+        //     onPressed: () {
+        //       // Add settings page navigation
+        //     },
+        //   ),
+        // ],
       ),
       body: ListView(
         padding: EdgeInsets.all(16),
@@ -207,26 +219,25 @@ class _ProfilePageState extends State<ProfilePage> {
 
           Divider(height: 32),
 
-          // Logout Section
-          Center(
-            child: TextButton.icon(
-              icon: Icon(Icons.logout, color: Colors.red),
-              label: Text('Log Out', style: TextStyle(color: Colors.red)),
+          // Logout Button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.logout, color: Colors.red),
+              label: const Text(
+                'Log Out',
+                style: TextStyle(color: Colors.red),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                side: const BorderSide(color: Colors.red),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               onPressed: () => Navigator.push(
                 context,
-                PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) => LoginPage(),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    const begin = Offset(1.0, 0.0);
-                    const end = Offset.zero;
-                    const curve = Curves.easeInOut;
-
-                    var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                    var offsetAnimation = animation.drive(tween);
-
-                    return SlideTransition(position: offsetAnimation, child: child);
-                  },
-                ),
+                MaterialPageRoute(builder: (context) => const LoginPage()),
               ),
             ),
           ),

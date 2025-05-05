@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../record/pre_record_page.dart';
 import '../data/globals.dart';
-// import 'package:percent_indicator/percent_indicator.dart';
 import '../data/rehabilitation_plan.dart';
-
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -71,52 +69,51 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // Widget: Info Card
   Widget _buildInfoCard({
-    required IconData icon,
     required String title,
     required String value,
+    required IconData icon,
+    required Color backgroundColor,
     required Color iconColor,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 28, color: iconColor),
-          const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: const Color(0xFF333333),
-                ),
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: GoogleFonts.ptSans(
-                  fontSize: 14,
-                  color: const Color(0xFF7A7A7A),
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -126,205 +123,315 @@ class _DashboardPageState extends State<DashboardPage> {
     final rehabPlans = UserRehabilitation.instance.rehabPlans;
     final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
     final currentExercise = rehabPlan?.exercises.isNotEmpty == true ? rehabPlan!.exercises.first : null;
-    double progress = currentExercise != null ? 0.0 : 0.0;
+    double progress = currentExercise != null ? 0.3 : 0.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: const Color(0xFFF8F6F4),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: const AssetImage('assets/images/profile/profile.jpg'),
-                    backgroundColor: Colors.grey[200],
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${UserDetails.firstName.toUpperCase()} ${UserDetails.lastName.toUpperCase()}',
-                          style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w800),
-                        ),
-                        Row(
-                          children: [
-                            const Icon(Icons.local_fire_department, color: Colors.orange, size: 18),
-                            const SizedBox(width: 4),
-                            Text(UserProgress.title, style: GoogleFonts.poppins(fontSize: 14)),
-                          ],
-                        ),
-                      ],
+              // Profile Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () => _showNotificationsDialog(context),
-                    icon: const Icon(Icons.notifications_active),
-                    color: Color(0xFF557A95),
-                  )
-                ],
-              ),
-              const SizedBox(height: 30),
-
-              // 2. Progress Container
-              Stack(
-                children: [
-                  // Gradient image background using ShaderMask
-                  ShaderMask(
-                    shaderCallback: (Rect bounds) {
-                      return LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          Colors.black,
-                          Colors.transparent,
-                        ],
-                      ).createShader(bounds);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: Image.asset(
-                      'assets/images/exercise/exercise.jpg', // Replace with your actual asset path
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF557A95).withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 32,
+                        backgroundImage: const AssetImage('assets/images/profile/profile.jpg'),
+                        backgroundColor: Colors.grey[200],
+                      ),
                     ),
-                  ),
-
-                  // Foreground dashboard content
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                    const SizedBox(width: 16),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Welcome to the Dashboard',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(height: 20),
-                          // Add your dashboard widgets here
-                          Container(
-                            padding: EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.8),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'This is a sample card on top of the background.',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // 3. Streak and Stats
-              Row(
-                children: [
-                  // Left Column – Streak
-                  Expanded(
-                    flex: 3,
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFFFE6E6), Color(0xFFFFF5F5)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.redAccent.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // const Icon(Icons.local_fire_department, color: Colors.deepOrange, size: 24),
-                              // const SizedBox(width: 6),
-                              Text(
-                                'Streak',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: const Color(0xFF2E2E2E),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            '${UserProgress.streak}',
+                            'Welcome back,',
                             style: GoogleFonts.poppins(
-                              fontSize: 38,
-                              fontWeight: FontWeight.w900,
-                              color: const Color(0xFFB12E2E),
+                              fontSize: 14,
+                              color: const Color(0xFF7A7A7A),
+                            ),
+                          ),
+                          Text(
+                            '${UserDetails.firstName} ${UserDetails.lastName}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF2E2E2E),
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(
-                            'Day(s) of Workout',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 14,
-                              color: const Color(0xFF6B6B6B),
-                            ),
+                          Row(
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF557A95).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.local_fire_department, 
+                                          color: Colors.orange, size: 18),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          UserProgress.title,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            color: const Color(0xFF557A95),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 12),
+                              
+                            ],
                           ),
                         ],
                       ),
                     ),
+                    IconButton(
+                      onPressed: () => _showNotificationsDialog(context),
+                      icon: const Badge(
+                        smallSize: 8,
+                        backgroundColor: Color(0xFFC1574F),
+                        child: Icon(Icons.notifications_active, 
+                          color: Color(0xFF557A95)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              
+              // Progress Card
+              Container(
+                height: 220,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  image: const DecorationImage(
+                    image: AssetImage('assets/images/exercise/exercise.jpg'),
+                    fit: BoxFit.cover,
                   ),
-
-                  const SizedBox(width: 14),
-
-                  // Right Column – Stats
-                  Expanded(
-                    flex: 7,
-                    child: Column(
-                      children: [
-                        // Exercises Card
-                        _buildInfoCard(
-                          icon: Icons.fitness_center,
-                          title: 'Exercises Done',
-                          value: '${UserProgress.totalExercises} Completed',
-                          iconColor: const Color(0xFF8B2E2E),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Time Spent Card
-                        _buildInfoCard(
-                          icon: Icons.schedule,
-                          title: 'Time Spent',
-                          value: '${UserProgress.totalMinutes} Minute(s)',
-                          iconColor: const Color(0xFFC1574F),
-                        ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.black.withOpacity(0.6),
+                        Colors.transparent,
                       ],
                     ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PROGRESS',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                          letterSpacing: 1.2,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  currentExercise?.exerciseName ?? 'No Exercise',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 22,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  UserAssess.specificMuscle.isNotEmpty
+                                      ? UserAssess.specificMuscle
+                                      : 'No target muscle',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 14,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                                Text(
+                                  currentExercise != null
+                                      ? '${currentExercise.sets} sets: ${currentExercise.repetitions} reps'
+                                      : 'No set info',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Container(
+                                      height: 60,
+                                      width: 60,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.withOpacity(0.2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.2),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6.0),
+                                        child: CircularProgressIndicator(
+                                          value: progress,
+                                          strokeWidth: 6,
+                                          backgroundColor: Colors.white.withOpacity(0.3),
+                                          valueColor: const AlwaysStoppedAnimation(Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(progress * 100).toInt()}%',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                InkWell(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      PageRouteBuilder(
+                                        pageBuilder: (context, animation, secondaryAnimation) =>
+                                            const PreRecordPage(),
+                                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                          const begin = Offset(1.0, 0.0);
+                                          const end = Offset.zero;
+                                          const curve = Curves.easeInOut;
+
+                                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                          var offsetAnimation = animation.drive(tween);
+
+                                          return SlideTransition(position: offsetAnimation, child: child);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(30),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF709255),
+                                      borderRadius: BorderRadius.circular(30),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF709255).withOpacity(0.3),
+                                          offset: const Offset(0, 4),
+                                          blurRadius: 10,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      progress == 0 ? 'Start >' : 'Resume >',
+                                      style: GoogleFonts.ptSans(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Stats Cards
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildInfoCard(
+                    title: 'Streak',
+                    value: '${UserProgress.streak} day(s)',
+                    icon: Icons.local_fire_department,
+                    backgroundColor: const Color(0xFFFFF3E0),
+                    iconColor: Colors.deepOrange,
+                  ),
+                  _buildInfoCard(
+                    title: 'Total Exercises',
+                    value: '${UserProgress.totalExercises}',
+                    icon: Icons.fitness_center,
+                    backgroundColor: const Color(0xFFE3F2FD),
+                    iconColor: Colors.blueAccent,
+                  ),
+                  _buildInfoCard(
+                    title: 'Time Spent',
+                    value: '${UserProgress.totalMinutes} min(s)',
+                    icon: Icons.timer,
+                    backgroundColor: const Color(0xFFE8F5E9),
+                    iconColor: Colors.green,
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
-              // 4. Your Plan
+              // Your Plan Section
               Text(
                 'Your Plan',
                 style: GoogleFonts.poppins(
@@ -336,36 +443,6 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 14),
               Column(
                 children: UserRehabilitation.instance.rehabPlans.map((plan) {
-                  // // Calculate total sets
-                  // final totalSets = plan.exercises.fold<int>(0, (sum, ex) => sum + ex.sets);
-
-                  // // Calculate completed sets from DailyProgress
-                  // int completedSets = 0;
-                  // for (final progress in plan.daily) {
-                  //   for (final entry in progress.completedExercises.entries) {
-                  //     if (entry.value) {
-                  //       final matchingExercise = plan.exercises.firstWhere(
-                  //         (ex) => ex.exerciseId == entry.key,
-                  //         orElse: () => Exercise(
-                  //           exerciseId: '',
-                  //           exerciseName: '',
-                  //           description: '',
-                  //           muscle: '',
-                  //           painLevel: '',
-                  //           goal: '',
-                  //           repetitions: 0,
-                  //           sets: 0,
-                  //           imageUrl: '',
-                  //           videoUrl: '',
-                  //         ),
-                  //       );
-                  //       completedSets += matchingExercise.sets;
-                  //     }
-                  //   }
-                  // }
-
-                  // final percent = totalSets == 0 ? 0.0 : completedSets / totalSets;
-
                   return Container(
                     margin: const EdgeInsets.only(bottom: 18),
                     padding: const EdgeInsets.all(14),
@@ -384,7 +461,6 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Plan Image
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: SizedBox(
@@ -410,10 +486,9 @@ class _DashboardPageState extends State<DashboardPage> {
                                 ),
                               ),
                               const SizedBox(height: 10),
-                              // List Exercises for this Plan
                               ...plan.exercises.map(
                                 (exercise) => Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start, // Align items at the top
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Icon(
                                       Icons.fitness_center,
@@ -437,30 +512,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        // Progress Indicator
-                        // SizedBox(
-                        //   height: 65,
-                        //   width: 65,
-                        //   child: CircularPercentIndicator(
-                        //     radius: 30.0,
-                        //     lineWidth: 6.0,
-                        //     percent: percent.clamp(0.0, 1.0),
-                        //     center: Text(
-                        //       "${(percent * 100).toInt()}%",
-                        //       style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
-                        //     ),
-                        //     progressColor: const Color(0xFF8B2E2E),
-                        //     backgroundColor: Colors.grey.shade200,
-                        //     circularStrokeCap: CircularStrokeCap.round,
-                        //   ),
-                        // ),
                       ],
                     ),
                   );
                 }).toList(),
               ),
-
             ],
           ),
         ),

@@ -4,6 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
+// For firebase
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'firebase_options.dart';
+
 // Import pages
 import 'data/globals.dart';
 import 'welcome/login_page.dart';
@@ -15,8 +20,11 @@ import 'profile/profile_page.dart';
 import 'reports/report_page.dart';
 
 // Main Function: To run the app
-void main() {
-  // await Firebase.initializeApp();
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(ProviderScope(child: MyApp()));
 }
 
@@ -97,7 +105,20 @@ class MyApp extends StatelessWidget {
         ),
         iconTheme: const IconThemeData(color: kSubColor),
       ),
-      home: AppDetails.isLogin ? const HomePage() : const LoginPage(),
+
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const CircularProgressIndicator(); // or splash screen
+          }
+          if (snapshot.hasData) {
+            return const HomePage();
+          }
+          return const LoginPage();
+        },
+      ),
+
     );
   }
 }

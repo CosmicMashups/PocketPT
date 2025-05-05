@@ -40,7 +40,7 @@ dependencies:
   camera: ^0.11.1
   dotted_border: ^2.0.0+3
   intl: ^0.20.2
-  file_picker: 10.1.2
+  file_picker: ^10.1.2
   percent_indicator: ^4.2.2
   curved_navigation_bar: ^1.0.6
   csv: ^5.0.2
@@ -53,12 +53,21 @@ dependencies:
   flutter_launcher_icons: ^0.14.3
   
   # For reports
-  flutter_riverpod: ^2.5.1  # State management
-  pdf: ^3.10.8  # PDF generation
-  printing: ^5.12.0  # PDF preview and printing
+  flutter_riverpod: ^2.5.1
+  pdf: ^3.10.8
+  printing: ^5.12.0
 
   # For animations
   lottie: ^3.3.1
+
+  # For Firebase
+  cloud_firestore: ^5.6.7
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.3
+  google_sign_in: ^6.2.1
+
+  # For pytorch
+  # pytorch-lite: ^2.10.4
 
 # App Icon
 flutter_icons:

@@ -11,19 +11,46 @@ class RehabPlanExpansionPanel extends ConsumerWidget {
     final rehabPlans = ref.watch(rehabPlansProvider);
 
     return Card(
-      elevation: 4,  // Slightly elevated to look more prominent
-      color: Colors.blueGrey.shade50,  // Soft background color for the card
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),  // Rounded corners for the card
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
       ),
       child: ExpansionTile(
-        leading: const Icon(Icons.medical_services, color: Color(0xFF557A95)), // Icon on the title of ExpansionTile
+        initiallyExpanded: true,
+        collapsedBackgroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        iconColor: const Color(0xFF6A5D7B), // Updated to new purple
+        collapsedIconColor: const Color(0xFF6A5D7B), // Updated to new purple
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF6A5D7B).withOpacity(0.1), // Updated to new purple
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.medical_services, 
+            color: Color(0xFF6A5D7B), // Updated to new purple
+            size: 24,
+          ),
+        ),
         title: const Text(
-          'Rehabilitation Plans History',
+          'Rehabilitation Plans',
           style: TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF557A95), // Custom title color
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        subtitle: Text(
+          '${rehabPlans.length} active plan${rehabPlans.length != 1 ? 's' : ''}',
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 14,
           ),
         ),
         children: rehabPlans.map((plan) => _buildRehabPlanItem(
@@ -54,36 +81,82 @@ class RehabPlanExpansionPanel extends ConsumerWidget {
     String status, {
     VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      child: ListTile(
-        leading: Icon(
-          Icons.fitness_center,  // Icon related to fitness for rehab plan
-          color: status == 'ongoing' ? Color(0xFF557A95) : Colors.green,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,  // Custom text color for the title
-            fontSize: 16,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.grey.shade200,
+            width: 1,
           ),
         ),
-        subtitle: Text(
-          'ICD-10: $icdCode',
-          style: TextStyle(
-            color: Colors.grey[600],  // Lighter color for the subtitle
-            fontSize: 14,
-          ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: status == 'ongoing' 
+                    ? const Color(0xFF6A5D7B).withOpacity(0.1) // Updated to new purple
+                    : Colors.green.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.fitness_center,
+                color: status == 'ongoing' 
+                    ? const Color(0xFF6A5D7B) // Updated to new purple
+                    : Colors.green,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ICD-10: $icdCode',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: status == 'ongoing' 
+                    ? const Color(0xFF6A5D7B) // Updated to new purple
+                    : Colors.green,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                status.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
-        trailing: Chip(
-          label: Text(
-            status,
-            style: const TextStyle(color: Colors.white),
-          ),
-          backgroundColor: status == 'ongoing' ? Color(0xFF557A95) : Colors.green,
-        ),
-        onTap: onTap,
       ),
     );
   }
