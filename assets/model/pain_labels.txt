@@ -1,0 +1,2 @@
+0 Pained
+1 Not Pained
