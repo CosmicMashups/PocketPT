@@ -1,0 +1,28 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.pocketpt.app-mergeDebugResources-34:/values-v31/values-v31.xml",
+            "map": [
+                {
+                    "source": "D:\\Projects\\Research Projects\\pocketpt\\pocketpt\\android\\app\\src\\main\\res\\values-v31\\styles.xml",
+                    "from": {
+                        "startLines": "3,18",
+                        "startColumns": "4,4",
+                        "startOffsets": "173,1143",
+                        "endLines": "11,20",
+                        "endColumns": "12,12",
+                        "endOffsets": "792,1307"
+                    },
+                    "to": {
+                        "startLines": "2,11",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,679",
+                        "endLines": "10,13",
+                        "endColumns": "12,12",
+                        "endOffsets": "674,843"
+                    }
+                }
+            ]
+        }
+    ]
+}

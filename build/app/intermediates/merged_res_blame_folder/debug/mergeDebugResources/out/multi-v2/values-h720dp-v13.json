@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.pocketpt.app-mergeDebugResources-34:/values-h720dp-v13/values-h720dp-v13.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\sheila brown\\.gradle\\caches\\8.10.2\\transforms\\37c9757273d42d5a9fb8fafd595f355e\\transformed\\appcompat-1.6.1\\res\\values-h720dp-v13\\values-h720dp-v13.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "66",
+                        "endOffsets": "117"
+                    }
+                }
+            ]
+        }
+    ]
+}
