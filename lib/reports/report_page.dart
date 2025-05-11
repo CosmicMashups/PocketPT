@@ -24,7 +24,7 @@ class ReportPage extends ConsumerWidget {
         ),
         automaticallyImplyLeading: false,
         centerTitle: true,
-        backgroundColor: mainColor, // Updated to mainColor
+        backgroundColor: mainColor,
         elevation: 0,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
@@ -32,6 +32,7 @@ class ReportPage extends ConsumerWidget {
           ),
         ),
       ),
+
       body: Column(
         children: [
           Expanded(
@@ -57,24 +58,12 @@ class ReportPage extends ConsumerWidget {
                     SizedBox(height: 24),
                     ExerciseCalendarGrid(),
                     SizedBox(height: 24),
+                    ExportPDFButton(),
+                    SizedBox(height: 24),
                   ],
                 ),
               ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
-            ),
-            child: const ExportPDFButton(),
           ),
         ],
       ),

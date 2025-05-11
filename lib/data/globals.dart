@@ -34,6 +34,7 @@ class UserProgress {
   static int totalExercises = 0;
   static int totalMinutes = (totalSeconds / 60).toInt();
   static int totalSeconds = 0;
+  static String? notes;
 }
 
 // Class: Initial Assessment Data

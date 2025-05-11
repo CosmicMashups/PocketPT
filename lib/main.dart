@@ -1,4 +1,6 @@
 // Import packages
+import 'package:PocketPT/exercise/edit_plan.dart';
+import 'package:PocketPT/reports/report_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,14 +12,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 
 // Import pages
-import 'data/globals.dart';
+// import 'data/globals.dart';
 import 'welcome/login_page.dart';
 import 'dashboard/dashboard_page.dart';
 import 'exercise/exercises_page.dart';
 import 'record/pre_record_page.dart';
 // import 'progress_report.dart';
 import 'profile/profile_page.dart';
-import 'reports/report_page.dart';
+// import 'reports/report_page.dart';
 
 // Main Function: To run the app
 void main() async {
@@ -143,7 +145,7 @@ class _HomePageState extends State<HomePage> {
   // List: Pages (for Navigation)
   final List<Widget> _pages = const [
     DashboardPage(),
-    ExercisesPage(),
+    ExerciseManagerPage(),
     PreRecordPage(),
     ReportPage(),
     ProfilePage(),

@@ -1,8 +1,9 @@
 // Import packages
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:video_player/video_player.dart';
-import 'package:intl/intl.dart'; // For formatting duration
+import 'package:intl/intl.dart';
 
 // Route: Animation
 Route createMorphRoute(Widget page) {
@@ -216,121 +217,7 @@ class CustomImageRadioTile<T> extends StatelessWidget {
   }
 }
 
-class LocalVideoPlayer extends StatefulWidget {
-  final String videoPath;
 
-  const LocalVideoPlayer({super.key, required this.videoPath});
-
-  @override
-  State<LocalVideoPlayer> createState() => _LocalVideoPlayerState();
-}
-
-class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
-  late VideoPlayerController _controller;
-  late VoidCallback _listener;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = VideoPlayerController.asset(widget.videoPath)
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() {});
-        }
-      });
-
-    _listener = () {
-      if (mounted) setState(() {});
-    };
-
-    _controller.addListener(_listener);
-  }
-
-  @override
-  void dispose() {
-    _controller.removeListener(_listener);
-    _controller.dispose();
-    super.dispose();
-  }
-
-  String _formatDuration(Duration duration) {
-    if (duration.inMilliseconds < 0 || duration.inMilliseconds > 86400000) {
-      return '00:00';
-    }
-    return DateFormat('mm:ss').format(DateTime.fromMillisecondsSinceEpoch(duration.inMilliseconds));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _controller.value.isInitialized
-        ? Container(
-            margin: const EdgeInsets.only(top: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF2F2F2),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
-                    child: VideoPlayer(_controller),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                VideoProgressIndicator(
-                  _controller,
-                  allowScrubbing: true,
-                  colors: VideoProgressColors(
-                    playedColor: const Color(0xFF800020),
-                    backgroundColor: Colors.grey[300]!,
-                    bufferedColor: Colors.grey[400]!,
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon: Icon(
-                        _controller.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
-                        color: const Color(0xFF800020),
-                        size: 32,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _controller.value.isPlaying ? _controller.pause() : _controller.play();
-                        });
-                      },
-                    ),
-                    Text(
-                      '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF1E1E1E),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 12), // Balance layout
-                  ],
-                ),
-              ],
-            ),
-          )
-        : const Center(child: CircularProgressIndicator());
-  }
-}
 
 // Custom Widget: Dialog Box
 class ReusableInfoDialog extends StatelessWidget {
@@ -527,6 +414,128 @@ Future<void> showCustomInputDialog({
       );
     },
   );
+}
+
+// Custom Widget: Video Player
+class LocalVideoPlayer extends StatefulWidget {
+  final String videoPath;
+
+  const LocalVideoPlayer({super.key, required this.videoPath});
+
+  @override
+  State<LocalVideoPlayer> createState() => _LocalVideoPlayerState();
+}
+
+class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
+  late VideoPlayerController _controller;
+  late VoidCallback _listener;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Changed from .asset() to .file() for local file paths
+    _controller = VideoPlayerController.file(File(widget.videoPath))
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() {});
+          // Auto-play the video when it's loaded
+          _controller.play();
+        }
+      }).catchError((error) {
+        print('Error initializing video player: $error');
+      });
+
+    _listener = () {
+      if (mounted) setState(() {});
+    };
+
+    _controller.addListener(_listener);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_listener);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _formatDuration(Duration duration) {
+    if (duration.inMilliseconds < 0 || duration.inMilliseconds > 86400000) {
+      return '00:00';
+    }
+    return DateFormat('mm:ss').format(DateTime.fromMillisecondsSinceEpoch(duration.inMilliseconds));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _controller.value.isInitialized
+        ? Container(
+            margin: const EdgeInsets.only(top: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F2F2),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AspectRatio(
+                    aspectRatio: _controller.value.aspectRatio,
+                    child: VideoPlayer(_controller),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                VideoProgressIndicator(
+                  _controller,
+                  allowScrubbing: true,
+                  colors: VideoProgressColors(
+                    playedColor: const Color(0xFF800020),
+                    backgroundColor: Colors.grey[300]!,
+                    bufferedColor: Colors.grey[400]!,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _controller.value.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                        color: const Color(0xFF800020),
+                        size: 32,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _controller.value.isPlaying ? _controller.pause() : _controller.play();
+                        });
+                      },
+                    ),
+                    Text(
+                      '${_formatDuration(_controller.value.position)} / ${_formatDuration(_controller.value.duration)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1E1E1E),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 12), // Balance layout
+                  ],
+                ),
+              ],
+            ),
+          )
+        : const Center(child: CircularProgressIndicator());
+  }
 }
 
 // ============= OLD WIDGETS =================
