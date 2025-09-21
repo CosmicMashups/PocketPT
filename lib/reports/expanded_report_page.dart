@@ -13,34 +13,57 @@ class ExpandedReportPage extends ConsumerWidget {
     required this.icdCode,
   });
 
-  // Define color constants
-  static const mainColor = Color(0xFF800020); // Burgundy/Maroon
-  static const detailColor = Color(0xFF6A5D7B); // Muted Purple
-  static const completedColor = Colors.green;
-  static const ongoingColor = Colors.orange;
+  // Professional healthcare color scheme
+  static const mainColor = Color(0xFF8B2E2E); // Professional blue
+  static const subColor = Color(0xFFC24A4A); // Light blue
+  static const detailColor = Color(0xFF6B7280); // Gray
+  static const backgroundColor = Color(0xFFF8FAFC); // Light background
+  static const successColor = Color(0xFF10B981); // Green
+  static const warningColor = Color(0xFFF59E0B); // Orange
+  static const errorColor = Color(0xFFEF4444); // Red
+  static const completedColor = successColor;
+  static const ongoingColor = warningColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: mainColor, // Updated to mainColor
+        backgroundColor: mainColor,
         title: Text(
           planTitle,
           style: const TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
             color: Colors.white,
+            fontSize: 18,
+            letterSpacing: 0.5,
           ),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(12),
+            bottom: Radius.circular(24),
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                mainColor,
+                subColor,
+              ],
+            ),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(24),
+            ),
           ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -54,49 +77,92 @@ class ExpandedReportPage extends ConsumerWidget {
   }
 
   Widget _buildInfoCard(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: mainColor.withOpacity(0.1), // Updated to mainColor
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.medical_services,
-                    color: mainColor, // Updated to mainColor
-                    size: 24,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: mainColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  'Plan Details',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: mainColor, // Updated to mainColor
+                child: Icon(
+                  Icons.medical_information,
+                  color: mainColor,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Treatment Plan Details',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: mainColor,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Clinical information and progress tracking',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: detailColor,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: mainColor.withOpacity(0.1),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                _buildDetailRow(context, 'ICD-10 Code', icdCode),
+                const SizedBox(height: 16),
+                _buildDetailRow(context, 'Start Date', '2024-04-01'),
+                const SizedBox(height: 16),
+                _buildDetailRow(context, 'Status', 'Ongoing'),
+                const SizedBox(height: 16),
+                _buildDetailRow(context, 'Focus Area', 'Upper Body'),
+                const SizedBox(height: 16),
+                _buildDetailRow(context, 'Target Muscle', 'Rotator Cuff'),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildDetailRow(context, 'ICD-10 Code', icdCode),
-            _buildDetailRow(context, 'Start Date', '2024-04-01'),
-            _buildDetailRow(context, 'Status', 'Ongoing'),
-            _buildDetailRow(context, 'Focus Area', 'Upper Body'),
-            _buildDetailRow(context, 'Target Muscle', 'Rotator Cuff'),
-            const SizedBox(height: 8),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -109,132 +175,193 @@ class ExpandedReportPage extends ConsumerWidget {
             .where((record) => record.icdCode == icdCode)
             .toList();
 
-        return Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFE5E7EB),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: detailColor.withOpacity(0.1), // Updated to detailColor
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.fitness_center,
-                        color: detailColor, // Updated to detailColor
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Exercise Records',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: detailColor, // Updated to detailColor
-                          ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (filteredRecords.isEmpty)
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
+                      color: subColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Center(
-                      child: Text(
+                    child: Icon(
+                      Icons.fitness_center,
+                      color: subColor,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Exercise Records',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: mainColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Patient exercise completion history',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: detailColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              if (filteredRecords.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFE5E7EB),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.fitness_center_outlined,
+                        size: 48,
+                        color: detailColor.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
                         'No exercise records yet',
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: detailColor,
                         ),
                       ),
-                    ),
-                  )
-                else
-                  ...filteredRecords.map((record) => Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Exercise records will appear here once the patient starts their rehabilitation program',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: detailColor.withOpacity(0.7),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...filteredRecords.map((record) => Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: record.status.toLowerCase() == 'completed'
+                              ? completedColor.withOpacity(0.2)
+                              : ongoingColor.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: record.status.toLowerCase() == 'completed'
-                                          ? completedColor.withOpacity(0.1)
-                                          : ongoingColor.withOpacity(0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.fitness_center,
-                                      color: record.status.toLowerCase() == 'completed'
-                                          ? completedColor
-                                          : ongoingColor,
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      record.exerciseName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                  Chip(
-                                    label: Text(
-                                      record.status,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    backgroundColor: record.status.toLowerCase() == 'completed'
-                                        ? completedColor
-                                        : ongoingColor,
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  ),
-                                ],
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: record.status.toLowerCase() == 'completed'
+                                      ? completedColor.withOpacity(0.1)
+                                      : ongoingColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.fitness_center,
+                                  color: record.status.toLowerCase() == 'completed'
+                                      ? completedColor
+                                      : ongoingColor,
+                                  size: 20,
+                                ),
                               ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  _buildRecordDetail(
-                                    Icons.format_list_numbered,
-                                    '${record.sets} sets × ${record.reps} reps',
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  record.exerciseName,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: mainColor,
                                   ),
-                                  const SizedBox(width: 16),
-                                  _buildRecordDetail(
-                                    Icons.calendar_today,
-                                    DateFormat('MMM d, yyyy').format(record.date),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: record.status.toLowerCase() == 'completed'
+                                      ? completedColor
+                                      : ongoingColor,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  record.status,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      )),
-              ],
-            ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildRecordDetail(
+                                  Icons.format_list_numbered,
+                                  '${record.sets} sets × ${record.reps} reps',
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _buildRecordDetail(
+                                  Icons.calendar_today,
+                                  DateFormat('MMM d, yyyy').format(record.date),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )),
+            ],
           ),
         );
       },
@@ -242,17 +369,31 @@ class ExpandedReportPage extends ConsumerWidget {
   }
 
   Widget _buildDetailRow(BuildContext context, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.circle,
-            size: 8,
-            color: detailColor, // Updated to detailColor
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: mainColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.circle,
+              size: 12,
+              color: mainColor,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,17 +401,18 @@ class ExpandedReportPage extends ConsumerWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
+                    color: detailColor,
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
+                    color: mainColor,
                   ),
                 ),
               ],
@@ -282,22 +424,36 @@ class ExpandedReportPage extends ConsumerWidget {
   }
 
   Widget _buildRecordDetail(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: Colors.grey.shade600,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
         ),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 14,
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: mainColor,
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: mainColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

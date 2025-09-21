@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/report_providers.dart';
+import '../../data/globals.dart';
 
 class ExerciseCalendarGrid extends ConsumerWidget {
   const ExerciseCalendarGrid({super.key});
@@ -9,14 +10,22 @@ class ExerciseCalendarGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedDate = ref.watch(selectedDateProvider);
-    final exerciseRecords = ref.watch(exerciseRecordsProvider);
+    // Use ExerciseHistory directly instead of provider for real-time data
+    final exerciseRecords = ExerciseHistory.entries.map((entry) => ExerciseRecord(
+      date: entry.date,
+      icdCode: 'REHAB',
+      exerciseName: entry.exerciseName,
+      sets: entry.sets,
+      reps: entry.reps,
+      status: entry.status,
+    )).toList();
 
     final daysInMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
     final firstDayOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
     final firstWeekday = firstDayOfMonth.weekday;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -34,52 +43,57 @@ class ExerciseCalendarGrid extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Exercise Calendar',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF6A5D7B), // Updated to new purple
-                    ),
+              Expanded(
+                child: Text(
+                  'Exercise Calendar',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF6A5D7B), // Updated to new purple
+                      ),
+                ),
               ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, size: 24),
-                    color: const Color(0xFF6A5D7B), // Updated to new purple
-                    onPressed: () {
-                      ref.read(selectedDateProvider.notifier).state = DateTime(
-                        selectedDate.year,
-                        selectedDate.month - 1,
-                        1,
-                      );
-                    },
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6A5D7B).withOpacity(0.1), // Updated to new purple
-                      borderRadius: BorderRadius.circular(12),
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, size: 20),
+                      color: const Color(0xFF6A5D7B), // Updated to new purple
+                      onPressed: () {
+                        ref.read(selectedDateProvider.notifier).state = DateTime(
+                          selectedDate.year,
+                          selectedDate.month - 1,
+                          1,
+                        );
+                      },
                     ),
-                    child: Text(
-                      DateFormat('MMMM yyyy').format(selectedDate),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF6A5D7B), // Updated to new purple
-                            fontWeight: FontWeight.w500,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6A5D7B).withOpacity(0.1), // Updated to new purple
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        DateFormat('MMM yyyy').format(selectedDate),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: const Color(0xFF6A5D7B), // Updated to new purple
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, size: 24),
-                    color: const Color(0xFF6A5D7B), // Updated to new purple
-                    onPressed: () {
-                      ref.read(selectedDateProvider.notifier).state = DateTime(
-                        selectedDate.year,
-                        selectedDate.month + 1,
-                        1,
-                      );
-                    },
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, size: 20),
+                      color: const Color(0xFF6A5D7B), // Updated to new purple
+                      onPressed: () {
+                        ref.read(selectedDateProvider.notifier).state = DateTime(
+                          selectedDate.year,
+                          selectedDate.month + 1,
+                          1,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -135,10 +149,8 @@ class ExerciseCalendarGrid extends ConsumerWidget {
     // Add cells for each day of the month
     for (var day = 1; day <= daysInMonth; day++) {
       final date = DateTime(selectedDate.year, selectedDate.month, day);
-      final hasExercises = exerciseRecords.any((record) =>
-          record.date.year == date.year &&
-          record.date.month == date.month &&
-          record.date.day == date.day);
+      // Use ExerciseHistory to check if user has completed exercises on this date
+      final hasExercises = ExerciseHistory.hasExercisesOnDate(date);
 
       final isToday = date.year == DateTime.now().year &&
           date.month == DateTime.now().month &&

@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/globals.dart';
 import 'a_goal1.dart';
-import '../data/functions.dart';
 
 import 'b_upperbody.dart';
 import 'b_lowerbody.dart';
@@ -22,28 +21,57 @@ class AssessFocus1 extends StatefulWidget {
 class _AssessFocus1State extends State<AssessFocus1> {
   String generalMuscle = UserAssess.generalMuscle;
 
+  // Professional healthcare color scheme
+  static const mainColor = Color(0xFF8B2E2E); // Professional blue
+  static const subColor = Color(0xFFC24A4A); // Light blue
+  static const detailColor = Color(0xFF6B7280); // Gray
+  static const backgroundColor = Color(0xFFF8FAFC); // Light background
+  static const successColor = Color(0xFF10B981); // Green
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F6F4),
+        backgroundColor: mainColor,
         title: Text(
           "Focus Area",
           style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            fontSize: 24,
-            color: const Color(0xFF1E1E1E),
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: Colors.white,
+            letterSpacing: 0.5,
           ),
         ),
         centerTitle: true,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(24),
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                mainColor,
+                subColor,
+              ],
+            ),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(24),
+            ),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E1E1E)),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => Navigator.push(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => AssessGoal1(),
+              pageBuilder: (context, animation, secondaryAnimation) => const AssessGoal1(),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                // SlideTransition
                 const begin = Offset(1.0, 0.0);
                 const end = Offset.zero;
                 const curve = Curves.easeInOut;
@@ -58,222 +86,381 @@ class _AssessFocus1State extends State<AssessFocus1> {
         ),
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Progress Line
-            LinearProgressIndicator(
-              value: 0.4,
-              minHeight: 8,
-              color: const Color(0xFF800020),
-              backgroundColor: const Color(0xFF404040),
+            // Progress Section
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFE5E7EB),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.assessment, color: mainColor, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Assessment Progress",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: mainColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(
+                    value: 0.4,
+                    minHeight: 8,
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    valueColor: AlwaysStoppedAnimation<Color>(mainColor),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Step 2 of 5",
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: detailColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
+            const SizedBox(height: 24),
+
+            // Question Section
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFFE5E7EB),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // "Question 2 of 5"
                   Row(
                     children: [
-                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
-                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: mainColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.help_outline, color: mainColor, size: 20),
+                      ),
+                      const SizedBox(width: 12),
                       Text(
-                        "Question 2 of 5",
+                        "Clinical Assessment",
                         style: GoogleFonts.ptSans(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF800020),
+                          fontWeight: FontWeight.w600,
+                          color: mainColor,
                         ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
 
-                  // Question Text
                   Text(
                     "Which general muscle region are you aiming to target?",
                     style: GoogleFonts.ptSans(
                       fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E1E1E),
+                      fontWeight: FontWeight.w700,
+                      color: mainColor,
+                      height: 1.3,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
 
-                  // Custom Radio Tiles
-                  CustomImageRadioTile<String>(
-                    value: 'Upper Body',
-                    groupValue: generalMuscle,
-                    title: 'Upper Body',
-                    description: 'Shoulders, arms, and hands',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
+                  Text(
+                    "Select the primary body region for your rehabilitation focus",
+                    style: GoogleFonts.ptSans(
+                      fontSize: 16,
+                      color: detailColor,
                     ),
-                    onChanged: (val) {
-                      setState(() {
-                        generalMuscle = val!;
-                        UserAssess.generalMuscle = val;
-                      });
-                    },
                   ),
-                  
-                  CustomImageRadioTile<String>(
-                    value: 'Lower Body',
-                    groupValue: generalMuscle,
-                    title: 'Lower Body',
-                    description: 'Hips, legs, and feet',
-                    image: Image.asset(
-                      'assets/images/muscle_region/lower_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        generalMuscle = val!;
-                        UserAssess.generalMuscle = val;
-                      });
-                    },
+
+                  const SizedBox(height: 24),
+
+                  // Muscle Region Options
+                  _buildMuscleRegionOption(
+                    'Upper Body',
+                    'Shoulders, arms, and hands',
+                    'assets/images/muscle_region/upper_body.png',
+                    Icons.accessibility_new,
+                    mainColor,
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Core Area',
-                    groupValue: generalMuscle,
-                    title: 'Core Area',
-                    description: 'Stomach, and lower back muscles',
-                    image: Image.asset(
-                      'assets/images/muscle_region/core_area.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        generalMuscle = val!;
-                        UserAssess.generalMuscle = val;
-                      });
-                    },
+                  const SizedBox(height: 12),
+                  
+                  _buildMuscleRegionOption(
+                    'Lower Body',
+                    'Hips, legs, and feet',
+                    'assets/images/muscle_region/lower_body.png',
+                    Icons.directions_walk,
+                    subColor,
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Neck & Upper Back',
-                    groupValue: generalMuscle,
-                    title: 'Neck & Upper Back',
-                    description: 'Neck, shoulder blade',
-                    image: Image.asset(
-                      'assets/images/muscle_region/neck.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        generalMuscle = val!;
-                        UserAssess.generalMuscle = val;
-                      });
-                    },
+                  const SizedBox(height: 12),
+                  
+                  _buildMuscleRegionOption(
+                    'Core Area',
+                    'Stomach, and lower back muscles',
+                    'assets/images/muscle_region/core_area.png',
+                    Icons.fitness_center,
+                    successColor,
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Joints',
-                    groupValue: generalMuscle,
-                    title: 'Joints',
-                    description: 'Elbow, knee, ankle',
-                    image: Image.asset(
-                      'assets/images/muscle_region/joints.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        generalMuscle = val!;
-                        UserAssess.generalMuscle = val;
-                      });
-                    },
+                  const SizedBox(height: 12),
+                  
+                  _buildMuscleRegionOption(
+                    'Neck & Upper Back',
+                    'Neck, shoulder blade',
+                    'assets/images/muscle_region/neck.png',
+                    Icons.health_and_safety,
+                    detailColor,
                   ),
-
-                  const SizedBox(height: 30),
-
-                  // Text(
-                  //   'Selected Choice: $generalMuscle',
-                  //   style: const TextStyle(
-                  //     fontSize: 20,
-                  //   ),
-                  // ),
-
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Widget nextPage;
-
-                        if (generalMuscle == "Upper Body") {
-                          nextPage = AssessUpperBody();
-                        } else if (generalMuscle == "Lower Body") {
-                          nextPage = AssessLowerBody();
-                        } else if (generalMuscle == "Core Area") {
-                          nextPage = AssessCore();
-                        } else if (generalMuscle == "Neck & Upper Back") {
-                          nextPage = AssessNeck();
-                        } else if (generalMuscle == "Joints") {
-                          nextPage = AssessJoints();
-                        } else {
-                          // Default
-                          nextPage = AssessFocus1();
-                        }
-
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => nextPage,
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              const begin = Offset(1.0, 0.0);
-                              const end = Offset.zero;
-                              const curve = Curves.easeInOut;
-
-                              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                              var offsetAnimation = animation.drive(tween);
-
-                              return SlideTransition(position: offsetAnimation, child: child);
-                            },
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF800020),
-                        padding: const EdgeInsets.symmetric(horizontal: 125, vertical: 16),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "Next",
-                            style: GoogleFonts.ptSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  _buildMuscleRegionOption(
+                    'Joints',
+                    'Elbow, knee, ankle',
+                    'assets/images/muscle_region/joints.png',
+                    Icons.medical_services,
+                    const Color(0xFF8B5CF6),
                   ),
-
                 ],
               ),
             ),
+
+            const SizedBox(height: 24),
+
+            // Next Button
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    mainColor,
+                    subColor,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: mainColor.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  Widget nextPage;
+
+                  if (generalMuscle == "Upper Body") {
+                    nextPage = const AssessUpperBody();
+                  } else if (generalMuscle == "Lower Body") {
+                    nextPage = const AssessLowerBody();
+                  } else if (generalMuscle == "Core Area") {
+                    nextPage = const AssessCore();
+                  } else if (generalMuscle == "Neck & Upper Back") {
+                    nextPage = const AssessNeck();
+                  } else if (generalMuscle == "Joints") {
+                    nextPage = const AssessJoints();
+                  } else {
+                    // Default
+                    nextPage = const AssessFocus1();
+                  }
+
+                  Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => nextPage,
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(1.0, 0.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeInOut;
+
+                        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                        var offsetAnimation = animation.drive(tween);
+
+                        return SlideTransition(position: offsetAnimation, child: child);
+                      },
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Continue Assessment",
+                      style: GoogleFonts.ptSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_forward,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMuscleRegionOption(String title, String description, String imagePath, IconData icon, Color color) {
+    final isSelected = generalMuscle == title;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected ? color.withOpacity(0.1) : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? color : const Color(0xFFE5E7EB),
+          width: isSelected ? 2 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            generalMuscle = title;
+            UserAssess.generalMuscle = title;
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              // Image
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: isSelected ? color.withOpacity(0.1) : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? color : const Color(0xFFE5E7EB),
+                    width: 1,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    imagePath,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Icon
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isSelected ? color : color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : color,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? color : mainColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        color: isSelected ? color.withOpacity(0.8) : detailColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Selection indicator
+              if (isSelected)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

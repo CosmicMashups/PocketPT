@@ -66,6 +66,12 @@ dependencies:
   firebase_auth: ^5.5.3
   google_sign_in: ^6.2.1
 
+  # For ML Kit Pose Detection
+  google_mlkit_pose_detection: ^0.11.0
+  image: ^4.2.0
+  hive_flutter: ^1.1.0
+  hive: ^2.2.3
+
   # For pytorch
   # pytorch-lite: ^2.10.4
 
@@ -85,6 +91,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.9
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -111,7 +119,7 @@ flutter:
     - assets/data/
 
     - assets/lottie/
-    # - assets/model/
+    - assets/model/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

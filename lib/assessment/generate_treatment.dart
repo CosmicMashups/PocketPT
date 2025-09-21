@@ -46,7 +46,7 @@ List<Treatment> filterTreatments({
   }).toList();
 }
 
-Future<List<Treatment>?> generateTreatmentPlan({
+Future<List<TreatmentReference>?> generateTreatmentPlan({
   required String specificMuscle,
   required String painLevel,
   required String painDuration,
@@ -64,7 +64,25 @@ Future<List<Treatment>?> generateTreatmentPlan({
       return null;
     }
 
-    return matchedTreatments.take(3).toList();
+    // Remove duplicate treatments based on treatmentId to ensure uniqueness
+    final uniqueTreatments = <String, Treatment>{};
+    for (final treatment in matchedTreatments) {
+      if (!uniqueTreatments.containsKey(treatment.treatmentId)) {
+        uniqueTreatments[treatment.treatmentId] = treatment;
+      }
+    }
+    
+    final deduplicatedTreatments = uniqueTreatments.values.toList();
+    print('Unique treatments after deduplication: ${deduplicatedTreatments.length} treatments found');
+
+    if (deduplicatedTreatments.isEmpty) {
+      print('No unique treatments found after deduplication');
+      return null;
+    }
+
+    return deduplicatedTreatments.take(3).map((treatment) => 
+      TreatmentReference(treatmentId: treatment.treatmentId)
+    ).toList();
   } catch (e) {
     print('Error generating treatment plan: $e');
     return null;

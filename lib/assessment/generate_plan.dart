@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:hive/hive.dart';
 import '../data/rehabilitation_plan.dart';
 import '../main.dart';
 import '../data/treatment.dart';
 import 'generate_treatment.dart';
 import '../data/globals.dart';
+import '../data/data_persistence_service.dart';
 
 class GeneratePlanPage extends StatefulWidget {
   const GeneratePlanPage({super.key});
@@ -15,9 +18,8 @@ class GeneratePlanPage extends StatefulWidget {
 class _GeneratePlanPageState extends State<GeneratePlanPage> {
   bool _isLoading = true;
   RehabilitationPlan? _rehabPlan;
-  List<Treatment>? _treatments;
+  List<TreatmentReference>? _treatmentReferences;
   String? _error;
-  // bool _showExerciseWarning = false;
 
   @override
   void initState() {
@@ -42,7 +44,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
         plan = await generateRehabilitationPlanFromCSV();
       }
       
-      final treatments = await generateTreatmentPlan(
+      final treatmentReferences = await generateTreatmentPlan(
         specificMuscle: UserRehabilitation.instance.selectedMuscle,
         painLevel: UserRehabilitation.instance.selectedPainLevel,
         painDuration: UserRehabilitation.instance.selectedPainDuration,
@@ -53,25 +55,30 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
 
       if (shouldShowExerciseWarning) {
         setState(() {
-          _treatments = treatments;
+          _treatmentReferences = treatmentReferences;
           _rehabPlan = null;
           _isLoading = false;
         });
-      } else if (plan == null && (treatments == null || treatments.isEmpty)) {
+        UserRehabilitation.instance.treatmentReferences = treatmentReferences;
+        await UserRehabilitation.instance.savePlansToHive();
+      } else if (plan == null && (treatmentReferences == null || treatmentReferences.isEmpty)) {
         setState(() {
           _error = "⚠️ Not enough matching exercises or treatments found.";
           _rehabPlan = null;
-          _treatments = null;
+          _treatmentReferences = null;
           _isLoading = false;
         });
+        await UserRehabilitation.instance.savePlansToHive();
       } else {
         UserRehabilitation.instance.rehabPlans = plan != null ? [plan] : [];
         setState(() {
           _rehabPlan = plan;
-          _treatments = treatments;
+          _treatmentReferences = treatmentReferences;
           _error = null;
           _isLoading = false;
         });
+        UserRehabilitation.instance.treatmentReferences = treatmentReferences;
+        await UserRehabilitation.instance.savePlansToHive();
       }
     } catch (e) {
       setState(() {
@@ -84,110 +91,449 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text(
-          'Your Personalized Plan',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        title: Text(
+          'Your Treatment Plan',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: const Color(0xFF1F2937),
+          ),
         ),
         centerTitle: true,
-        elevation: 3,
-        backgroundColor: const Color(0xFF800020),
       ),
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text("Generating your plan...", style: TextStyle(fontSize: 16)),
+      body: SafeArea(
+        child: _isLoading
+            ? _buildLoadingState()
+            : _error != null
+                ? _buildErrorState()
+                : _buildPlanUI(),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(
+              color: Color(0xFF8B2E2E),
+              strokeWidth: 3,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "Generating Your Plan",
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Please wait while we create your personalized treatment plan...",
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                color: const Color(0xFF6B7280),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFECACA)),
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                color: Color(0xFFDC2626),
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "Unable to Generate Plan",
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                color: const Color(0xFF6B7280),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF8B2E2E).withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
-            )
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 18, fontWeight: FontWeight.w500),
-                      textAlign: TextAlign.center,
-                    ),
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _isLoading = true;
+                    _error = null;
+                  });
+                  _loadPlan();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                )
-              : _buildPlanUI(),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.refresh, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Try Again",
+                      style: GoogleFonts.ptSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildPlanUI() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '🗓 Week ${_rehabPlan?.weekNumber ?? 1}',
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF2E5A88),
+          // Header Section
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF8B2E2E).withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.medical_services,
+                    color: Colors.white,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Your Personalized Treatment Plan',
+                  style: GoogleFonts.poppins(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Week ${_rehabPlan?.weekNumber ?? 1} • ${UserAssess.specificMuscle}',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withOpacity(0.9),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          
-          // Treatments Section
-          if (_treatments != null && _treatments!.isNotEmpty) ...[
-            const Text(
-              '💊 Recommended Treatments',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF2E5A88),
-              ),
-            ),
-            const SizedBox(height: 10),
-            ..._treatments!.map((t) => _buildTreatmentCard(t)),
-            const SizedBox(height: 20),
-          ],
-          
-          // Exercises Section
-          if (_rehabPlan != null && _rehabPlan!.exercises.isNotEmpty) ...[
-            const Text(
-              '🏋️‍♂️ Recommended Exercises',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF2E5A88),
-              ),
-            ),
-            const SizedBox(height: 10),
-            ..._rehabPlan!.exercises.map((e) => _buildExerciseCard(e)),
-          ],
-          
-          const SizedBox(height: 30),
-          Center(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomePage()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF800020),
-                shadowColor: Colors.black45,
-                elevation: 6,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+
+          // Content Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                // Treatments Section
+                if (_treatmentReferences != null && _treatmentReferences!.isNotEmpty) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.medical_services,
+                                color: Color(0xFF8B2E2E),
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Recommended Treatments',
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF1F2937),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        FutureBuilder<List<Treatment>>(
+                          future: ExerciseDataService.getTreatmentsByIds(
+                            _treatmentReferences!.map((ref) => ref.treatmentId).toList(),
+                          ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+                            if (snapshot.hasError) {
+                              return Text('Error loading treatments: ${snapshot.error}');
+                            }
+                            final treatments = snapshot.data ?? [];
+                            return Column(
+                              children: treatments.map((t) => _buildTreatmentCard(t)).toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                // Exercises Section
+                if (_rehabPlan != null && _rehabPlan!.exerciseReferences.isNotEmpty) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.fitness_center,
+                                color: Color(0xFF10B981),
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Recommended Exercises',
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF1F2937),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        FutureBuilder<List<Exercise>>(
+                          future: _rehabPlan!.getExercises(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+                            if (snapshot.hasError) {
+                              return Text('Error loading exercises: ${snapshot.error}');
+                            }
+                            final exercises = snapshot.data ?? [];
+                            return Column(
+                              children: exercises.map((e) => _buildExerciseCard(e)).toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                // Bottom Action Button
+                Container(
+                  margin: const EdgeInsets.only(top: 32, bottom: 32),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF8B2E2E).withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      // Ensure assessment completion state is set and persisted
+                      UserDetails.hasCompletedAssessment = true;
+                      await UserDetails.markAssessmentCompleted();
+                      // Mark assessment flow as completed locally as well
+                      UserAssess.isAssessed = true;
+                      await UserAssess.saveToHive();
+                      // Persist rehab plans/treatments immediately
+                      await UserRehabilitation.instance.savePlansToHive();
+                      // Ensure an active program is recorded
+                      if (ActiveProgram.startDate == null) {
+                        ActiveProgram.startDate = DateTime.now();
+                        await ActiveProgram.saveToHive();
+                      }
+                      await saveAllDataToHive();
+                      await DataPersistenceService.instance.forceSave(reason: 'Assessment completed');
+                      // Save flag eagerly to Hive to ensure AuthWrapper sees it on cold start
+                      try {
+                        final box = Hive.box('rehabBox');
+                        await box.put('hasCompletedAssessment', true);
+                      } catch (_) {}
+
+                      if (!mounted) return;
+
+                      // Navigate to wrapper (routes to Home or Assess depending on flags)
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const AuthWrapper()),
+                        (Route<dynamic> route) => false,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.home, color: Colors.white, size: 24),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Complete Assessment & Go Home',
+                          style: GoogleFonts.ptSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              icon: const Icon(Icons.home, color: Colors.white),
-              label: const Text(
-                'Back to Home',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
-              ),
+              ],
             ),
           ),
         ],
@@ -195,13 +541,20 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
     );
   }
 
-  Widget _buildTreatmentCard(Treatment treatment) {
-    return Card(
-      color: Colors.white,
-      elevation: 5,
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      shape: RoundedRectangleBorder(
+  Widget _buildExerciseCard(Exercise exercise) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -210,104 +563,177 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
           children: [
             Row(
               children: [
-                const Icon(Icons.medical_services, size: 28, color: Color(0xFF800020)),
-                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.fitness_center,
+                    size: 24,
+                    color: Color(0xFF10B981),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        exercise.exerciseName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${exercise.sets} sets • ${exercise.repetitions} reps',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 14,
+                          color: const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              exercise.description,
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                color: const Color(0xFF6B7280),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow(Icons.accessibility_new, 'Target Muscle', exercise.muscle),
+                  _buildDetailRow(Icons.favorite, 'Pain Level', exercise.painLevel),
+                  _buildDetailRow(Icons.flag, 'Goal', exercise.goal),
+                  if (exercise.videoUrl.isNotEmpty)
+                    _buildDetailRow(Icons.ondemand_video, 'Video Guide', exercise.videoUrl),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTreatmentCard(Treatment treatment) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.medical_services,
+                    size: 24,
+                    color: Color(0xFF8B2E2E),
+                  ),
+                ),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     treatment.treatmentName,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1F2937),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(treatment.description),
-            const Divider(height: 24),
-            _buildDetailRow(Icons.assignment, 'ID: ${treatment.treatmentId}'),
-            _buildDetailRow(Icons.accessibility_new, 'Muscles: ${treatment.musclesInvolved}'),
-            _buildDetailRow(Icons.health_and_safety, 'Pain Level: ${treatment.painLevel}'),
-            _buildDetailRow(Icons.timer, 'Pain Duration: ${treatment.painDuration}'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExerciseCard(Exercise exercise) {
-    return Card(
-      color: Colors.white,
-      elevation: 5,
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.sports_gymnastics, size: 28, color: Color(0xFF800020)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    exercise.exerciseName,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(exercise.description),
-            const Divider(height: 24),
-            _buildDetailRow(Icons.fitness_center, '${exercise.sets} sets of ${exercise.repetitions} reps'),
-            _buildDetailRow(Icons.tag, 'ID: ${exercise.exerciseId}'),
-            _buildDetailRow(Icons.accessibility_new, 'Muscle: ${exercise.muscle}'),
-            _buildDetailRow(Icons.favorite, 'Pain Level: ${exercise.painLevel}'),
-            _buildDetailRow(Icons.flag, 'Goal: ${exercise.goal}'),
-            if (exercise.videoUrl.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.ondemand_video, size: 20, color: Colors.blue),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Video Guide: ${exercise.videoUrl}',
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 16),
+            Text(
+              treatment.description,
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                color: const Color(0xFF6B7280),
+                height: 1.5,
               ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow(Icons.accessibility_new, 'Target Muscles', treatment.musclesInvolved),
+                  _buildDetailRow(Icons.health_and_safety, 'Pain Level', treatment.painLevel),
+                  _buildDetailRow(Icons.timer, 'Pain Duration', treatment.painDuration),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String text) {
+  Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: const Color(0xFF557A95)),
+          Icon(icon, size: 16, color: const Color(0xFF6B7280)),
           const SizedBox(width: 8),
+          Text(
+            '$label: ',
+            style: GoogleFonts.ptSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF6B7280),
+            ),
+          ),
           Expanded(
             child: Text(
-              text,
-              style: const TextStyle(fontSize: 15),
+              value,
+              style: GoogleFonts.ptSans(
+                fontSize: 13,
+                color: const Color(0xFF1F2937),
+              ),
             ),
           ),
         ],

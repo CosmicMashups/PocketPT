@@ -58,44 +58,46 @@ class _AssessPainUploadState extends State<AssessPainUpload> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF9F7),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F6F4),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              "Pain: Level",
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w800,
-                fontSize: 22,
-                color: const Color(0xFF1E1E1E),
-              ),
-            ),
-            Text(
-              "Upload Video",
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w400,
-                fontSize: 14,
-                color: Colors.grey[700],
-              ),
-            ),
-          ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          "Upload Video",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: const Color(0xFF1F2937),
+          ),
         ),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E1E1E)),
-          onPressed: () => Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => AssessPainCamera(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                var offsetAnimation = animation.drive(
-                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                      .chain(CurveTween(curve: Curves.easeInOut)),
-                );
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+            onPressed: () => Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => AssessPainCamera(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  var offsetAnimation = animation.drive(
+                    Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                        .chain(CurveTween(curve: Curves.easeInOut)),
+                  );
+                  return SlideTransition(position: offsetAnimation, child: child);
+                },
+              ),
             ),
           ),
         ),

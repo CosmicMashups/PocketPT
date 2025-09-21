@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'preliminary.dart';
 import 'b_focus1.dart';
-import '../data/functions.dart';
 
 class AssessGoal1 extends StatefulWidget {
   const AssessGoal1({super.key});
@@ -16,28 +15,57 @@ class AssessGoal1 extends StatefulWidget {
 class _AssessGoal1State extends State<AssessGoal1> {
   String rehabGoal = UserAssess.rehabGoal; // <-- Load global value if already set
 
+  // Professional healthcare color scheme
+  static const mainColor = Color(0xFF8B2E2E); // Professional blue
+  static const subColor = Color(0xFFC24A4A); // Light blue
+  static const detailColor = Color(0xFF6B7280); // Gray
+  static const backgroundColor = Color(0xFFF8FAFC); // Light background
+  static const successColor = Color(0xFF10B981); // Green
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F6F4),
+        backgroundColor: mainColor,
         title: Text(
-          "Functional Goal",
+          "Rehabilitation Goal",
           style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            fontSize: 24,
-            color: const Color(0xFF1E1E1E),
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: Colors.white,
+            letterSpacing: 0.5,
           ),
         ),
         centerTitle: true,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(24),
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                mainColor,
+                subColor,
+              ],
+            ),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(24),
+            ),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E1E1E)),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => Navigator.push(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => AssessPrelim(),
+              pageBuilder: (context, animation, secondaryAnimation) => const AssessPrelim(),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                // SlideTransition
                 const begin = Offset(1.0, 0.0);
                 const end = Offset.zero;
                 const curve = Curves.easeInOut;
@@ -52,32 +80,104 @@ class _AssessGoal1State extends State<AssessGoal1> {
         ),
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Progress Line with custom design
-            LinearProgressIndicator(
-              value: 0.2,
-              minHeight: 8,
-              color: const Color(0xFF800020),
-              backgroundColor: const Color(0xFF404040),
+            // Progress Section
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFE5E7EB),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.assessment, color: mainColor, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Assessment Progress",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: mainColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(
+                    value: 0.2,
+                    minHeight: 8,
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    valueColor: AlwaysStoppedAnimation<Color>(mainColor),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Step 1 of 5",
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: detailColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
+            const SizedBox(height: 24),
+
+            // Question Section
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFFE5E7EB),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // "Question 1 of 5" with icon and style
                   Row(
                     children: [
-                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
-                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: mainColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.help_outline, color: mainColor, size: 20),
+                      ),
+                      const SizedBox(width: 12),
                       Text(
-                        "Question 1 of 5",
+                        "Clinical Assessment",
                         style: GoogleFonts.ptSans(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF800020),
+                          fontWeight: FontWeight.w600,
+                          color: mainColor,
                         ),
                       ),
                     ],
@@ -85,112 +185,212 @@ class _AssessGoal1State extends State<AssessGoal1> {
 
                   const SizedBox(height: 20),
 
-                  // Question Text with a nice font style
                   Text(
-                    "What specific goal would you like to prioritize?",
+                    "What specific rehabilitation goal would you like to prioritize?",
                     style: GoogleFonts.ptSans(
                       fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E1E1E),
+                      fontWeight: FontWeight.w700,
+                      color: mainColor,
+                      height: 1.3,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
 
-                  // Custom Radio Tiles with descriptions and icons
-                  CustomRadioTile(
-                    value: 'Alleviate Pain',
-                    groupValue: rehabGoal,
-                    title: 'Alleviate Pain',
-                    description: 'Reduce discomfort through therapy or treatment.',
-                    onChanged: (val) {
-                      setState(() {
-                        rehabGoal = val!;
-                        UserAssess.rehabGoal = val;
-                      });
-                    },
-                    icon: Icons.healing,
-                  ),
-                  
-                  CustomRadioTile(
-                    value: 'Improve Mobility',
-                    groupValue: rehabGoal,
-                    title: 'Improve Mobility',
-                    description: 'Enhance your ability to move with ease.',
-                    onChanged: (val) {
-                      setState(() {
-                        rehabGoal = val!;
-                        UserAssess.rehabGoal = val;
-                      });
-                    },
-                    icon: Icons.directions_walk,
-                  ),
-                  
-                  CustomRadioTile(
-                    value: 'Strengthen Muscle',
-                    groupValue: rehabGoal,
-                    title: 'Regain Strength',
-                    description: 'Focus on rebuilding physical strength.',
-                    onChanged: (val) {
-                      setState(() {
-                        rehabGoal = val!;
-                        UserAssess.rehabGoal = val;
-                      });
-                    },
-                    icon: Icons.fitness_center,
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Next Button with icon and smooth transition
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => AssessFocus1(),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              const begin = Offset(1.0, 0.0);
-                              const end = Offset.zero;
-                              const curve = Curves.easeInOut;
-
-                              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                              var offsetAnimation = animation.drive(tween);
-
-                              return SlideTransition(position: offsetAnimation, child: child);
-                            },
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF800020),
-                        padding: const EdgeInsets.symmetric(horizontal: 125, vertical: 16),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "Next",
-                            style: GoogleFonts.ptSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
+                  Text(
+                    "Select the primary objective for your treatment plan",
+                    style: GoogleFonts.ptSans(
+                      fontSize: 16,
+                      color: detailColor,
                     ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Goal Options
+                  _buildGoalOption(
+                    'Alleviate Pain',
+                    'Reduce discomfort through therapy or treatment',
+                    Icons.healing,
+                    mainColor,
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  _buildGoalOption(
+                    'Improve Mobility',
+                    'Enhance your ability to move with ease',
+                    Icons.directions_walk,
+                    subColor,
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  _buildGoalOption(
+                    'Strengthen Muscle',
+                    'Focus on rebuilding physical strength',
+                    Icons.fitness_center,
+                    successColor,
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 24),
+
+            // Next Button
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    mainColor,
+                    subColor,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: mainColor.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => const AssessFocus1(),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(1.0, 0.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeInOut;
+
+                        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                        var offsetAnimation = animation.drive(tween);
+
+                        return SlideTransition(position: offsetAnimation, child: child);
+                      },
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Continue Assessment",
+                      style: GoogleFonts.ptSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.arrow_forward,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoalOption(String title, String description, IconData icon, Color color) {
+    final isSelected = rehabGoal == title;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected ? color.withOpacity(0.1) : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? color : const Color(0xFFE5E7EB),
+          width: isSelected ? 2 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            rehabGoal = title;
+            UserAssess.rehabGoal = title;
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected ? color : color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? color : mainColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        color: isSelected ? color.withOpacity(0.8) : detailColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

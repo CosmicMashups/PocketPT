@@ -444,86 +444,116 @@ Future<void> showCustomInputDialog({
     (index) => TextEditingController(text: initialValues[index]),
   );
 
+  // Track password visibility for each field
+  List<bool> passwordVisibility = List.generate(
+    fieldLabels.length,
+    (index) => true, // Start with passwords hidden
+  );
+
   await showDialog(
     context: context,
     builder: (BuildContext context) {
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        backgroundColor: const Color(0xFFF5F5F5),
-        title: Row(
-          children: [
-            const Icon(Icons.edit_note, color: Color(0xFF800020)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: Color(0xFF333333),
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(fieldLabels.length, (index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: TextField(
-                  controller: controllers[index],
-                  obscureText: title.toLowerCase().contains('password') &&
-                      fieldLabels[index].toLowerCase().contains('password'),
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.text_fields_rounded, color: Color(0xFF800020)),
-                    labelText: fieldLabels[index],
-                    labelStyle: const TextStyle(color: Color(0xFF800020)),
-                    filled: true,
-                    fillColor: Colors.white,
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFF800020)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: const BorderSide(color: Color(0xFF800020), width: 2),
-                      borderRadius: BorderRadius.circular(12),
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: const Color(0xFFF5F5F5),
+            title: Row(
+              children: [
+                const Icon(Icons.edit_note, color: Color(0xFF800020)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: Color(0xFF333333),
                     ),
                   ),
                 ),
-              );
-            }),
-          ),
-        ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.cancel_outlined, color: Colors.grey),
-            label: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey),
+              ],
             ),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.save_rounded, color: Colors.white),
-            label: const Text(
-              'Save',
-              style: TextStyle(color: Colors.white),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(fieldLabels.length, (index) {
+                  final isPasswordField = title.toLowerCase().contains('password') &&
+                      fieldLabels[index].toLowerCase().contains('password');
+                  
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: TextField(
+                      controller: controllers[index],
+                      obscureText: isPasswordField ? passwordVisibility[index] : false,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(
+                          isPasswordField ? Icons.lock : Icons.text_fields_rounded,
+                          color: const Color(0xFF800020),
+                        ),
+                        suffixIcon: isPasswordField
+                            ? IconButton(
+                                icon: Icon(
+                                  passwordVisibility[index] 
+                                      ? Icons.visibility_off 
+                                      : Icons.visibility,
+                                  color: Colors.grey[600],
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    passwordVisibility[index] = !passwordVisibility[index];
+                                  });
+                                },
+                              )
+                            : null,
+                        labelText: fieldLabels[index],
+                        labelStyle: const TextStyle(color: Color(0xFF800020)),
+                        filled: true,
+                        fillColor: Colors.white,
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Color(0xFF800020)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Color(0xFF800020), width: 2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF800020),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            onPressed: () {
-              List<String> values = controllers.map((c) => c.text.trim()).toList();
-              onSave(values);
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
+            actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            actions: [
+              TextButton.icon(
+                icon: const Icon(Icons.cancel_outlined, color: Colors.grey),
+                label: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.save_rounded, color: Colors.white),
+                label: const Text(
+                  'Save',
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF800020),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                onPressed: () {
+                  List<String> values = controllers.map((c) => c.text.trim()).toList();
+                  onSave(values);
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
       );
     },
   );

@@ -6,6 +6,7 @@ import '../data/functions.dart';
 
 import 'b_focus1.dart';
 import 'c_camera.dart';
+import 'c_painlevel.dart';
 
 import 'b_upperbody.dart';
 import 'b_lowerbody.dart';
@@ -27,173 +28,322 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F6F4),
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        backgroundColor: const Color(0xFFF8F6F4),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              "Pain: Level",
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w800,
-                fontSize: 22,
-                color: const Color(0xFF1E1E1E),
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
-            ),
-            Text(
-              "Assessment",
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w400,
-                fontSize: 14,
-                color: Colors.grey[700],
-              ),
-            ),
-          ],
+            ],
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+            onPressed: () {
+              Widget nextPage;
+
+              switch (UserAssess.generalMuscle) {
+                case "Upper Body":
+                  nextPage = AssessUpperBody();
+                  break;
+                case "Lower Body":
+                  nextPage = AssessLowerBody();
+                  break;
+                case "Core Area":
+                  nextPage = AssessCore();
+                  break;
+                case "Neck & Upper Back":
+                  nextPage = AssessNeck();
+                  break;
+                case "Joints":
+                  nextPage = AssessJoints();
+                  break;
+                default:
+                  nextPage = AssessFocus1();
+              }
+
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => nextPage,
+                  transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                    position: animation.drive(
+                      Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                          .chain(CurveTween(curve: Curves.easeInOut)),
+                    ),
+                    child: child,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        title: Text(
+          "ROM Assessment",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: const Color(0xFF1F2937),
+          ),
         ),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E1E1E)),
-          onPressed: () {
-            Widget nextPage;
-
-            switch (UserAssess.generalMuscle) {
-              case "Upper Body":
-                nextPage = AssessUpperBody();
-                break;
-              case "Lower Body":
-                nextPage = AssessLowerBody();
-                break;
-              case "Core Area":
-                nextPage = AssessCore();
-                break;
-              case "Neck & Upper Back":
-                nextPage = AssessNeck();
-                break;
-              case "Joints":
-                nextPage = AssessJoints();
-                break;
-              default:
-                nextPage = AssessFocus1();
-            }
-
-            Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (_, __, ___) => nextPage,
-                transitionsBuilder: (_, animation, __, child) => SlideTransition(
-                  position: animation.drive(
-                    Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                        .chain(CurveTween(curve: Curves.easeInOut)),
-                  ),
-                  child: child,
-                ),
-              ),
-            );
-          },
-        ),
       ),
       body: SingleChildScrollView(
-        // padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [            
-            // Progress Line
-            LinearProgressIndicator(
-              value: 0.6,
-              minHeight: 8,
-              color: const Color(0xFF800020),
-              backgroundColor: const Color(0xFF404040),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
+          children: [
+            // Progress Section
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // "Question 3 of 5"
                   Row(
                     children: [
-                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
-                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.assessment,
+                        color: const Color(0xFF8B2E2E),
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
                       Text(
-                        "Question 3 of 5",
+                        "Assessment Progress",
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1F2937),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        "Step 3 of 5",
                         style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF800020),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF6B7280),
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: 0.6,
+                    minHeight: 8,
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
+                  ),
+                ],
+              ),
+            ),
 
-                  const SizedBox(height: 12),
-
-                  Text(
-                    "Observe Your Range of Motion",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E1E1E),
+            // Main Content
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Question Section
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.play_circle_outline,
+                              color: const Color(0xFF8B2E2E),
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              "Range of Motion Assessment",
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF1F2937),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "Follow the guided video instructions to assess your ${UserAssess.specificMuscle.toLowerCase()}. This helps us understand your current range of motion and identify any limitations.",
+                          style: GoogleFonts.ptSans(
+                            fontSize: 16,
+                            color: const Color(0xFF6B7280),
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Video Section
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.video_library,
+                              color: const Color(0xFF8B2E2E),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Instructional Video",
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF1F2937),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: LocalVideoPlayer(videoPath: 'assets/videos/arom_elbow.mp4'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Action Buttons
+                  Row(
+                    children: [
+                      // Record Button
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF8B2E2E).withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                PageRouteBuilder(
+                                  pageBuilder: (_, __, ___) => const AssessPainCamera(),
+                                  transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                                    position: animation.drive(
+                                      Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                                          .chain(CurveTween(curve: Curves.easeInOut)),
+                                    ),
+                                    child: child,
+                                  ),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.videocam_rounded, color: Colors.white, size: 24),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Start Recording",
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 16),
 
-                  Text(
-                    "To better understand the intensity of your pain, follow the guided video instructions. This helps assess the condition of your ${UserAssess.specificMuscle.toLowerCase()}.",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 18,
-                      color: const Color(0xFF3A3A3A),
-                    ),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // Video container with label
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Instructional Video",
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black54,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.black12, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: LocalVideoPlayer(videoPath: 'assets/videos/arom_elbow.mp4'),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // Record button with gradient and icon
+                  // Skip Button
                   Center(
-                    child: GestureDetector(
-                      onTap: () {
+                    child: TextButton(
+                      onPressed: () {
                         Navigator.push(
                           context,
                           PageRouteBuilder(
-                            pageBuilder: (_, __, ___) => const AssessPainCamera(),
+                            pageBuilder: (_, __, ___) => const AssessPainLevel(),
                             transitionsBuilder: (_, animation, __, child) => SlideTransition(
                               position: animation.drive(
                                 Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
@@ -204,46 +354,23 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
                           ),
                         );
                       },
-                      child: Container(
-                        width: 180,
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFB22222), Color(0xFF800020)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 6,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: const [
-                            Icon(Icons.videocam_rounded, color: Colors.white, size: 30),
-                            SizedBox(height: 8),
-                            Text(
-                              "Tap to Record",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ],
+                      child: Text(
+                        "Skip Camera Assessment",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 14,
+                          color: const Color(0xFF6B7280),
+                          decoration: TextDecoration.underline,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
                   ),
+
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
-          ]
+          ],
         ),
       ),
     );

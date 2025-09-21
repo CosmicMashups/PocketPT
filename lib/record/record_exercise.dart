@@ -5,6 +5,7 @@ import '../data/globals.dart';
 import '../home_dialog.dart';
 import '../data/rehabilitation_plan.dart';
 import 'pre_record_page.dart';
+import 'confirm_save_page.dart';
 import 'stopwatch_service.dart';
 
 class RecordExercisePage extends StatefulWidget {
@@ -29,19 +30,36 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
   }
 
   Future<void> _initializeCamera() async {
-    cameras = await availableCameras();
-    if (cameras.isNotEmpty) {
-      _controller = CameraController(cameras[0], ResolutionPreset.high);
-      await _controller.initialize();
-      setState(() {
-        _isCameraInitialized = true;
-      });
+    try {
+      cameras = await availableCameras();
+      if (cameras.isNotEmpty) {
+        _controller = CameraController(cameras[0], ResolutionPreset.high);
+        await _controller.initialize();
+        if (mounted) {
+          setState(() {
+            _isCameraInitialized = true;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error initializing camera: $e');
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = false;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    try {
+      if (_isCameraInitialized) {
+        _controller.dispose();
+      }
+    } catch (e) {
+      debugPrint('Error disposing camera: $e');
+    }
     super.dispose();
   }
 
@@ -50,61 +68,97 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
     double screenHeight = MediaQuery.of(context).size.height;
     final rehabPlans = UserRehabilitation.instance.rehabPlans;
     final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
-    final exercises = rehabPlan?.exercises ?? [];
-    final currentIndex = exercises.indexOf(widget.exercise);
     final currentExercise = widget.exercise;
     final imagePath = currentExercise.imageUrl;
+    
+    // Find current exercise index by matching exercise ID
+    int currentIndex = -1;
+    if (rehabPlan != null) {
+      for (int i = 0; i < rehabPlan.exerciseReferences.length; i++) {
+        if (rehabPlan.exerciseReferences[i].exerciseId == currentExercise.exerciseId) {
+          currentIndex = i;
+          break;
+        }
+      }
+    }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1012),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        centerTitle: true,
+        title: Text(
+          'Exercise Recording',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: const Color(0xFF1F2937),
+          ),
+        ),
+      ),
       body: Stack(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 30),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF800020), Color(0xFF400010)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                // Title under AppBar
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    currentExercise.exerciseName,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 22,
+                      color: const Color(0xFF1F2937),
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.fitness_center, color: Colors.white, size: 32),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          currentExercise.exerciseName,
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 24,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
                 // Camera Preview
                 _isCameraInitialized
-                    ? SizedBox(
-                        height: screenHeight * 0.55,
-                        width: double.infinity,
+                    ? Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                        ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(15),
-                          child: AspectRatio(
-                            aspectRatio: _controller.value.aspectRatio,
-                            child: CameraPreview(_controller),
+                          borderRadius: BorderRadius.circular(16),
+                          child: SizedBox(
+                            height: screenHeight * 0.55,
+                            width: double.infinity,
+                            child: AspectRatio(
+                              aspectRatio: _controller.value.aspectRatio,
+                              child: CameraPreview(_controller),
+                            ),
                           ),
                         ),
                       )
@@ -113,16 +167,13 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
 
                 // Timer
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1D1F),
-                    borderRadius: BorderRadius.circular(30),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
                     boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF800020).withOpacity(0.5),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      )
+                      BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: StreamBuilder<Duration>(
@@ -136,8 +187,8 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                         '$minutes:$seconds',
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w700,
-                          fontSize: 32,
-                          color: Colors.white,
+                          fontSize: 28,
+                          color: const Color(0xFF111827),
                         ),
                       );
                     },
@@ -152,21 +203,34 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                     _buildCustomButton(
                       icon: Icons.arrow_back,
                       label: 'Back',
-                      onTap: () {
+                      onTap: () async {
                         final rehabPlans = UserRehabilitation.instance.rehabPlans;
                         final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
 
-                        if (rehabPlan != null && rehabPlan.exercises.isNotEmpty) {
+                        if (rehabPlan != null && rehabPlan.exerciseReferences.isNotEmpty) {
                           final prevIndex = currentIndex - 1;
                           if (prevIndex >= 0) {
-                            final prevExercise = rehabPlan.exercises[prevIndex];
-
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RecordExercisePage(exercise: prevExercise),
-                              ),
+                            // Record current exercise as partial if user goes back
+                            ExerciseHistory.recordTodayAndSave(
+                              exerciseId: currentExercise.exerciseId,
+                              exerciseName: currentExercise.exerciseName,
+                              sets: currentExercise.sets,
+                              reps: currentExercise.repetitions,
+                              durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                              status: 'partial',
                             );
+
+                            final prevExerciseRef = rehabPlan.exerciseReferences[prevIndex];
+                            final prevExercise = await ExerciseDataService.getExerciseById(prevExerciseRef.exerciseId);
+                            
+                            if (prevExercise != null) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => RecordExercisePage(exercise: prevExercise),
+                                ),
+                              );
+                            }
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('You are at the first exercise.')),
@@ -178,6 +242,16 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                     _buildCircleButton(
                       icon: Icons.pause,
                       onTap: () {
+                        // Record current exercise as partial when pausing
+                        ExerciseHistory.recordTodayAndSave(
+                          exerciseId: currentExercise.exerciseId,
+                          exerciseName: currentExercise.exerciseName,
+                          sets: currentExercise.sets,
+                          reps: currentExercise.repetitions,
+                          durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                          status: 'partial',
+                        );
+                        
                         StopwatchService.instance.pause();
                         Navigator.push(
                           context,
@@ -196,50 +270,107 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                     ),
                     _buildCustomButton(
                       icon: Icons.arrow_forward,
-                      label: (currentIndex + 1) < exercises.length ? 'Proceed' : 'Finish',
-                      onTap: () {
+                      label: (currentIndex + 1) < (rehabPlan?.exerciseReferences.length ?? 0) ? 'Proceed' : 'Finish',
+                      onTap: () async {
                         final rehabPlans = UserRehabilitation.instance.rehabPlans;
                         final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
 
-                        if (rehabPlan != null && rehabPlan.exercises.isNotEmpty) {
+                        if (rehabPlan != null && rehabPlan.exerciseReferences.isNotEmpty) {
                           final nextIndex = currentIndex + 1;
 
-                          if (nextIndex < rehabPlan.exercises.length) {
-                            final nextExercise = rehabPlan.exercises[nextIndex];
-
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RecordExercisePage(exercise: nextExercise),
-                              ),
+                          if (nextIndex < rehabPlan.exerciseReferences.length) {
+                            // Record current exercise as completed when proceeding to next
+                            ExerciseHistory.recordTodayAndSave(
+                              exerciseId: currentExercise.exerciseId,
+                              exerciseName: currentExercise.exerciseName,
+                              sets: currentExercise.sets,
+                              reps: currentExercise.repetitions,
+                              durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                              status: 'completed',
                             );
+
+                            final nextExerciseRef = rehabPlan.exerciseReferences[nextIndex];
+                            final nextExercise = await ExerciseDataService.getExerciseById(nextExerciseRef.exerciseId);
+                            
+                            if (nextExercise != null) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => RecordExercisePage(exercise: nextExercise),
+                                ),
+                              );
+                            }
                           } else {
                             StopwatchService.instance.pause();
 
-                            // Update records
-                            UserProgress.streak += 1;
-                            UserProgress.totalDays += 1;
-                            UserProgress.totalExercises += currentIndex + 1;
-                            UserProgress.totalSeconds += StopwatchService.instance.currentElapsed.inSeconds;
-                            UserProgress.totalMinutes = (UserProgress.totalSeconds / 60).toInt();
+                            // Update records - check if user has already exercised today
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
+                            final lastDate = UserProgress.lastExerciseDate;
+                            final lastExerciseDay = lastDate != null ? DateTime(lastDate.year, lastDate.month, lastDate.day) : null;
+                            
+                            // Record all completed exercises for today
+                            for (int i = 0; i <= currentIndex; i++) {
+                              final exerciseRef = rehabPlan.exerciseReferences[i];
+                              final exercise = await ExerciseDataService.getExerciseById(exerciseRef.exerciseId);
+                              if (exercise != null) {
+                                ExerciseHistory.recordTodayAndSave(
+                                  exerciseId: exercise.exerciseId,
+                                  exerciseName: exercise.exerciseName,
+                                  sets: exerciseRef.sets,
+                                  reps: exerciseRef.repetitions,
+                                  durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                                  status: 'completed',
+                                  now: now,
+                                );
+                              }
+                            }
+                            
+                            // Only increment if this is the first exercise session of the day
+                            if (lastExerciseDay == null || lastExerciseDay.isBefore(today)) {
+                              // Check if this is a consecutive day for streak
+                              if (lastDate != null) {
+                                final daysDifference = today.difference(lastDate).inDays;
+                                if (daysDifference == 1) {
+                                  // Consecutive day - increment streak
+                                  UserProgress.streak += 1;
+                                } else if (daysDifference > 1) {
+                                  // Gap in days - reset streak to 1
+                                  UserProgress.streak = 1;
+                                }
+                              } else {
+                                // First time exercising - start streak at 1
+                                UserProgress.streak = 1;
+                              }
+                              
+                              UserProgress.totalDays += 1;
+                              UserProgress.totalExercises += currentIndex + 1;
+                              UserProgress.totalSeconds += StopwatchService.instance.currentElapsed.inSeconds;
+                              UserProgress.totalMinutes = (UserProgress.totalSeconds / 60).toInt();
+                              
+                              // Update last exercise date
+                              UserProgress.lastExerciseDate = now;
+                            }
 
                             StopwatchService.instance.reset();
 
-                            Navigator.pushReplacement(
+                            Navigator.push(
                               context,
-                              PageRouteBuilder(
-                                pageBuilder: (context, animation, secondaryAnimation) {
-                                  return HomePageWithDialog();
-                                },
-                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                  const begin = Offset(1.0, 0.0);
-                                  const end = Offset.zero;
-                                  const curve = Curves.easeInOut;
-                                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                  var offsetAnimation = animation.drive(tween);
-
-                                  return SlideTransition(position: offsetAnimation, child: child);
-                                },
+                              MaterialPageRoute(
+                                builder: (context) => ConfirmSavePage(
+                                  onSave: () {
+                                    // The progress has already been updated in the main section
+                                    // Just navigate to home page
+                                    Navigator.pushAndRemoveUntil(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => HomePageWithDialog()),
+                                      (route) => false,
+                                    );
+                                  },
+                                  onCancel: () {
+                                    Navigator.pop(context); // return to exercise screen
+                                  },
+                                ),
                               ),
                             );
                           }
@@ -290,18 +421,32 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
   }
 
   Widget _buildCustomButton({required IconData icon, required String label, required VoidCallback onTap}) {
-    return ElevatedButton.icon(
-      icon: Icon(icon, color: Colors.white),
-      label: Text(
-        label,
-        style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(color: const Color(0xFF8B2E2E).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+        ],
       ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF800020),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.chevron_right, color: Colors.white),
+        label: Text(
+          label,
+          style: GoogleFonts.ptSans(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+        ),
+        onPressed: onTap,
       ),
-      onPressed: onTap,
     );
   }
 
@@ -311,19 +456,25 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
       height: 60,
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        color: Color(0xFF800020),
+        color: Color(0xFF10B981),
       ),
       child: IconButton(
-        icon: Icon(icon, size: 30, color: Colors.white),
+        icon: Icon(icon, size: 28, color: Colors.white),
         onPressed: onTap,
       ),
     );
   }
 
   Widget _buildInstructionCard(String imagePath, Exercise exercise) {
-    return Card(
-      color: const Color(0xFF222426),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 6)),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -341,7 +492,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
             ),
             const SizedBox(height: 16),
             Text(exercise.description,
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.white)),
+                style: GoogleFonts.ptSans(fontSize: 14, color: const Color(0xFF374151))),
             const SizedBox(height: 12),
             _buildInfoRow(Icons.fitness_center, 'Muscle Group: ${exercise.muscle}'),
             _buildInfoRow(Icons.local_hospital, 'Pain Level: ${exercise.painLevel}'),
@@ -357,11 +508,11 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white70, size: 18),
+          Icon(icon, color: const Color(0xFF6B7280), size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(text,
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.white70)),
+                style: GoogleFonts.ptSans(fontSize: 14, color: const Color(0xFF6B7280))),
           ),
         ],
       ),

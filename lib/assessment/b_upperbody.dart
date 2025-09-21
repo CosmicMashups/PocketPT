@@ -20,247 +20,269 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC), // Professional background
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F6F4),
-        title: Text(
-          "Focus Area: Upper Body",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            fontSize: 24,
-            color: const Color(0xFF1E1E1E),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E1E1E)),
-          onPressed: () => Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => AssessFocus1(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                // SlideTransition
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
-
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
-
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+            onPressed: () => Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => AssessFocus1(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                  var offsetAnimation = animation.drive(tween);
+                  return SlideTransition(position: offsetAnimation, child: child);
+                },
+              ),
             ),
           ),
         ),
+        title: Text(
+          "Upper Body Muscles",
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: const Color(0xFF1F2937),
+          ),
+        ),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Progress Line
-            LinearProgressIndicator(
-              value: 0.4,
-              minHeight: 8,
-              color: const Color(0xFF800020),
-              backgroundColor: const Color(0xFF404040),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
+            // Progress Section
+            Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // "Question 2 of 5"
                   Row(
                     children: [
-                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Question 2 of 5",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF800020),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.assessment,
+                          color: Color(0xFF8B2E2E),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Assessment Progress",
+                              style: GoogleFonts.ptSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Step 2 of 5",
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1F2937),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 10),
-
-                  // Question Text
-                  Text(
-                    "What particular muscle would you like to focus on?",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E1E1E),
-                    ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: 0.4,
+                    minHeight: 8,
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
                   ),
+                ],
+              ),
+            ),
 
-                  const SizedBox(height: 20),
+            // Question Section
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.help_outline,
+                          color: Color(0xFF8B2E2E),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Muscle Selection",
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1F2937),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Select the specific upper body muscle you'd like to focus on",
+                              style: GoogleFonts.ptSans(
+                                fontSize: 16,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
 
-                  // Custom Radio Tiles
-                  CustomImageRadioTile<String>(
-                    value: 'Deltoids',
-                    groupValue: specificMuscle,
-                    title: 'Deltoids',
-                    description: 'Shoulder muscles responsible for lifting the arm and giving the shoulder its range of motion.',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        specificMuscle = val!;
-                        UserAssess.specificMuscle = val;
-                      });
-                    },
+            const SizedBox(height: 24),
+
+            // Muscle Options
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: [
+
+                  _buildMuscleOption(
+                    'Deltoids',
+                    'Shoulder muscles responsible for lifting the arm and giving the shoulder its range of motion.',
+                    Icons.accessibility_new,
+                    const Color(0xFF8B2E2E),
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Rotator Cuff Muscles',
-                    groupValue: specificMuscle,
-                    title: 'Rotator Cuff Muscles',
-                    description: 'A group of muscles and tendons that stabilize the shoulder joint and enable arm rotation.',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        specificMuscle = val!;
-                        UserAssess.specificMuscle = val;
-                      });
-                    },
+                  _buildMuscleOption(
+                    'Rotator Cuff Muscles',
+                    'A group of muscles and tendons that stabilize the shoulder joint and enable arm rotation.',
+                    Icons.rotate_right,
+                    const Color(0xFFC24A4A),
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Biceps',
-                    groupValue: specificMuscle,
-                    title: 'Biceps',
-                    description: 'Front upper arm muscles involved in elbow flexion and forearm supination.',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        specificMuscle = val!;
-                        UserAssess.specificMuscle = val;
-                      });
-                    },
+                  _buildMuscleOption(
+                    'Biceps',
+                    'Front upper arm muscles involved in elbow flexion and forearm supination.',
+                    Icons.fitness_center,
+                    const Color(0xFF10B981),
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Triceps',
-                    groupValue: specificMuscle,
-                    title: 'Triceps',
-                    description: 'Back upper arm muscles responsible for extending the elbow.',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        specificMuscle = val!;
-                        UserAssess.specificMuscle = val;
-                      });
-                    },
+                  _buildMuscleOption(
+                    'Triceps',
+                    'Back upper arm muscles responsible for extending the elbow.',
+                    Icons.trending_up,
+                    const Color(0xFFF59E0B),
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Forearm Muscles',
-                    groupValue: specificMuscle,
-                    title: 'Forearm Muscles',
-                    description: 'Muscles controlling wrist, hand, and finger movements.',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        specificMuscle = val!;
-                        UserAssess.specificMuscle = val;
-                      });
-                    },
+                  _buildMuscleOption(
+                    'Forearm Muscles',
+                    'Muscles controlling wrist, hand, and finger movements.',
+                    Icons.pan_tool,
+                    const Color(0xFF8B5CF6),
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Hand Muscles',
-                    groupValue: specificMuscle,
-                    title: 'Hand Muscles',
-                    description: 'Small muscles that manage fine motor skills and grip strength in the hand.',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        specificMuscle = val!;
-                        UserAssess.specificMuscle = val;
-                      });
-                    },
+                  _buildMuscleOption(
+                    'Hand Muscles',
+                    'Small muscles that manage fine motor skills and grip strength in the hand.',
+                    Icons.back_hand,
+                    const Color(0xFFEF4444),
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Wrist Flexors/Extensors',
-                    groupValue: specificMuscle,
-                    title: 'Wrist Flexors/Extensors',
-                    description: 'Muscles that bend (flex) or straighten (extend) the wrist.',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        specificMuscle = val!;
-                        UserAssess.specificMuscle = val;
-                      });
-                    },
+                  _buildMuscleOption(
+                    'Wrist Flexors/Extensors',
+                    'Muscles that bend (flex) or straighten (extend) the wrist.',
+                    Icons.swap_horiz,
+                    const Color(0xFF06B6D4),
                   ),
                   
-                  CustomImageRadioTile<String>(
-                    value: 'Chest',
-                    groupValue: specificMuscle,
-                    title: 'Pectorals',
-                    description: 'Large muscles across the chest that aid in arm movement and shoulder stability.',
-                    image: Image.asset(
-                      'assets/images/muscle_region/upper_body.png',
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                    ),
-                    onChanged: (val) {
-                      setState(() {
-                        specificMuscle = val!;
-                        UserAssess.specificMuscle = val;
-                      });
-                    },
+                  _buildMuscleOption(
+                    'Chest',
+                    'Large muscles across the chest that aid in arm movement and shoulder stability.',
+                    Icons.airline_seat_flat,
+                    const Color(0xFF84CC16),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 32),
 
-                  // Text(
-                  //   'Selected Choice: $specificMuscle',
-                  //   style: const TextStyle(
-                  //     fontSize: 20,
-                  //   ),
-                  // ),
-
-                  Center(
+                  // Next Button
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.push(
@@ -268,31 +290,32 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
                           PageRouteBuilder(
                             pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideo(),
                             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              // SlideTransition
                               const begin = Offset(1.0, 0.0);
                               const end = Offset.zero;
                               const curve = Curves.easeInOut;
-
                               var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
                               var offsetAnimation = animation.drive(tween);
-
                               return SlideTransition(position: offsetAnimation, child: child);
                             },
                           ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF800020),
-                        padding: const EdgeInsets.symmetric(horizontal: 125, vertical: 16),
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            "Next",
+                            "Continue Assessment",
                             style: GoogleFonts.ptSans(
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                               color: Colors.white,
                             ),
                           ),
@@ -300,6 +323,7 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
                           const Icon(
                             Icons.arrow_forward,
                             color: Colors.white,
+                            size: 20,
                           ),
                         ],
                       ),
@@ -310,6 +334,97 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMuscleOption(String title, String description, IconData icon, Color color) {
+    final isSelected = specificMuscle == title;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: isSelected ? color.withOpacity(0.1) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? color : const Color(0xFFE5E7EB),
+          width: isSelected ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            specificMuscle = title;
+            UserAssess.specificMuscle = title;
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              // Icon
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected ? color : color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? color : const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        color: isSelected ? color.withOpacity(0.8) : const Color(0xFF6B7280),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Selection indicator
+              if (isSelected)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

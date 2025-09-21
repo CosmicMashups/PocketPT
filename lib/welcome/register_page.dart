@@ -1,14 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-// Import pages
+import 'package:flutter/gestures.dart';
+import '../data/simple_auth_service.dart';
+import '../widgets/progressive_loading_widget.dart';
+import 'email_verification_page.dart';
 import 'login_page.dart';
 import '../assessment/preliminary.dart';
-import '../data/functions.dart';
 
+/// Registration page with proper password validation
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -17,32 +16,37 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  bool _agreedToTerms = false;
-  bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  
+  final SimpleAuthService _authService = SimpleAuthService.instance;
+  
+  bool _isLoading = false;
   String? _errorMessage = '';
+  bool _agreedToTerms = false;
 
-  // Firebase instances
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
-  Future<void> _registerUser() async {
+  /// Handle user registration
+  Future<void> _handleRegistration() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_agreedToTerms) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please agree to the Terms and Privacy Policy'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      setState(() {
+        _errorMessage = 'Please agree to the Terms and Privacy Policy';
+      });
       return;
     }
 
@@ -52,100 +56,70 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
-      // Step 1: Register user with Firebase Auth
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
-
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+      final result = await _authService.registerWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
       );
 
-      final uid = userCredential.user?.uid;
-
-      if (uid == null) {
-        throw FirebaseAuthException(
-          code: 'unknown',
-          message: 'User ID is null after registration.',
-        );
+      if (result.requiresEmailVerification) {
+        _showEmailVerificationPage(result.email!);
+      } else {
+        setState(() {
+          _errorMessage = result.error;
+          _isLoading = false;
+        });
       }
-
-      // Step 2: Save user data to Firestore
-      try {
-      await _firestore.collection('users').doc(uid).set({
-        'firstName': _firstNameController.text.trim(),
-        'lastName': _lastNameController.text.trim(),
-        'email': email,
-        'userId': uid,
-        'createdAt': FieldValue.serverTimestamp(),
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An unexpected error occurred. Please try again.';
+        _isLoading = false;
       });
-      debugPrint("✅ User document created in Firestore for UID: $uid");
-    } catch (e, st) {
-      debugPrint("❌ Firestore write failed: $e");
-      debugPrint("📄 StackTrace: $st");
-    }
-
-      // Step 3: Navigate to assessment screen
-      if (mounted) {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const AssessPrelim(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-              final offsetAnimation = animation.drive(tween);
-              return SlideTransition(position: offsetAnimation, child: child);
-            },
-          ),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      debugPrint("❌ FirebaseAuthException: ${e.code} - ${e.message}");
-      if (mounted) {
-        setState(() {
-          _errorMessage = _getAuthErrorMessage(e);
-        });
-      }
-    } catch (e, stackTrace) {
-      debugPrint("❌ Registration failed: $e");
-      debugPrint("📄 StackTrace: $stackTrace");
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'An unexpected error occurred. Please try again later.';
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     }
   }
 
-  String _getAuthErrorMessage(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'email-already-in-use':
-        return 'This email is already registered';
-      case 'invalid-email':
-        return 'Please enter a valid email';
-      case 'weak-password':
-        return 'Password is too weak';
-      case 'operation-not-allowed':
-        return 'Email/password accounts are not enabled';
-      default:
-        return e.message ?? 'An unknown error occurred';
-    }
+  /// Show email verification page
+  void _showEmailVerificationPage(String email) {
+    setState(() {
+      _isLoading = false;
+    });
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SimpleEmailVerificationPage(
+          email: email,
+          password: _passwordController.text.trim(), // Pass password for automatic login
+          onVerificationComplete: () {
+            // Navigate to assessment process since user will be automatically logged in
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const AssessPrelim()),
+            );
+          },
+        ),
+      ),
+    );
   }
 
-  @override
-  void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+  /// Navigate to login page
+  void _navigateToLogin() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+    );
+  }
+
+  /// Validate password confirmation
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password';
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords do not match';
+    }
+    return null;
   }
 
   @override
@@ -153,89 +127,194 @@ class _RegisterPageState extends State<RegisterPage> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Background Image
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: screenHeight * 0.2 + 50,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Opacity(
-                  opacity: 0.6,
-                  child: Image.asset(
-                    'assets/images/welcome_1.jpg',
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
+      backgroundColor: const Color(0xFFF8FAFC), // Professional background
+      body: LoadingOverlay(
+        isLoading: _isLoading,
+        message: _isLoading ? 'Creating account...' : null,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Professional Header Section
+              Container(
+                height: screenHeight * 0.35,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF8B2E2E), // Muscular maroon
+                      const Color(0xFFC24A4A), // Light maroon
+                    ],
                   ),
                 ),
-                Positioned(
-                  top: 0,
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    width: 250,
-                    height: 250,
-                  ),
+                child: Stack(
+                  children: [
+                    // Background pattern
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: Opacity(
+                        opacity: 0.1,
+                        child: Image.asset(
+                          'assets/images/welcome_1.jpg',
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      ),
+                    ),
+                    // Logo and branding
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              width: 100,
+                              height: 100,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Join PocketPT',
+                            style: GoogleFonts.poppins(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Start Your Rehabilitation Journey',
+                            style: GoogleFonts.ptSans(
+                              fontSize: 16,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-
-          // Main Form
-          Positioned(
-            top: screenHeight * 0.2,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 30.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(50.0),
-                  topRight: Radius.circular(50.0),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
               ),
-              child: SingleChildScrollView(
+
+              // Main Form Section
+              Container(
+                padding: const EdgeInsets.all(32.0),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(32.0),
+                    topRight: Radius.circular(32.0),
+                  ),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Join PocketPT Now!',
-                      style: GoogleFonts.poppins(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF800020),
+                    // Welcome Section
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFE5E7EB),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.person_add,
+                                  color: Color(0xFF8B2E2E),
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Create Your Account',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF1F2937),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "Join our professional rehabilitation platform",
+                                      style: GoogleFonts.ptSans(
+                                        fontSize: 16,
+                                        color: const Color(0xFF6B7280),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Recover Smart: Treat, Rehabilitate, Strengthen.",
-                      style: GoogleFonts.ptSans(fontSize: 16),
-                    ),
-                    const SizedBox(height: 24),
-
+                    const SizedBox(height: 32),
+                    
                     if (_errorMessage!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Text(
-                          _errorMessage!,
-                          style: GoogleFonts.ptSans(
-                            color: Colors.red,
-                            fontSize: 14,
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFFECACA),
+                            width: 1,
                           ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: Color(0xFFDC2626),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: GoogleFonts.ptSans(
+                                  color: const Color(0xFFDC2626),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
 
@@ -295,6 +374,15 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           const SizedBox(height: 14),
 
+                          ReusableInputField(
+                            label: 'Confirm Password',
+                            isPassword: true,
+                            icon: Icons.lock,
+                            controller: _confirmPasswordController,
+                            validator: _validateConfirmPassword,
+                          ),
+                          const SizedBox(height: 14),
+
                           CheckboxListTile(
                             contentPadding: EdgeInsets.zero,
                             value: _agreedToTerms,
@@ -310,7 +398,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 children: [
                                   const Text("By checking this, you agree to the "),
                                   GestureDetector(
-                                    onTap: () => showReusableDialog(context, 'Terms of Service', [
+                                    onTap: () => _showTermsDialog(context, 'Terms of Service', [
                                       'The information provided above is intended for general informational purposes only...',
                                     ]),
                                     child: const Text(
@@ -324,7 +412,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                   const Text(" and "),
                                   GestureDetector(
-                                    onTap: () => showReusableDialog(context, 'Privacy Policy', [
+                                    onTap: () => _showTermsDialog(context, 'Privacy Policy', [
                                       'The developers are committed to upholding the highest standards...',
                                     ]),
                                     child: const Text(
@@ -343,26 +431,74 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                           const SizedBox(height: 24),
 
-                          SizedBox(
+                          Container(
                             width: double.infinity,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF8B2E2E).withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _registerUser,
+                              onPressed: _isLoading ? null : _handleRegistration,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF800020),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                padding: const EdgeInsets.symmetric(vertical: 18),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(30),
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
                               child: _isLoading
-                                  ? const CircularProgressIndicator(color: Colors.white)
-                                  : Text(
-                                      "Register",
-                                      style: GoogleFonts.ptSans(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
+                                  ? Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          "Creating Account...",
+                                          style: GoogleFonts.ptSans(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.person_add,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          "Create Account",
+                                          style: GoogleFonts.ptSans(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                             ),
                           ),
@@ -371,44 +507,76 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                     ),
 
-                    Center(
-                      child: RichText(
-                        textAlign: TextAlign.center,
-                        text: TextSpan(
-                          style: GoogleFonts.ptSans(
-                            fontStyle: FontStyle.italic,
-                            fontSize: 14,
-                            color: const Color(0xFF5B5B5B),
-                          ),
-                          children: [
-                            const TextSpan(text: "Already have an account, "),
-                            TextSpan(
-                              text: 'login',
-                              style: GoogleFonts.ptSans(
-                                fontStyle: FontStyle.italic,
-                                fontSize: 14,
-                                color: const Color(0xFF800020),
-                              ),
-                              recognizer: TapGestureRecognizer()
-                                ..onTap = () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const LoginPage()),
-                                  );
-                                },
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFE5E7EB),
+                              width: 1,
                             ),
-                            const TextSpan(text: ' here.'),
-                          ],
+                          ),
+                          child: RichText(
+                            textAlign: TextAlign.center,
+                            text: TextSpan(
+                              style: GoogleFonts.ptSans(
+                                fontSize: 14,
+                                color: const Color(0xFF6B7280),
+                              ),
+                              children: [
+                                const TextSpan(text: "Already have an account? "),
+                                TextSpan(
+                                  text: 'Sign In',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 14,
+                                    color: const Color(0xFF8B2E2E),
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                  recognizer: TapGestureRecognizer()
+                                    ..onTap = _navigateToLogin,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Show terms dialog
+  void _showTermsDialog(BuildContext context, String title, List<String> content) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: content.map((text) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(text),
+              )).toList(),
             ),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -456,26 +624,29 @@ class _ReusableInputFieldState extends State<ReusableInputField> {
       controller: widget.controller,
       obscureText: widget.isPassword ? isObscured : false,
       validator: widget.isPassword ? _validatePassword : widget.validator,
+      style: GoogleFonts.ptSans(
+        fontSize: 16,
+        color: const Color(0xFF1F2937),
+      ),
       decoration: InputDecoration(
-        prefixIcon: widget.icon != null ? Icon(widget.icon, color: Colors.black45) : null,
         labelText: widget.label,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
+        labelStyle: GoogleFonts.ptSans(
+          color: const Color(0xFF6B7280),
+          fontSize: 14,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: Color(0xFF2E2E2E)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: Color(0xFF8B2E2E), width: 2),
-        ),
+        prefixIcon: widget.icon != null 
+            ? Icon(
+                widget.icon, 
+                color: const Color(0xFF6B7280),
+                size: 20,
+              ) 
+            : null,
         suffixIcon: widget.isPassword
             ? IconButton(
                 icon: Icon(
                   isObscured ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.black45,
+                  color: const Color(0xFF6B7280),
+                  size: 20,
                 ),
                 onPressed: () {
                   setState(() {
@@ -484,8 +655,48 @@ class _ReusableInputFieldState extends State<ReusableInputField> {
                 },
               )
             : null,
+        filled: true,
+        fillColor: const Color(0xFFF9FAFB),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFE5E7EB),
+            width: 1,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFE5E7EB),
+            width: 1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFF8B2E2E),
+            width: 2,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFDC2626),
+            width: 1,
+          ),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color(0xFFDC2626),
+            width: 2,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
-      style: GoogleFonts.ptSans(),
     );
   }
 }

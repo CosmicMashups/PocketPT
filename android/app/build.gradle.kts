@@ -16,6 +16,20 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+        
+        // Enable ML Kit features
+        multiDexEnabled = true
+    }
+
+    // Temporary: sign release with debug keystore to validate installability on device
+    signingConfigs {
+        create("release") {
+            val homeDir = System.getProperty("user.home")
+            storeFile = file("$homeDir/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -26,6 +40,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Use the temporary release signing above (debug keystore)
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -47,6 +63,13 @@ android {
             languageVersion.set(JavaLanguageVersion.of(17))
         }
     }
+    
+    // Enable ML Kit features
+    packagingOptions {
+        pickFirst("**/libc++_shared.so")
+        pickFirst("**/libjsc.so")
+    }
+    
 }
 
 flutter {

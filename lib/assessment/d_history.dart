@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'c_painduration.dart';
 import 'e_summary.dart';
-import '../data/functions.dart';
 
 class AssessHistory extends StatefulWidget {
   const AssessHistory({super.key});
@@ -17,28 +16,57 @@ class AssessHistory extends StatefulWidget {
 class _AssessHistoryState extends State<AssessHistory> {
   bool isInjured = UserAssess.isInjured;
 
+  // Professional healthcare color scheme
+  static const mainColor = Color(0xFF8B2E2E); // Professional blue
+  static const subColor = Color(0xFFC24A4A); // Light maroon
+  static const detailColor = Color(0xFF6B7280); // Gray
+  static const backgroundColor = Color(0xFFF8FAFC); // Light background
+  static const successColor = Color(0xFF10B981); // Green
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F6F4),
+        backgroundColor: mainColor,
         title: Text(
-          "Injury History",
+          "Medical History",
           style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w800,
-            fontSize: 24,
-            color: const Color(0xFF1E1E1E),
+            fontWeight: FontWeight.w700,
+            fontSize: 20,
+            color: Colors.white,
+            letterSpacing: 0.5,
           ),
         ),
         centerTitle: true,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(24),
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                mainColor,
+                subColor,
+              ],
+            ),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(24),
+            ),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF1E1E1E)),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => Navigator.push(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => AssessPainDuration(),
+              pageBuilder: (context, animation, secondaryAnimation) => const AssessPainDuration(),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                // SlideTransition
                 const begin = Offset(1.0, 0.0);
                 const end = Offset.zero;
                 const curve = Curves.easeInOut;
@@ -53,96 +81,185 @@ class _AssessHistoryState extends State<AssessHistory> {
         ),
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Progress Section
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFE5E7EB),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
         child: Column(
           children: [
-            // Progress Line
+                  Row(
+                    children: [
+                      Icon(Icons.assessment, color: mainColor, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Assessment Progress",
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: mainColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
             LinearProgressIndicator(
               value: 0.8,
               minHeight: 8,
-              color: const Color(0xFF800020),
-              backgroundColor: const Color(0xFF404040),
+                    backgroundColor: const Color(0xFFE5E7EB),
+                    valueColor: AlwaysStoppedAnimation<Color>(mainColor),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Step 4 of 5",
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: detailColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
+            const SizedBox(height: 24),
+
+            // Question Section
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFFE5E7EB),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // "Question 4 of 5"
                   Row(
                     children: [
-                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
-                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: mainColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.medical_information, color: mainColor, size: 20),
+                      ),
+                      const SizedBox(width: 12),
                       Text(
-                        "Question 4 of 5",
+                        "Medical History",
                         style: GoogleFonts.ptSans(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF800020),
+                          fontWeight: FontWeight.w600,
+                          color: mainColor,
                         ),
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
 
-                  // Question Text
                   Text(
                     "Have you had any previous injuries or conditions that may currently affect your mobility?",
                     style: GoogleFonts.ptSans(
                       fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E1E1E),
+                      fontWeight: FontWeight.w700,
+                      color: mainColor,
+                      height: 1.3,
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
 
-                  // Custom Radio Tiles
-                  CustomRadioTile<bool>(
-                    value: true,
-                    groupValue: isInjured,
-                    title: 'Yes',
-                    description: '',
-                    onChanged: (val) {
-                      setState(() {
-                        isInjured = val!;
-                        UserAssess.isInjured = val;
-                      });
-                    },
+                  Text(
+                    "This information helps us create a safer and more effective treatment plan",
+                    style: GoogleFonts.ptSans(
+                      fontSize: 16,
+                      color: detailColor,
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Yes/No Options
+                  _buildHistoryOption(
+                    true,
+                    'Yes',
+                    'I have previous injuries or conditions that may affect my mobility',
+                    Icons.check_circle,
+                    successColor,
                   ),
                   
-                  CustomRadioTile<bool>(
-                    value: false,
-                    groupValue: isInjured,
-                    title: 'No',
-                    description: '',
-                    onChanged: (val) {
-                      setState(() {
-                        isInjured = val!;
-                        UserAssess.isInjured = val;
-                      });
-                    },
+                  const SizedBox(height: 12),
+                  
+                  _buildHistoryOption(
+                    false,
+                    'No',
+                    'I do not have any previous injuries or conditions',
+                    Icons.cancel,
+                    detailColor,
                   ),
+                ],
+              ),
+            ),
 
-                  const SizedBox(height: 30),
+            const SizedBox(height: 24),
 
-                  // Text(
-                  //   'Selected Choice: $isInjured',
-                  //   style: const TextStyle(
-                  //     fontSize: 20,
-                  //   ),
-                  // ),
-
-                  Center(
+            // Next Button
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    mainColor,
+                    subColor,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: mainColor.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.push(
                           context,
                           PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => AssessSummary(),
+                      pageBuilder: (context, animation, secondaryAnimation) => const AssessSummary(),
                             transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              // SlideTransition
                               const begin = Offset(1.0, 0.0);
                               const end = Offset.zero;
                               const curve = Curves.easeInOut;
@@ -156,17 +273,22 @@ class _AssessHistoryState extends State<AssessHistory> {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF800020),
-                        padding: const EdgeInsets.symmetric(horizontal: 125, vertical: 16),
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            "Next",
+                      "Complete Assessment",
                             style: GoogleFonts.ptSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
                           ),
@@ -174,16 +296,95 @@ class _AssessHistoryState extends State<AssessHistory> {
                           const Icon(
                             Icons.arrow_forward,
                             color: Colors.white,
+                      size: 20,
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                ],
-              ),
-            ),
+            const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryOption(bool value, String title, String description, IconData icon, Color color) {
+    final isSelected = isInjured == value;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected ? color.withOpacity(0.1) : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? color : const Color(0xFFE5E7EB),
+          width: isSelected ? 2 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            isInjured = value;
+            UserAssess.isInjured = value;
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected ? color : color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? color : mainColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        color: isSelected ? color.withOpacity(0.8) : detailColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

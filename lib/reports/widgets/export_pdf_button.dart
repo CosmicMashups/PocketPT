@@ -5,6 +5,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../providers/report_providers.dart';
+import '../../data/globals.dart';
+import '../../data/rehabilitation_plan.dart';
 
 class ExportPDFButton extends ConsumerWidget {
   const ExportPDFButton({super.key});
@@ -101,6 +103,9 @@ class ExportPDFButton extends ConsumerWidget {
                 _buildFeatureItem(context, Icons.fitness_center, 'Exercise Records'),
                 _buildFeatureItem(context, Icons.calendar_today, 'Date Range Summary'),
                 _buildFeatureItem(context, Icons.assessment, 'Progress Statistics'),
+                _buildFeatureItem(context, Icons.analytics, 'Pain Level Tracking'),
+                _buildFeatureItem(context, Icons.edit_note, 'User Notes & Observations'),
+                _buildFeatureItem(context, Icons.timeline, 'Plan Changes & Modifications'),
               ],
             ),
           ),
@@ -129,8 +134,11 @@ class ExportPDFButton extends ConsumerWidget {
 
   Future<void> _generateAndExportPDF(BuildContext context, WidgetRef ref) async {
     final rehabPlans = ref.read(rehabPlansProvider);
-    final exerciseRecords = ref.read(exerciseRecordsProvider);
     final pdf = pw.Document();
+
+    // Load data from globals
+    await PainHistory.loadFromHive();
+    await ExerciseHistory.loadFromHive();
 
     pdf.addPage(
       pw.MultiPage(
@@ -143,9 +151,19 @@ class ExportPDFButton extends ConsumerWidget {
         build: (context) => [
           _buildHeader(),
           pw.SizedBox(height: 24),
+          _buildPatientInfoSection(),
+          pw.SizedBox(height: 24),
+          _buildPainTrackingSection(),
+          pw.SizedBox(height: 24),
+          _buildDailyExerciseLogSection(),
+          pw.SizedBox(height: 24),
           _buildRehabPlansSection(rehabPlans),
           pw.SizedBox(height: 24),
-          _buildExerciseRecordsSection(exerciseRecords),
+          _buildPlanChangesSection(),
+          pw.SizedBox(height: 24),
+          _buildUserNotesSection(),
+          pw.SizedBox(height: 24),
+          _buildProgressStatisticsSection(),
           pw.SizedBox(height: 24),
           _buildFooter(),
         ],
@@ -155,7 +173,7 @@ class ExportPDFButton extends ConsumerWidget {
     try {
       await Printing.sharePdf(
         bytes: await pdf.save(),
-        filename: 'pocketpt_report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
+        filename: 'pocketpt_therapy_report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf',
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -174,26 +192,50 @@ class ExportPDFButton extends ConsumerWidget {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
-              'PocketPT Progress Report',
-              style: pw.TextStyle(
-                fontSize: 24,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColor.fromInt(0xFF6A5D7B), // Updated to new purple
-              ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'PocketPT Physical Therapy Report',
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF6A5D7B),
+                  ),
+                ),
+                pw.Text(
+                  'Patient Progress Monitoring Report',
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+              ],
             ),
-            pw.Text(
-              DateFormat('MMMM d, yyyy').format(DateTime.now()),
-              style: pw.TextStyle(
-                fontSize: 12,
-                color: PdfColors.grey600,
-              ),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text(
+                  DateFormat('MMMM d, yyyy').format(DateTime.now()),
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    color: PdfColors.grey600,
+                  ),
+                ),
+                pw.Text(
+                  'Report Period: ${_getReportPeriod()}',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey500,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
         pw.Divider(
           thickness: 1.5,
-          color: PdfColor.fromInt(0xFF6A5D7B), // Updated to new purple
+          color: PdfColor.fromInt(0xFF6A5D7B),
         ),
         pw.SizedBox(height: 8),
       ],
@@ -249,72 +291,6 @@ class ExportPDFButton extends ConsumerWidget {
     );
   }
 
-  pw.Widget _buildExerciseRecordsSection(List<ExerciseRecord> records) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          'Exercise Records',
-          style: pw.TextStyle(
-            fontSize: 18,
-            fontWeight: pw.FontWeight.bold,
-            color: PdfColor.fromInt(0xFF6A5D7B), // Updated to new purple
-          ),
-        ),
-        pw.SizedBox(height: 12),
-        pw.Table(
-          border: pw.TableBorder.all(
-            color: PdfColors.grey300,
-            width: 0.5,
-          ),
-          columnWidths: {
-            0: const pw.FlexColumnWidth(1.5),
-            1: const pw.FlexColumnWidth(3),
-            2: const pw.FlexColumnWidth(1),
-            3: const pw.FlexColumnWidth(1),
-            4: const pw.FlexColumnWidth(1.5),
-          },
-          children: [
-            pw.TableRow(
-              decoration: pw.BoxDecoration(
-                color: PdfColor.fromInt(0x1A6A5D7B), // Updated to new purple with 10% opacity
-              ),
-              children: [
-                _tableCell('Date', bold: true, center: true),
-                _tableCell('Exercise', bold: true),
-                _tableCell('Sets', bold: true, center: true),
-                _tableCell('Reps', bold: true, center: true),
-                _tableCell('Status', bold: true, center: true),
-              ],
-            ),
-            ...records.map((record) => pw.TableRow(
-              decoration: pw.BoxDecoration(
-                color: records.indexOf(record).isEven
-                    ? PdfColors.grey50
-                    : PdfColors.white,
-              ),
-              children: [
-                _tableCell(
-                  DateFormat('MMM d, yyyy').format(record.date),
-                  center: true,
-                ),
-                _tableCell(record.exerciseName),
-                _tableCell(record.sets.toString(), center: true),
-                _tableCell(record.reps.toString(), center: true),
-                _tableCell(
-                  record.status,
-                  center: true,
-                  color: record.status.toLowerCase() == 'completed'
-                      ? PdfColor.fromInt(0xFF4CAF50) // Green for completed
-                      : PdfColor.fromInt(0xFFF44336), // Red for others
-                ),
-              ],
-            )),
-          ],
-        ),
-      ],
-    );
-  }
 
   pw.Widget _buildDetailRow(String label, String value) {
     return pw.Padding(
@@ -361,6 +337,438 @@ class ExportPDFButton extends ConsumerWidget {
     );
   }
 
+  pw.Widget _buildPatientInfoSection() {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Patient Information',
+          style: pw.TextStyle(
+            fontSize: 18,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromInt(0xFF6A5D7B),
+          ),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+            borderRadius: pw.BorderRadius.circular(8),
+            color: PdfColors.grey50,
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('Patient Name:', '${UserDetails.firstName} ${UserDetails.lastName}'),
+              _buildDetailRow('Email:', UserDetails.email),
+              _buildDetailRow('Assessment Date:', DateFormat('MMMM d, yyyy').format(DateTime.now())),
+              _buildDetailRow('Target Muscle:', UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'Not specified'),
+              _buildDetailRow('Pain Duration:', UserAssess.painDuration.isNotEmpty ? UserAssess.painDuration : 'Not specified'),
+              _buildDetailRow('Rehabilitation Goal:', UserAssess.rehabGoal.isNotEmpty ? UserAssess.rehabGoal : 'Not specified'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildPainTrackingSection() {
+    final painEntries = PainHistory.entries;
+    if (painEntries.isEmpty) {
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Pain Level Tracking',
+            style: pw.TextStyle(
+              fontSize: 18,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromInt(0xFF6A5D7B),
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+              borderRadius: pw.BorderRadius.circular(8),
+              color: PdfColors.grey50,
+            ),
+            child: pw.Text(
+              'No pain level data available',
+              style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Pain Level Tracking',
+          style: pw.TextStyle(
+            fontSize: 18,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromInt(0xFF6A5D7B),
+          ),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Table(
+          border: pw.TableBorder.all(
+            color: PdfColors.grey300,
+            width: 0.5,
+          ),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(2),
+            1: const pw.FlexColumnWidth(1),
+            2: const pw.FlexColumnWidth(1.5),
+          },
+          children: [
+            pw.TableRow(
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromInt(0x1A6A5D7B),
+              ),
+              children: [
+                _tableCell('Date', bold: true, center: true),
+                _tableCell('Pain Scale', bold: true, center: true),
+                _tableCell('Pain Level', bold: true, center: true),
+              ],
+            ),
+            ...painEntries.map((entry) => pw.TableRow(
+              decoration: pw.BoxDecoration(
+                color: painEntries.indexOf(entry).isEven
+                    ? PdfColors.grey50
+                    : PdfColors.white,
+              ),
+              children: [
+                _tableCell(
+                  DateFormat('MMM d, yyyy').format(entry.date),
+                  center: true,
+                ),
+                _tableCell(
+                  entry.painScale.toString(),
+                  center: true,
+                  color: _getPainColor(entry.painScale),
+                ),
+                _tableCell(
+                  entry.painLevel,
+                  center: true,
+                  color: _getPainColor(entry.painScale),
+                ),
+              ],
+            )),
+          ],
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildDailyExerciseLogSection() {
+    final exerciseEntries = ExerciseHistory.entries;
+    if (exerciseEntries.isEmpty) {
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'Daily Exercise Log',
+            style: pw.TextStyle(
+              fontSize: 18,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromInt(0xFF6A5D7B),
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+              borderRadius: pw.BorderRadius.circular(8),
+              color: PdfColors.grey50,
+            ),
+            child: pw.Text(
+              'No exercise data available',
+              style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Group exercises by date
+    final Map<DateTime, List<ExerciseRecordEntry>> exercisesByDate = {};
+    for (final entry in exerciseEntries) {
+      final date = DateTime(entry.date.year, entry.date.month, entry.date.day);
+      exercisesByDate.putIfAbsent(date, () => []).add(entry);
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Daily Exercise Log',
+          style: pw.TextStyle(
+            fontSize: 18,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromInt(0xFF6A5D7B),
+          ),
+        ),
+        pw.SizedBox(height: 12),
+        ...exercisesByDate.entries.map((dateEntry) {
+          final date = dateEntry.key;
+          final exercises = dateEntry.value;
+          
+          return pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 12),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+              borderRadius: pw.BorderRadius.circular(8),
+              color: PdfColors.grey50,
+            ),
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.all(12),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    DateFormat('EEEE, MMMM d, yyyy').format(date),
+                    style: pw.TextStyle(
+                      fontSize: 14,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Table(
+                    border: pw.TableBorder.all(
+                      color: PdfColors.grey300,
+                      width: 0.5,
+                    ),
+                    columnWidths: {
+                      0: const pw.FlexColumnWidth(3),
+                      1: const pw.FlexColumnWidth(1),
+                      2: const pw.FlexColumnWidth(1),
+                      3: const pw.FlexColumnWidth(1.5),
+                      4: const pw.FlexColumnWidth(1.5),
+                    },
+                    children: [
+                      pw.TableRow(
+                        decoration: pw.BoxDecoration(
+                          color: PdfColor.fromInt(0x1A6A5D7B),
+                        ),
+                        children: [
+                          _tableCell('Exercise', bold: true),
+                          _tableCell('Sets', bold: true, center: true),
+                          _tableCell('Reps', bold: true, center: true),
+                          _tableCell('Duration', bold: true, center: true),
+                          _tableCell('Status', bold: true, center: true),
+                        ],
+                      ),
+                      ...exercises.map((exercise) => pw.TableRow(
+                        children: [
+                          _tableCell(exercise.exerciseName),
+                          _tableCell(exercise.sets.toString(), center: true),
+                          _tableCell(exercise.reps.toString(), center: true),
+                          _tableCell('${(exercise.durationSeconds / 60).toStringAsFixed(1)}m', center: true),
+                          _tableCell(
+                            exercise.status,
+                            center: true,
+                            color: exercise.status.toLowerCase() == 'completed'
+                                ? PdfColor.fromInt(0xFF4CAF50)
+                                : exercise.status.toLowerCase() == 'partial'
+                                    ? PdfColor.fromInt(0xFFFF9800)
+                                    : PdfColor.fromInt(0xFFF44336),
+                          ),
+                        ],
+                      )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  pw.Widget _buildPlanChangesSection() {
+    // This would track plan modifications - for now showing current plan structure
+    final userRehab = UserRehabilitation.instance;
+    
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Rehabilitation Plan Changes',
+          style: pw.TextStyle(
+            fontSize: 18,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromInt(0xFF6A5D7B),
+          ),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+            borderRadius: pw.BorderRadius.circular(8),
+            color: PdfColors.grey50,
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('Current Plan:', 'Week ${userRehab.rehabPlans.isNotEmpty ? userRehab.rehabPlans.first.weekNumber : 'N/A'} - ${userRehab.selectedMuscle} Rehabilitation'),
+              _buildDetailRow('Total Plans:', userRehab.rehabPlans.length.toString()),
+              _buildDetailRow('Target Muscle:', userRehab.selectedMuscle),
+              _buildDetailRow('Pain Level:', userRehab.selectedPainLevel),
+              _buildDetailRow('Pain Duration:', userRehab.selectedPainDuration),
+              if (userRehab.treatmentReferences != null && userRehab.treatmentReferences!.isNotEmpty)
+                _buildDetailRow('Active Treatments:', userRehab.treatmentReferences!.length.toString()),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildUserNotesSection() {
+    final notes = UserProgress.notes;
+    
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'User Notes & Observations',
+          style: pw.TextStyle(
+            fontSize: 18,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromInt(0xFF6A5D7B),
+          ),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+            borderRadius: pw.BorderRadius.circular(8),
+            color: PdfColors.grey50,
+          ),
+          child: pw.Text(
+            notes?.isNotEmpty == true ? notes! : 'No notes recorded',
+            style: pw.TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildProgressStatisticsSection() {
+    final painEntries = PainHistory.entries;
+    final exerciseEntries = ExerciseHistory.entries;
+    
+    // Calculate statistics
+    final totalDays = painEntries.isNotEmpty ? 
+        DateTime.now().difference(painEntries.first.date).inDays + 1 : 0;
+    final avgPainLevel = painEntries.isNotEmpty ? 
+        painEntries.map((e) => e.painScale).reduce((a, b) => a + b) / painEntries.length : 0;
+    final totalExercises = exerciseEntries.where((e) => e.status == 'completed').length;
+    final totalExerciseTime = exerciseEntries.fold(0, (sum, e) => sum + e.durationSeconds);
+    
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Progress Statistics',
+          style: pw.TextStyle(
+            fontSize: 18,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromInt(0xFF6A5D7B),
+          ),
+        ),
+        pw.SizedBox(height: 12),
+        pw.Row(
+          children: [
+            pw.Expanded(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+                  borderRadius: pw.BorderRadius.circular(8),
+                  color: PdfColors.grey50,
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Pain Management',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    _buildDetailRow('Average Pain Level:', avgPainLevel.toStringAsFixed(1)),
+                    _buildDetailRow('Total Assessments:', painEntries.length.toString()),
+                    _buildDetailRow('Days Tracked:', totalDays.toString()),
+                  ],
+                ),
+              ),
+            ),
+            pw.SizedBox(width: 12),
+            pw.Expanded(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+                  borderRadius: pw.BorderRadius.circular(8),
+                  color: PdfColors.grey50,
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Exercise Progress',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    _buildDetailRow('Completed Exercises:', totalExercises.toString()),
+                    _buildDetailRow('Total Exercise Time:', '${(totalExerciseTime / 60).toStringAsFixed(1)} minutes'),
+                    _buildDetailRow('Current Streak:', UserProgress.streak.toString()),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _getReportPeriod() {
+    final painEntries = PainHistory.entries;
+    if (painEntries.isEmpty) return 'No data available';
+    
+    final startDate = painEntries.first.date;
+    final endDate = painEntries.last.date;
+    
+    if (startDate.year == endDate.year && startDate.month == endDate.month) {
+      return '${DateFormat('MMM d').format(startDate)} - ${DateFormat('d, yyyy').format(endDate)}';
+    } else {
+      return '${DateFormat('MMM d, yyyy').format(startDate)} - ${DateFormat('MMM d, yyyy').format(endDate)}';
+    }
+  }
+
+  PdfColor _getPainColor(int painScale) {
+    if (painScale <= 3) return PdfColor.fromInt(0xFF4CAF50); // Green
+    if (painScale <= 7) return PdfColor.fromInt(0xFFFF9800); // Orange
+    return PdfColor.fromInt(0xFFF44336); // Red
+  }
+
   pw.Widget _buildFooter() {
     return pw.Column(
       children: [
@@ -370,10 +778,18 @@ class ExportPDFButton extends ConsumerWidget {
         ),
         pw.SizedBox(height: 8),
         pw.Text(
-          'Generated by PocketPT - ${DateFormat('MMMM d, yyyy').format(DateTime.now())}',
+          'Generated by PocketPT Physical Therapy App - ${DateFormat('MMMM d, yyyy').format(DateTime.now())}',
           style: pw.TextStyle(
             fontSize: 10,
             color: PdfColors.grey600,
+          ),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          'This report is intended for healthcare professionals and contains confidential patient information.',
+          style: pw.TextStyle(
+            fontSize: 8,
+            color: PdfColors.grey500,
           ),
         ),
       ],

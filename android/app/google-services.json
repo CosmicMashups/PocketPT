@@ -12,7 +12,20 @@
           "package_name": "com.example.pocketpt"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "679886971863-85d1ahqil53vbn97mfe52i69if2ofv61.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.pocketpt",
+            "certificate_hash": "sha1"
+          }
+        },
+        {
+          "client_id": "679886971863-85d1ahqil53vbn97mfe52i69if2ofv61.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDxgw6ANOak_AxdckYUZ_oYdS_3K6LAgnw"
