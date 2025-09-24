@@ -312,7 +312,7 @@ class _DashboardPageState extends State<DashboardPage> {
       barrierDismissible: false,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFF8F6F4),
+          backgroundColor: Theme.of(ctx).colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
@@ -363,7 +363,7 @@ class _DashboardPageState extends State<DashboardPage> {
       Navigator.push(
         context,
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => PreRecordPage(),
+          pageBuilder: (context, animation, secondaryAnimation) => const PreRecordPage(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             const begin = Offset(1.0, 0.0);
             const end = Offset.zero;
@@ -389,7 +389,7 @@ class _DashboardPageState extends State<DashboardPage> {
       barrierDismissible: false,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFF8F6F4),
+          backgroundColor: Theme.of(ctx).colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
@@ -441,7 +441,7 @@ class _DashboardPageState extends State<DashboardPage> {
         barrierDismissible: false,
         builder: (ctx) {
           return AlertDialog(
-            backgroundColor: const Color(0xFFF8F6F4),
+            backgroundColor: Theme.of(ctx).colorScheme.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
@@ -497,7 +497,7 @@ class _DashboardPageState extends State<DashboardPage> {
         barrierDismissible: false,
         builder: (ctx) {
           return AlertDialog(
-            backgroundColor: const Color(0xFFF8F6F4),
+            backgroundColor: Theme.of(ctx).colorScheme.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
@@ -555,7 +555,7 @@ class _DashboardPageState extends State<DashboardPage> {
         barrierDismissible: false, // Make it persistent
         builder: (ctx) {
           return AlertDialog(
-            backgroundColor: const Color(0xFFF8F6F4),
+            backgroundColor: Theme.of(ctx).colorScheme.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
@@ -734,11 +734,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentExercise = ExerciseHistory.getCurrentExercise();
     double progress = ExerciseHistory.calculateTodaysProgressPercentage();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -898,15 +899,15 @@ class _DashboardPageState extends State<DashboardPage> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: const Color(0xFFE5E7EB),
+                    color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -1094,15 +1095,15 @@ class _DashboardPageState extends State<DashboardPage> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: const Color(0xFFE5E7EB),
+                    color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                     width: 1,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                       ),
@@ -1420,15 +1421,15 @@ class _DashboardPageState extends State<DashboardPage> {
                         return Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: const Color(0xFFE5E7EB),
+                              color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                               width: 1,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
+                                color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),

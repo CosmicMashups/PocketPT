@@ -18,8 +18,9 @@ class ReportPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
       appBar: AppBar(
         title: const Text(
           'Clinical Reports',
@@ -68,18 +69,18 @@ class ReportPage extends ConsumerWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white,
-                    const Color(0xFFF0F9FF),
+                    isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+                    isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF0F9FF),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: const Color(0xFFE5E7EB),
+                  color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -112,7 +113,7 @@ class ReportPage extends ConsumerWidget {
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w700,
-                                color: mainColor,
+                                color: isDark ? Colors.white : mainColor,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -120,7 +121,7 @@ class ReportPage extends ConsumerWidget {
                               'Comprehensive analysis of patient rehabilitation progress',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: detailColor,
+                                color: isDark ? Colors.white70 : detailColor,
                               ),
                             ),
                           ],

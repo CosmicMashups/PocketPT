@@ -1,6 +1,7 @@
 // Import necessary packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
 import 'dart:async';
@@ -9,6 +10,7 @@ import 'dart:math' as math;
 import '../data/globals.dart';
 import '../main.dart';
 import '../data/pose_detection_service.dart';
+import '../widgets/enhanced_pose_skeleton_painter.dart';
 import 'c_video.dart';
 import 'c_upload.dart';
 import 'c_videopreview.dart';
@@ -43,6 +45,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   bool _processingFrame = false;
   Timer? _throttleTimer;
   double? _lastComputedAngle;
+  int? _lastProcessedTime; // ms timestamp for throttling
   
   // ROM Assessment Results
   Map<String, dynamic>? _romResults;
@@ -66,6 +69,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   // New: Skeleton visualization state
   bool _showSkeleton = false;
   Map<String, Offset>? _currentLandmarks;
+  SkeletonOverlayConfig _skeletonConfig = const SkeletonOverlayConfig();
 
   // Start recording video while maintaining pose detection
   Future<XFile?> _startRecording() async {
@@ -85,7 +89,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       XFile videoFile = await _controller.stopVideoRecording();
       return videoFile;
     } catch (e) {
-      print('Error recording video: $e');
+      debugPrint('Error recording video: $e');
       return null;
     }
   }
@@ -102,7 +106,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     super.didChangeDependencies();
     // If returning to this page and controller was disposed, re-initialize
     if (!_isCameraInitialized) {
-      print('Camera not initialized, attempting to initialize...');
+      debugPrint('Camera not initialized, attempting to initialize...');
       _initializeCamera();
     }
   }
@@ -112,7 +116,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     try {
       cameras = await availableCameras();  // Get available cameras
       if (cameras.isEmpty) {
-        print('No cameras available');
+        debugPrint('No cameras available');
         return;
       }
       
@@ -132,18 +136,28 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       await Future.delayed(const Duration(milliseconds: 500));
       await _startImageStream();
     } catch (e) {
-      print('Camera initialization error: $e');
+      debugPrint('Camera initialization error: $e');
       if (mounted) {
         setState(() {
           _isCameraInitialized = false;
         });
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Camera Unavailable'),
+            content: const Text('We could not access the camera. Please ensure camera permission is granted in system settings and that no other app is using the camera.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
+            ],
+          ),
+        );
       }
     }
   }
 
   Future<void> _startImageStream() async {
     if (_isStreaming || !_controller.value.isInitialized) {
-      print('Cannot start image stream: isStreaming=$_isStreaming, isInitialized=${_controller.value.isInitialized}');
+      debugPrint('Cannot start image stream: isStreaming=$_isStreaming, isInitialized=${_controller.value.isInitialized}');
       return;
     }
     
@@ -153,6 +167,13 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       if (_processingFrame) return;
       if (_throttleTimer != null && _throttleTimer!.isActive) return;
       _throttleTimer = Timer(const Duration(milliseconds: 150), () {});
+      // Additional hard cap to reduce CPU usage on low-end devices
+      final int nowMs = DateTime.now().millisecondsSinceEpoch;
+      _lastProcessedTime ??= nowMs;
+      if (nowMs - _lastProcessedTime! < 120) {
+        return;
+      }
+      _lastProcessedTime = nowMs;
 
       _processingFrame = true;
       try {
@@ -168,7 +189,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           // Store landmarks for skeleton visualization
           if (_showSkeleton) {
             _currentLandmarks = landmarks;
-            print('Pose detected: ${landmarks.length} landmarks'); // Debug output
+            debugPrint('Pose detected: ${landmarks.length} landmarks'); // Debug output
             // Force UI update to show skeleton
             if (mounted) setState(() {});
           }
@@ -204,7 +225,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                 });
               }
             } catch (e) {
-              print('Comprehensive assessment failed: $e');
+              debugPrint('Comprehensive assessment failed: $e');
               // Fallback to basic angle calculation if comprehensive assessment fails
               final angle = _computeRelevantAngle(landmarks);
               if (angle != null) {
@@ -232,13 +253,13 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           }
         }
       } catch (e) {
-        print('Pose detection error: $e');
+        debugPrint('Pose detection error: $e');
       } finally {
         _processingFrame = false;
       }
     });
     } catch (e) {
-      print('Error starting image stream: $e');
+      debugPrint('Error starting image stream: $e');
       _isStreaming = false;
     }
   }
@@ -354,7 +375,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       );
 
     } catch (e) {
-      print('Calf analysis error: $e');
+      debugPrint('Calf analysis error: $e');
       _calfROMLevel = "Calf: Error";
       _calfDisplayColor = Colors.red;
       _calfAlignment = "Alignment: Error";
@@ -425,7 +446,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       }
 
     } catch (e) {
-      print('Hamstring analysis error: $e');
+      debugPrint('Hamstring analysis error: $e');
       _hamstringROMLevel = "Hamstring: Error";
       _hamstringDisplayColor = Colors.red;
       _hamstringCompensation = "Compensation: Error";
@@ -494,19 +515,20 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     // final screenHeight = MediaQuery.of(context).size.height;
     // final screenWidth = MediaQuery.of(context).size.width;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: kBackgroundColor,
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : kBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
             ),
@@ -546,7 +568,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w700,
                 fontSize: 20,
-                color: const Color(0xFF1F2937),
+                color: isDark ? Colors.white : const Color(0xFF1F2937),
               ),
             ),
             Text(
@@ -554,7 +576,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
               style: GoogleFonts.ptSans(
                 fontWeight: FontWeight.w500,
                 fontSize: 14,
-                color: const Color(0xFF6B7280),
+                color: isDark ? Colors.white70 : const Color(0xFF6B7280),
               ),
             ),
           ],
@@ -566,12 +588,12 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
             margin: const EdgeInsets.only(right: 8),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -604,12 +626,12 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
             margin: const EdgeInsets.only(right: 8),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -635,48 +657,63 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                 ),
               ),
             ),
-          // Skeleton toggle button
+          // Enhanced skeleton overlay toggle with configuration
           Container(
-            margin: const EdgeInsets.only(right: 8),
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: _showSkeleton ? const Color(0xFF8B2E2E) : Colors.white,
+              color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: IconButton(
-            tooltip: 'Toggle skeleton overlay',
-            icon: Icon(
-              _showSkeleton ? Icons.visibility : Icons.visibility_off,
-                color: _showSkeleton ? Colors.white : const Color(0xFF6B7280),
-                size: 20,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.scatter_plot, size: 16, color: Color(0xFF8B2E2E)),
+                const SizedBox(width: 6),
+                Text('Skeleton', style: GoogleFonts.ptSans(fontSize: 12, color: isDark ? Colors.white70 : const Color(0xFF1F2937))),
+                Switch(
+                  value: _showSkeleton,
+                  activeColor: const Color(0xFF8B2E2E),
+                  onChanged: (val) => setState(() {
+                    _showSkeleton = val;
+                    if (!val) _currentLandmarks = null;
+                  }),
+                ),
+                if (_showSkeleton) ...[
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _showSkeletonConfigDialog(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(Icons.settings, size: 12, color: Color(0xFF8B2E2E)),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            onPressed: () {
-              setState(() {
-                _showSkeleton = !_showSkeleton;
-                if (!_showSkeleton) {
-                  _currentLandmarks = null;
-                }
-              });
-            },
-          ),
           ),
           // Camera switch button
           Container(
             margin: const EdgeInsets.only(right: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -941,19 +978,25 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                   ),
                 ),
 
-                // Pose skeleton overlay
+                // Enhanced pose skeleton overlay
                 if (_showSkeleton && _currentLandmarks != null)
                   Positioned.fill(
                     child: IgnorePointer(
                       child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(18),
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(18),
                           child: CustomPaint(
-                            painter: PoseSkeletonPainter(_currentLandmarks!),
+                            painter: EnhancedPoseSkeletonPainter(
+                              landmarks: _currentLandmarks!,
+                              showLandmarkLabels: _skeletonConfig.showLandmarkLabels,
+                              strokeWidth: _skeletonConfig.strokeWidth,
+                              pointRadius: _skeletonConfig.pointRadius,
+                              showConfidence: _skeletonConfig.showConfidence,
+                            ),
                             size: Size.infinite,
                           ),
                         ),
@@ -1257,7 +1300,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                               XFile? videoFile = await _startRecording();
                               setState(() => _isRecording = false);
 
-                              if (videoFile != null) {
+                            if (videoFile != null) {
                                 File file = File(videoFile.path);
                                 UserAssess.painVideo = file;
                                 
@@ -1268,7 +1311,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                                   );
                                 }
                               } else {
-                                print('Recording failed or was cancelled.');
+                                debugPrint('Recording failed or was cancelled.');
                               }
                             },
                       style: ElevatedButton.styleFrom(
@@ -1366,184 +1409,127 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     }
   }
 
-
-  // Helper method to build action buttons
-  Widget _buildActionButton({
-    required IconData icon,
-    required Color color,
-    required String tooltip,
-    required VoidCallback? onPressed,
-    bool isLoading = false,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Tooltip(
-        message: tooltip,
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: color,
-            shape: const CircleBorder(),
-            padding: const EdgeInsets.all(20),
-            elevation: 0,
-          ),
-          child: isLoading
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white, 
-                    strokeWidth: 2,
+  void _showSkeletonConfigDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                'Skeleton Overlay Settings',
+                style: GoogleFonts.ptSans(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Show landmark labels toggle
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Show Landmark Labels',
+                          style: GoogleFonts.ptSans(
+                            fontSize: 14,
+                            color: const Color(0xFF1F2937),
+                          ),
+                        ),
+                      ),
+                      Switch(
+                        value: _skeletonConfig.showLandmarkLabels,
+                        activeColor: const Color(0xFF8B2E2E),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            _skeletonConfig = _skeletonConfig.copyWith(showLandmarkLabels: value);
+                          });
+                        },
+                      ),
+                    ],
                   ),
-                )
-              : Icon(icon, size: 28, color: Colors.white),
-        ),
-      ),
+                  const SizedBox(height: 16),
+                  
+                  // Stroke width slider
+                  Text(
+                    'Line Thickness: ${_skeletonConfig.strokeWidth.toStringAsFixed(1)}',
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: const Color(0xFF1F2937),
+                    ),
+                  ),
+                  Slider(
+                    value: _skeletonConfig.strokeWidth,
+                    min: 2.0,
+                    max: 8.0,
+                    divisions: 12,
+                    activeColor: const Color(0xFF8B2E2E),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        _skeletonConfig = _skeletonConfig.copyWith(strokeWidth: value);
+                      });
+                    },
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Point radius slider
+                  Text(
+                    'Point Size: ${_skeletonConfig.pointRadius.toStringAsFixed(1)}',
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: const Color(0xFF1F2937),
+                    ),
+                  ),
+                  Slider(
+                    value: _skeletonConfig.pointRadius,
+                    min: 3.0,
+                    max: 12.0,
+                    divisions: 18,
+                    activeColor: const Color(0xFF8B2E2E),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        _skeletonConfig = _skeletonConfig.copyWith(pointRadius: value);
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Close',
+                    style: GoogleFonts.ptSans(
+                      color: const Color(0xFF6B7280),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      _skeletonConfig = const SkeletonOverlayConfig();
+                    });
+                  },
+                  child: Text(
+                    'Reset',
+                    style: GoogleFonts.ptSans(
+                      color: const Color(0xFF8B2E2E),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
+
+  // (Removed unused _buildActionButton to satisfy linter)
 }
 
-// Custom painter for drawing pose skeleton overlay
-class PoseSkeletonPainter extends CustomPainter {
-  final Map<String, Offset> landmarks;
-
-  PoseSkeletonPainter(this.landmarks);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (landmarks.isEmpty) return;
-
-    // Scale the landmarks to fit the canvas size
-    // ML Kit coordinates are normalized (0.0 to 1.0), so we need to scale them to the actual canvas size
-    final scaledLandmarks = <String, Offset>{};
-    for (final entry in landmarks.entries) {
-      scaledLandmarks[entry.key] = Offset(
-        entry.value.dx * size.width,
-        entry.value.dy * size.height,
-      );
-    }
-
-    // Enhanced paint styles with better visibility
-    final torsoPaint = Paint()
-      ..color = const Color(0xFF00BFFF) // Bright blue
-      ..strokeWidth = 6.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final armPaint = Paint()
-      ..color = const Color(0xFF00FF00) // Bright green
-      ..strokeWidth = 6.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final legPaint = Paint()
-      ..color = const Color(0xFFFF8C00) // Bright orange
-      ..strokeWidth = 6.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final headPaint = Paint()
-      ..color = const Color(0xFF8A2BE2) // Blue violet
-      ..strokeWidth = 6.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final pointPaint = Paint()
-      ..color = const Color(0xFFFF0000) // Bright red
-      ..style = PaintingStyle.fill;
-
-    // Draw landmark points with better visibility
-    for (final landmark in scaledLandmarks.values) {
-      // Draw a white outline for better contrast
-      final outlinePaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0;
-      canvas.drawCircle(landmark, 10, outlinePaint);
-      canvas.drawCircle(landmark, 6, pointPaint);
-    }
-
-    // Draw skeleton connections with different colors
-    _drawSkeletonConnections(canvas, torsoPaint, armPaint, legPaint, headPaint, scaledLandmarks);
-  }
-
-  void _drawSkeletonConnections(Canvas canvas, Paint torsoPaint, Paint armPaint, Paint legPaint, Paint headPaint, Map<String, Offset> scaledLandmarks) {
-    // Head and neck
-    _drawConnectionIfExists('nose', 'leftEye', canvas, headPaint, scaledLandmarks);
-    _drawConnectionIfExists('nose', 'rightEye', canvas, headPaint, scaledLandmarks);
-    _drawConnectionIfExists('leftEye', 'leftShoulder', canvas, headPaint, scaledLandmarks);
-    _drawConnectionIfExists('rightEye', 'rightShoulder', canvas, headPaint, scaledLandmarks);
-
-    // Torso
-    _drawConnectionIfExists('leftShoulder', 'rightShoulder', canvas, torsoPaint, scaledLandmarks);
-    _drawConnectionIfExists('leftShoulder', 'leftHip', canvas, torsoPaint, scaledLandmarks);
-    _drawConnectionIfExists('rightShoulder', 'rightHip', canvas, torsoPaint, scaledLandmarks);
-    _drawConnectionIfExists('leftHip', 'rightHip', canvas, torsoPaint, scaledLandmarks);
-
-    // Left arm
-    _drawConnectionIfExists('leftShoulder', 'leftElbow', canvas, armPaint, scaledLandmarks);
-    _drawConnectionIfExists('leftElbow', 'leftWrist', canvas, armPaint, scaledLandmarks);
-
-    // Right arm
-    _drawConnectionIfExists('rightShoulder', 'rightElbow', canvas, armPaint, scaledLandmarks);
-    _drawConnectionIfExists('rightElbow', 'rightWrist', canvas, armPaint, scaledLandmarks);
-
-    // Left leg
-    _drawConnectionIfExists('leftHip', 'leftKnee', canvas, legPaint, scaledLandmarks);
-    _drawConnectionIfExists('leftKnee', 'leftAnkle', canvas, legPaint, scaledLandmarks);
-
-    // Right leg
-    _drawConnectionIfExists('rightHip', 'rightKnee', canvas, legPaint, scaledLandmarks);
-    _drawConnectionIfExists('rightKnee', 'rightAnkle', canvas, legPaint, scaledLandmarks);
-
-    // Additional connections for more detailed skeleton
-    if (scaledLandmarks.containsKey('leftHeel')) {
-      _drawConnectionIfExists('leftAnkle', 'leftHeel', canvas, legPaint, scaledLandmarks);
-    }
-    if (scaledLandmarks.containsKey('rightHeel')) {
-      _drawConnectionIfExists('rightAnkle', 'rightHeel', canvas, legPaint, scaledLandmarks);
-    }
-    
-    // Additional facial features if available
-    if (scaledLandmarks.containsKey('leftEar') && scaledLandmarks.containsKey('leftEye')) {
-      _drawConnectionIfExists('leftEye', 'leftEar', canvas, headPaint, scaledLandmarks);
-    }
-    if (scaledLandmarks.containsKey('rightEar') && scaledLandmarks.containsKey('rightEye')) {
-      _drawConnectionIfExists('rightEye', 'rightEar', canvas, headPaint, scaledLandmarks);
-    }
-    
-    // Hand connections if available
-    if (scaledLandmarks.containsKey('leftWrist') && scaledLandmarks.containsKey('leftThumb')) {
-      _drawConnectionIfExists('leftWrist', 'leftThumb', canvas, armPaint, scaledLandmarks);
-    }
-    if (scaledLandmarks.containsKey('rightWrist') && scaledLandmarks.containsKey('rightThumb')) {
-      _drawConnectionIfExists('rightWrist', 'rightThumb', canvas, armPaint, scaledLandmarks);
-    }
-  }
-
-  void _drawConnectionIfExists(String fromKey, String toKey, Canvas canvas, Paint paint, Map<String, Offset> scaledLandmarks) {
-    final from = scaledLandmarks[fromKey];
-    final to = scaledLandmarks[toKey];
-    
-    if (from != null && to != null) {
-      canvas.drawLine(from, to, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
 

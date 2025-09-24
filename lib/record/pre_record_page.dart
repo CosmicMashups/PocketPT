@@ -70,19 +70,20 @@ class _PreRecordPageState extends State<PreRecordPage> {
     final rehabPlans = UserRehabilitation.instance.rehabPlans;
     final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -139,14 +140,14 @@ class _PreRecordPageState extends State<PreRecordPage> {
                       : Container(
                           height: screenHeight * 0.38,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF3F4F6),
+                            color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
                           ),
                           child: Center(
                             child: Text(
                               'Camera not available',
-                              style: GoogleFonts.ptSans(color: const Color(0xFF6B7280)),
+                              style: GoogleFonts.ptSans(color: isDark ? Colors.white70 : const Color(0xFF6B7280)),
                             ),
                           ),
                         ),
@@ -184,7 +185,7 @@ class _PreRecordPageState extends State<PreRecordPage> {
                     title: 'Exercise',
                     icon: Icons.tag,
                     value: '1',
-                    bgColor: Colors.white,
+                    bgColor: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -297,6 +298,7 @@ class _PreRecordPageState extends State<PreRecordPage> {
     required String value,
     Color bgColor = Colors.grey,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 110,
       height: 130,
@@ -304,9 +306,9 @@ class _PreRecordPageState extends State<PreRecordPage> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 6)),
+          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.06), blurRadius: 12, offset: const Offset(0, 6)),
         ],
       ),
       child: Column(
@@ -333,14 +335,15 @@ class _PreRecordPageState extends State<PreRecordPage> {
     required String title,
     required String subtitle,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.06), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Row(

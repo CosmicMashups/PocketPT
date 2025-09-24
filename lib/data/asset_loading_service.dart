@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 /// Service to handle optimized asset loading and caching
 class AssetLoadingService {
@@ -24,25 +25,32 @@ class AssetLoadingService {
   /// Initialize asset preloading
   Future<void> initialize() async {
     try {
-      print('AssetLoadingService: Starting asset preloading...');
+      debugPrint('AssetLoadingService: Starting asset preloading...');
       
-      // Preload critical assets in background
-      _preloadCriticalAssets();
+      // Defer preloading until after first frame to avoid jank
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _preloadCriticalAssets();
+      });
       
-      print('AssetLoadingService: Asset preloading initialized');
+      debugPrint('AssetLoadingService: Asset preloading initialized');
     } catch (e) {
-      print('AssetLoadingService: Error initializing asset preloading: $e');
+      debugPrint('AssetLoadingService: Error initializing asset preloading: $e');
     }
   }
   
   /// Preload critical assets
   Future<void> _preloadCriticalAssets() async {
+    final context = NavigationService.navigatorKey.currentContext;
+    if (context == null) {
+      debugPrint('AssetLoadingService: Skipping precache, no context yet');
+      return;
+    }
     for (final assetPath in _criticalAssets) {
       try {
-        await precacheImage(AssetImage(assetPath), NavigationService.navigatorKey.currentContext!);
-        print('AssetLoadingService: Preloaded $assetPath');
+        await precacheImage(AssetImage(assetPath), context);
+        debugPrint('AssetLoadingService: Preloaded $assetPath');
       } catch (e) {
-        print('AssetLoadingService: Failed to preload $assetPath: $e');
+        debugPrint('AssetLoadingService: Failed to preload $assetPath: $e');
       }
     }
   }
@@ -62,7 +70,7 @@ class AssetLoadingService {
       _imageCache[assetPath] = image;
       return image;
     } catch (e) {
-      print('AssetLoadingService: Error loading image $assetPath: $e');
+      debugPrint('AssetLoadingService: Error loading image $assetPath: $e');
       return null;
     }
   }
@@ -78,7 +86,7 @@ class AssetLoadingService {
       _textCache[assetPath] = content;
       return content;
     } catch (e) {
-      print('AssetLoadingService: Error loading text $assetPath: $e');
+      debugPrint('AssetLoadingService: Error loading text $assetPath: $e');
       return null;
     }
   }
@@ -87,7 +95,7 @@ class AssetLoadingService {
   void clearCache() {
     _imageCache.clear();
     _textCache.clear();
-    print('AssetLoadingService: Cache cleared');
+    debugPrint('AssetLoadingService: Cache cleared');
   }
   
   /// Get cache statistics

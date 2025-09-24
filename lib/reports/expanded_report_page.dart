@@ -26,8 +26,9 @@ class ExpandedReportPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
       appBar: AppBar(
         backgroundColor: mainColor,
         title: Text(
@@ -77,18 +78,19 @@ class ExpandedReportPage extends ConsumerWidget {
   }
 
   Widget _buildInfoCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFFE5E7EB),
+          color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -141,7 +143,7 @@ class ExpandedReportPage extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
+              color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF9FAFB),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: mainColor.withOpacity(0.1),
@@ -175,18 +177,19 @@ class ExpandedReportPage extends ConsumerWidget {
             .where((record) => record.icdCode == icdCode)
             .toList();
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: const Color(0xFFE5E7EB),
+              color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -240,10 +243,10 @@ class ExpandedReportPage extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
+                    color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF9FAFB),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFFE5E7EB),
+                      color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                       width: 1,
                     ),
                   ),
@@ -280,7 +283,7 @@ class ExpandedReportPage extends ConsumerWidget {
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
+                        color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF9FAFB),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: record.status.toLowerCase() == 'completed'

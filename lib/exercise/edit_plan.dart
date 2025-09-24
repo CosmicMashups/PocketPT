@@ -32,6 +32,12 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
   }
 
   @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Refresh exercise references when the page is resumed

@@ -8,9 +8,10 @@ import 'dart:math' as math;
 
 import '../data/globals.dart';
 import '../data/pose_detection_service.dart';
+import '../data/facial_pain_recognition_service.dart';
 import '../widgets/enhanced_pose_skeleton_painter.dart';
-import 'instructionVideo.dart';
-import 'painLevel.dart';
+import '../dailyAssessment/instructionVideo.dart';
+import '../dailyAssessment/painLevel.dart';
 
 class CameraPosePage extends StatefulWidget {
   const CameraPosePage({super.key});
@@ -37,10 +38,19 @@ class _CameraPosePageState extends State<CameraPosePage> {
   String _mode = 'Triceps'; // 'Triceps' or 'Shoulders' (matching Jupyter focus)
   String _selectedSide = 'Right'; // 'Left' or 'Right' side to assess
   final PoseDetectionService _poseService = PoseDetectionService();
+  final FacialPainRecognitionService _facialPainService = FacialPainRecognitionService();
   bool _isStreaming = false;
   bool _processingFrame = false;
   Timer? _throttleTimer;
   double? _lastComputedAngle;
+  
+  // Facial pain recognition state
+  bool _isPainLocked = false;
+  int _lockedPainScale = 0;
+  String _lockedPainLevel = '';
+  bool _facialPainDetected = false;
+  double _facialPainConfidence = 0.0;
+  String _facialPainPrediction = 'Not Pained';
   
   // ROM Assessment Results
   Map<String, dynamic>? _romResults;
@@ -71,6 +81,20 @@ class _CameraPosePageState extends State<CameraPosePage> {
   @override
   void initState() {
     super.initState();
+    _initializeServices();
+  }
+  
+  // Initialize both pose detection and facial pain recognition services
+  Future<void> _initializeServices() async {
+    try {
+      // Initialize facial pain recognition service
+      await _facialPainService.initialize();
+      debugPrint('Facial pain recognition service initialized');
+    } catch (e) {
+      debugPrint('Error initializing facial pain service: $e');
+    }
+    
+    // Initialize camera
     _initializeCamera();
   }
 
@@ -151,7 +175,16 @@ class _CameraPosePageState extends State<CameraPosePage> {
 
       _processingFrame = true;
       try {
-        final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
+        // Run both pose detection and facial pain recognition in parallel
+        final futures = await Future.wait([
+          _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]),
+          _facialPainService.detectFacialPain(image: image, camera: cameras[_selectedCameraIndex]),
+        ]);
+        
+        final poses = futures[0] as List;
+        final facialPainResult = futures[1] as Map<String, dynamic>;
+        
+        // Process pose detection results
         if (poses.isNotEmpty) {
           final landmarks = _poseService.getPoseLandmarks(poses.first);
           
@@ -163,71 +196,84 @@ class _CameraPosePageState extends State<CameraPosePage> {
           // Store landmarks for skeleton visualization
           if (_showSkeleton) {
             _currentLandmarks = landmarks;
-            debugPrint('Pose detected: ${landmarks.length} landmarks'); // Debug output
+            debugPrint('Pose detected: ${landmarks.length} landmarks');
             // Force UI update to show skeleton
             if (mounted) setState(() {});
           }
           
-          // Perform ROM assessment based on selected mode (continuous tracking)
-          if (_mode == 'Triceps' || _mode == 'Shoulders') {
-            // Use existing comprehensive ROM assessment for upper body
-            try {
-              final assessment = _poseService.performComprehensiveROMAssessment(landmarks);
-              
-              if (mounted && assessment.isNotEmpty) {
-                setState(() {
-                  _romResults = assessment;
-                  _compensations = assessment['compensations'];
-                  _overallPainScore = assessment['overallPainScore'] ?? 0;
-                  
-                  // Update current ROM display based on mode
-                  _updateCurrentROMDisplay();
-                  
-                  // Update UserAssess for integration (continuous tracking)
-                  UserAssess.painScale = _overallPainScore;
-                  UserAssess.painLevel = _overallPainScore.toString();
-                  
-                  // Add clinical context for better user understanding
-                  if (assessment.containsKey('painDescription')) {
-                    UserAssess.painLevel = assessment['painDescription'];
+          // Perform ROM assessment based on selected mode (only if pain is not locked)
+          if (!_isPainLocked) {
+            if (_mode == 'Triceps' || _mode == 'Shoulders') {
+              // Use existing comprehensive ROM assessment for upper body
+              try {
+                final assessment = _poseService.performComprehensiveROMAssessment(landmarks);
+                
+                if (mounted && assessment.isNotEmpty) {
+                  setState(() {
+                    _romResults = assessment;
+                    _compensations = assessment['compensations'];
+                    _overallPainScore = assessment['overallPainScore'] ?? 0;
+                    
+                    // Update current ROM display based on mode
+                    _updateCurrentROMDisplay();
+                    
+                    // Update UserAssess for integration (continuous tracking)
+                    UserAssess.painScale = _overallPainScore;
+                    UserAssess.painLevel = _overallPainScore.toString();
+                    
+                    // Add clinical context for better user understanding
+                    if (assessment.containsKey('painDescription')) {
+                      UserAssess.painLevel = assessment['painDescription'];
+                    }
+                    
+                    PainHistory.recordTodayAndSave(
+                      painScale: UserAssess.painScale,
+                      painLevel: UserAssess.painLevel,
+                    );
+                  });
+                }
+              } catch (e) {
+                debugPrint('Comprehensive assessment failed: $e');
+                // Fallback to basic angle calculation if comprehensive assessment fails
+                final angle = _computeRelevantAngle(landmarks);
+                if (angle != null) {
+                  _lastComputedAngle = angle;
+                  final score = _mapAngleToScore(angle);
+                  if (score != UserAssess.painScale) {
+                    UserAssess.painScale = score;
+                    UserAssess.painLevel = score.toString();
+                    PainHistory.recordTodayAndSave(
+                      painScale: UserAssess.painScale,
+                      painLevel: UserAssess.painLevel,
+                    );
+                    if (mounted) setState(() {});
                   }
-                  
-                  PainHistory.recordTodayAndSave(
-                    painScale: UserAssess.painScale,
-                    painLevel: UserAssess.painLevel,
-                  );
-                });
-              }
-            } catch (e) {
-              debugPrint('Comprehensive assessment failed: $e');
-              // Fallback to basic angle calculation if comprehensive assessment fails
-              final angle = _computeRelevantAngle(landmarks);
-              if (angle != null) {
-                _lastComputedAngle = angle;
-                final score = _mapAngleToScore(angle);
-                if (score != UserAssess.painScale) {
-                  UserAssess.painScale = score;
-                  UserAssess.painLevel = score.toString();
-                  PainHistory.recordTodayAndSave(
-                    painScale: UserAssess.painScale,
-                    painLevel: UserAssess.painLevel,
-                  );
-                  if (mounted) setState(() {});
                 }
               }
+            } else if (_mode == 'Calf') {
+              // Use new calf analysis (continuous tracking)
+              _analyzeCalfDorsiflexion(landmarks);
+              if (mounted) setState(() {});
+            } else if (_mode == 'Hamstrings') {
+              // Use new hamstring analysis (continuous tracking)
+              _analyzeHamstringROM(landmarks);
+              if (mounted) setState(() {});
             }
-          } else if (_mode == 'Calf') {
-            // Use new calf analysis (continuous tracking)
-            _analyzeCalfDorsiflexion(landmarks);
-            if (mounted) setState(() {});
-          } else if (_mode == 'Hamstrings') {
-            // Use new hamstring analysis (continuous tracking)
-            _analyzeHamstringROM(landmarks);
-            if (mounted) setState(() {});
           }
         }
+        
+        // Process facial pain recognition results
+        if (facialPainResult['painDetected'] == true && !_isPainLocked) {
+          _facialPainDetected = true;
+          _facialPainConfidence = facialPainResult['confidence'] ?? 0.0;
+          _facialPainPrediction = facialPainResult['prediction'] ?? 'Pained';
+          
+          // Lock the current pain level and show confirmation dialog
+          _lockPainLevelAndShowDialog();
+        }
+        
       } catch (e) {
-        debugPrint('Pose detection error: $e');
+        debugPrint('Pose detection or facial pain recognition error: $e');
       } finally {
         _processingFrame = false;
       }
@@ -464,6 +510,248 @@ class _CameraPosePageState extends State<CameraPosePage> {
     if (score <= 7) return Colors.orange;     // Moderate (4-7)
     return Colors.red;                         // Severe (8-10)
   }
+  
+  // Lock pain level and show confirmation dialog
+  void _lockPainLevelAndShowDialog() {
+    if (_isPainLocked) return; // Prevent multiple dialogs
+    
+    // Lock the current pain level
+    _lockedPainScale = UserAssess.painScale;
+    _lockedPainLevel = UserAssess.painLevel;
+    _isPainLocked = true;
+    
+    // Show confirmation dialog
+    if (mounted) {
+      _showPainConfirmationDialog();
+    }
+  }
+  
+  // Show pain confirmation dialog
+  void _showPainConfirmationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent dismissing by tapping outside
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.health_and_safety,
+                color: _getScoreColor(_lockedPainScale),
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Pain Detected',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    color: const Color(0xFF1F2937),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _getScoreColor(_lockedPainScale).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _getScoreColor(_lockedPainScale).withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Facial Pain Recognition Results:',
+                      style: GoogleFonts.ptSans(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Prediction: $_facialPainPrediction',
+                      style: GoogleFonts.ptSans(
+                        fontSize: 13,
+                        color: const Color(0xFF6B7280),
+                      ),
+                    ),
+                    Text(
+                      'Confidence: ${(_facialPainConfidence * 100).toStringAsFixed(1)}%',
+                      style: GoogleFonts.ptSans(
+                        fontSize: 13,
+                        color: const Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Current Pain Assessment:',
+                      style: GoogleFonts.ptSans(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _getScoreColor(_lockedPainScale),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            '$_lockedPainScale/10',
+                            style: GoogleFonts.ptSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _lockedPainLevel,
+                            style: GoogleFonts.ptSans(
+                              fontSize: 13,
+                              color: const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Is this pain level accurate?',
+                style: GoogleFonts.ptSans(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'If you agree, we will proceed to the next step. If you disagree, we will continue monitoring for pain recognition.',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  color: const Color(0xFF6B7280),
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            // Disagree button
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _resetPainLock();
+              },
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xFFE5E7EB)),
+                ),
+              ),
+              child: Text(
+                'Disagree',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF6B7280),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Agree button
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _proceedWithLockedPain();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B2E2E),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: Text(
+                'Agree & Continue',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // Reset pain lock and continue monitoring
+  void _resetPainLock() {
+    setState(() {
+      _isPainLocked = false;
+      _facialPainDetected = false;
+      _facialPainConfidence = 0.0;
+      _facialPainPrediction = 'Not Pained';
+    });
+    debugPrint('Pain lock reset - continuing monitoring');
+  }
+  
+  // Proceed with locked pain level
+  void _proceedWithLockedPain() {
+    // Update global pain assessment with locked values
+    UserAssess.painScale = _lockedPainScale;
+    UserAssess.painLevel = _lockedPainLevel;
+    
+    // Save to pain history
+    PainHistory.recordTodayAndSave(
+      painScale: _lockedPainScale,
+      painLevel: _lockedPainLevel,
+    );
+    
+    debugPrint('Proceeding with locked pain: $_lockedPainScale/10 - $_lockedPainLevel');
+    
+    // Navigate to next page
+    if (context.mounted) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const PainLevelPage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: Curves.easeInOut));
+            return SlideTransition(position: animation.drive(tween), child: child);
+          },
+        ),
+      );
+    }
+  }
 
   Future<void> _switchCamera() async {
     if (cameras.isEmpty) return;
@@ -483,6 +771,7 @@ class _CameraPosePageState extends State<CameraPosePage> {
   void dispose() {
     try { _controller.stopImageStream(); } catch (_) {}
     _controller.dispose();
+    _facialPainService.dispose();
     super.dispose();
   }
 
@@ -960,26 +1249,75 @@ class _CameraPosePageState extends State<CameraPosePage> {
                   ),
                 ),
                 
-                const Spacer(),
+                const SizedBox(width: 8),
                 
-                // Pain score indicator
+                // Facial pain recognition indicator
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getScoreColor(UserAssess.painScale).withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(16),
+                    color: _facialPainDetected 
+                        ? Colors.red.withOpacity(0.9)
+                        : Colors.blue.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _getScoreColor(UserAssess.painScale),
+                      color: _facialPainDetected ? Colors.red : Colors.blue,
                       width: 1,
                     ),
                   ),
-                  child: Text(
-                    '${UserAssess.painScale}/10',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _facialPainDetected ? Icons.face_retouching_natural : Icons.face,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _facialPainDetected ? 'Pain' : 'Face',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const Spacer(),
+                
+                // Pain score indicator with lock status
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _isPainLocked 
+                        ? Colors.blue.withOpacity(0.9)
+                        : _getScoreColor(UserAssess.painScale).withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: _isPainLocked 
+                          ? Colors.blue
+                          : _getScoreColor(UserAssess.painScale),
+                      width: 1,
                     ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isPainLocked) ...[
+                        const Icon(Icons.lock, color: Colors.white, size: 12),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        '${UserAssess.painScale}/10',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -1024,30 +1362,88 @@ class _CameraPosePageState extends State<CameraPosePage> {
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF800020), width: 1),
+                border: Border.all(
+                  color: _isPainLocked 
+                      ? Colors.blue
+                      : _facialPainDetected 
+                          ? Colors.red 
+                          : const Color(0xFF800020), 
+                  width: 1
+                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    _getModeInstructions(),
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                      color: Colors.white,
+                  if (_isPainLocked) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.lock, color: Colors.blue, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Pain Level Locked - Awaiting Confirmation',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: Colors.blue,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                  ] else if (_facialPainDetected) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.face_retouching_natural, color: Colors.red, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Facial Pain Detected!',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: Colors.red,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Text(
+                      _getModeInstructions(),
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF800020).withOpacity(0.3),
+                      color: _isPainLocked 
+                          ? Colors.blue.withOpacity(0.3)
+                          : _facialPainDetected 
+                              ? Colors.red.withOpacity(0.3)
+                              : const Color(0xFF800020).withOpacity(0.3),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF800020), width: 1),
+                      border: Border.all(
+                        color: _isPainLocked 
+                            ? Colors.blue
+                            : _facialPainDetected 
+                                ? Colors.red 
+                                : const Color(0xFF800020), 
+                        width: 1
+                      ),
                     ),
                     child: Text(
-                      '$_selectedSide Side',
+                      _isPainLocked 
+                          ? 'Confirmation Required'
+                          : _facialPainDetected 
+                              ? 'Pain Recognition Active'
+                              : '$_selectedSide Side',
                       style: GoogleFonts.poppins(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,

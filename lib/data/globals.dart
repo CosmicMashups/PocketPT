@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -42,21 +43,21 @@ class UserDetails {
     try {
       final User? currentUser = _auth.currentUser;
       if (currentUser == null) {
-        print('UserDetails.loadFromFirebase: No authenticated user found');
+        debugPrint('UserDetails.loadFromFirebase: No authenticated user found');
         return;
       }
 
-      print('UserDetails.loadFromFirebase: Loading data for user: ${currentUser.uid}');
-      print('UserDetails.loadFromFirebase: User email: ${currentUser.email}');
-      print('UserDetails.loadFromFirebase: User displayName: ${currentUser.displayName}');
+      debugPrint('UserDetails.loadFromFirebase: Loading data for user: ${currentUser.uid}');
+      debugPrint('UserDetails.loadFromFirebase: User email: ${currentUser.email}');
+      debugPrint('UserDetails.loadFromFirebase: User displayName: ${currentUser.displayName}');
 
       // Ensure all collections exist before loading data
-      print('UserDetails.loadFromFirebase: Ensuring all collections exist...');
+      debugPrint('UserDetails.loadFromFirebase: Ensuring all collections exist...');
       try {
         await FirebaseHelper.ensureAllCollectionsExist();
-        print('UserDetails.loadFromFirebase: All collections ensured successfully');
+        debugPrint('UserDetails.loadFromFirebase: All collections ensured successfully');
       } catch (e) {
-        print('UserDetails.loadFromFirebase: Warning - Could not ensure all collections: $e');
+        debugPrint('UserDetails.loadFromFirebase: Warning - Could not ensure all collections: $e');
         // Continue anyway, as the user document might still exist
       }
 
@@ -66,21 +67,21 @@ class UserDetails {
           .doc(currentUser.uid)
           .get();
 
-      print('UserDetails.loadFromFirebase: Document exists: ${userDoc.exists}');
+      debugPrint('UserDetails.loadFromFirebase: Document exists: ${userDoc.exists}');
       
       if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>;
-        print('UserDetails.loadFromFirebase: Raw user data: $userData');
+        debugPrint('UserDetails.loadFromFirebase: Raw user data: $userData');
         
         final String? firebaseFirstName = userData['firstName'];
         final String? firebaseLastName = userData['lastName'];
         final String? firebaseEmail = userData['email'];
         final bool? firebaseHasCompletedAssessment = userData['hasCompletedAssessment'];
         
-        print('UserDetails.loadFromFirebase: Firebase firstName: "$firebaseFirstName"');
-        print('UserDetails.loadFromFirebase: Firebase lastName: "$firebaseLastName"');
-        print('UserDetails.loadFromFirebase: Firebase email: "$firebaseEmail"');
-        print('UserDetails.loadFromFirebase: Firebase hasCompletedAssessment: $firebaseHasCompletedAssessment');
+        debugPrint('UserDetails.loadFromFirebase: Firebase firstName: "$firebaseFirstName"');
+        debugPrint('UserDetails.loadFromFirebase: Firebase lastName: "$firebaseLastName"');
+        debugPrint('UserDetails.loadFromFirebase: Firebase email: "$firebaseEmail"');
+        debugPrint('UserDetails.loadFromFirebase: Firebase hasCompletedAssessment: $firebaseHasCompletedAssessment');
         
         firstName = firebaseFirstName ?? '';
         lastName = firebaseLastName ?? '';
@@ -88,19 +89,19 @@ class UserDetails {
         password = ''; // Never store password in plain text
         hasCompletedAssessment = firebaseHasCompletedAssessment ?? false;
         
-        print('UserDetails.loadFromFirebase: Final values - firstName: "$firstName", lastName: "$lastName", email: "$email"');
+        debugPrint('UserDetails.loadFromFirebase: Final values - firstName: "$firstName", lastName: "$lastName", email: "$email"');
         
         // Save to Hive for offline access
         await saveToHive();
       } else {
-        print('UserDetails.loadFromFirebase: User document not found in Firestore, creating new user document');
+        debugPrint('UserDetails.loadFromFirebase: User document not found in Firestore, creating new user document');
         
         // Create user document with basic info
         firstName = currentUser.displayName?.split(' ').first ?? '';
         lastName = currentUser.displayName?.split(' ').skip(1).join(' ') ?? '';
         email = currentUser.email ?? '';
         
-        print('UserDetails.loadFromFirebase: Creating document with - firstName: "$firstName", lastName: "$lastName", email: "$email"');
+        debugPrint('UserDetails.loadFromFirebase: Creating document with - firstName: "$firstName", lastName: "$lastName", email: "$email"');
         
         // Create the user document in Firebase
         await _firestore.collection('users').doc(currentUser.uid).set({
@@ -112,17 +113,17 @@ class UserDetails {
           'lastUpdated': FieldValue.serverTimestamp(),
         });
         
-        print('UserDetails.loadFromFirebase: Created new user document in Firebase: $firstName $lastName ($email)');
+        debugPrint('UserDetails.loadFromFirebase: Created new user document in Firebase: $firstName $lastName ($email)');
         
         // Save to Hive for offline access
         await saveToHive();
       }
     } catch (e) {
-      print('UserDetails.loadFromFirebase: Error loading user data from Firebase: $e');
-      print('UserDetails.loadFromFirebase: Error type: ${e.runtimeType}');
+      debugPrint('UserDetails.loadFromFirebase: Error loading user data from Firebase: $e');
+      debugPrint('UserDetails.loadFromFirebase: Error type: ${e.runtimeType}');
       if (e is FirebaseException) {
-        print('UserDetails.loadFromFirebase: Firebase error code: ${e.code}');
-        print('UserDetails.loadFromFirebase: Firebase error message: ${e.message}');
+        debugPrint('UserDetails.loadFromFirebase: Firebase error code: ${e.code}');
+        debugPrint('UserDetails.loadFromFirebase: Firebase error message: ${e.message}');
       }
     }
   }
@@ -163,12 +164,12 @@ class UserDetails {
           .doc(currentUser.uid)
           .set(updateData, SetOptions(merge: true));
       
-      print('Updated user data in Firebase');
+      debugPrint('Updated user data in Firebase');
       
       // Save to Hive for offline access
       await saveToHive();
     } catch (e) {
-      print('Error updating user data in Firebase: $e');
+      debugPrint('Error updating user data in Firebase: $e');
       rethrow;
     }
   }
@@ -190,16 +191,16 @@ class UserDetails {
         };
       }
 
-      print('UserDetails.ensureAllCollectionsExist: Ensuring all collections for user: ${currentUser.uid}');
+      debugPrint('UserDetails.ensureAllCollectionsExist: Ensuring all collections for user: ${currentUser.uid}');
       
       // Use the comprehensive collection creation method
       final results = await FirebaseHelper.ensureAllCollectionsExist();
       
-      print('UserDetails.ensureAllCollectionsExist: Collection creation results: $results');
+      debugPrint('UserDetails.ensureAllCollectionsExist: Collection creation results: $results');
       
       return results;
     } catch (e) {
-      print('UserDetails.ensureAllCollectionsExist: Error ensuring collections: $e');
+      debugPrint('UserDetails.ensureAllCollectionsExist: Error ensuring collections: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -224,9 +225,9 @@ class UserDetails {
       // Save to Hive
       await saveToHive();
       
-      print('Assessment marked as completed');
+      debugPrint('Assessment marked as completed');
     } catch (e) {
-      print('Error marking assessment as completed: $e');
+      debugPrint('Error marking assessment as completed: $e');
     }
   }
 
@@ -238,7 +239,7 @@ class UserDetails {
     password = '';
     hasCompletedAssessment = false;
     notifications.clear();
-    print('User data cleared');
+    debugPrint('User data cleared');
   }
 
   // Sign out user and clear data
@@ -246,9 +247,9 @@ class UserDetails {
     try {
       await _auth.signOut();
       clearUserData();
-      print('User signed out successfully');
+      debugPrint('User signed out successfully');
     } catch (e) {
-      print('Error signing out: $e');
+      debugPrint('Error signing out: $e');
       rethrow;
     }
   }
@@ -267,12 +268,12 @@ class UserDetails {
       await box.put('userDetails', hiveUserDetails);
       // Persist assessment completion flag separately to avoid adapter changes
       await box.put('hasCompletedAssessment', hasCompletedAssessment);
-      print('Saved user details to Hive');
+      debugPrint('Saved user details to Hive');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'User details updated');
     } catch (e) {
-      print('Error saving user details to Hive: $e');
+      debugPrint('Error saving user details to Hive: $e');
       rethrow;
     }
   }
@@ -292,19 +293,19 @@ class UserDetails {
         if (storedHasCompleted is bool) {
           hasCompletedAssessment = storedHasCompleted;
         }
-        print('Loaded user details from Hive: $firstName $lastName ($email)');
+        debugPrint('Loaded user details from Hive: $firstName $lastName ($email)');
       } else {
-        print('No user details found in Hive, attempting to load from Firebase');
+        debugPrint('No user details found in Hive, attempting to load from Firebase');
         // Try to load from Firebase if no local data exists
         await loadFromFirebase();
       }
     } catch (e) {
-      print('Error loading user details from Hive: $e');
+      debugPrint('Error loading user details from Hive: $e');
       // Fallback to Firebase if Hive fails
       try {
         await loadFromFirebase();
       } catch (firebaseError) {
-        print('Error loading from Firebase fallback: $firebaseError');
+        debugPrint('Error loading from Firebase fallback: $firebaseError');
       }
     }
   }
@@ -337,12 +338,12 @@ class UserProgress {
         lastExerciseDate: lastExerciseDate,
       );
       await box.put('userProgress', hiveUserProgress);
-      print('Saved user progress to Hive');
+      debugPrint('Saved user progress to Hive');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'User progress updated');
     } catch (e) {
-      print('Error saving user progress to Hive: $e');
+      debugPrint('Error saving user progress to Hive: $e');
       rethrow;
     }
   }
@@ -360,12 +361,12 @@ class UserProgress {
         totalSeconds = hiveUserProgress.totalSeconds;
         notes = hiveUserProgress.notes;
         lastExerciseDate = hiveUserProgress.lastExerciseDate;
-        print('Loaded user progress from Hive: $title, streak: $streak, total exercises: $totalExercises');
+        debugPrint('Loaded user progress from Hive: $title, streak: $streak, total exercises: $totalExercises');
       } else {
-        print('No user progress found in Hive, using defaults');
+        debugPrint('No user progress found in Hive, using defaults');
       }
     } catch (e) {
-      print('Error loading user progress from Hive: $e');
+      debugPrint('Error loading user progress from Hive: $e');
     }
   }
 }
@@ -399,12 +400,12 @@ class UserAssess {
         isAssessed: isAssessed,
       );
       await box.put('userAssess', hiveUserAssess);
-      print('Saved user assessment to Hive');
+      debugPrint('Saved user assessment to Hive');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'User assessment updated');
     } catch (e) {
-      print('Error saving user assessment to Hive: $e');
+      debugPrint('Error saving user assessment to Hive: $e');
       rethrow;
     }
   }
@@ -423,12 +424,12 @@ class UserAssess {
         painDuration = hiveUserAssess.painDuration;
         isInjured = hiveUserAssess.isInjured;
         isAssessed = hiveUserAssess.isAssessed;
-        print('Loaded user assessment from Hive');
+        debugPrint('Loaded user assessment from Hive');
       } else {
-        print('No user assessment data found in Hive, using defaults');
+        debugPrint('No user assessment data found in Hive, using defaults');
       }
     } catch (e) {
-      print('Error loading user assessment from Hive: $e');
+      debugPrint('Error loading user assessment from Hive: $e');
     }
   }
 }
@@ -452,12 +453,12 @@ class UserSettings {
         exerciseReminderMinute: exerciseReminderTime.minute,
       );
       await box.put('userSettings', hiveUserSettings);
-      print('Saved user settings to Hive');
+      debugPrint('Saved user settings to Hive');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'User settings updated');
     } catch (e) {
-      print('Error saving user settings to Hive: $e');
+      debugPrint('Error saving user settings to Hive: $e');
       rethrow;
     }
   }
@@ -474,12 +475,12 @@ class UserSettings {
           hour: hiveUserSettings.exerciseReminderHour,
           minute: hiveUserSettings.exerciseReminderMinute,
         );
-        print('Loaded user settings from Hive: daily reminder: $isDailyReminder, exercise reminder: $isExerciseReminder at ${exerciseReminderTime.hour}:${exerciseReminderTime.minute.toString().padLeft(2, '0')}');
+        debugPrint('Loaded user settings from Hive: daily reminder: $isDailyReminder, exercise reminder: $isExerciseReminder at ${exerciseReminderTime.hour}:${exerciseReminderTime.minute.toString().padLeft(2, '0')}');
       } else {
-        print('No user settings found in Hive, using defaults');
+        debugPrint('No user settings found in Hive, using defaults');
       }
     } catch (e) {
-      print('Error loading user settings from Hive: $e');
+      debugPrint('Error loading user settings from Hive: $e');
     }
   }
 }
@@ -494,12 +495,12 @@ class ActiveProgram {
       final box = Hive.box('rehabBox');
       final hiveActiveProgram = HiveActiveProgram(startDate: startDate);
       await box.put('activeProgram', hiveActiveProgram);
-      print('Saved active program to Hive');
+      debugPrint('Saved active program to Hive');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'Active program updated');
     } catch (e) {
-      print('Error saving active program to Hive: $e');
+      debugPrint('Error saving active program to Hive: $e');
       rethrow;
     }
   }
@@ -510,12 +511,12 @@ class ActiveProgram {
       final hiveActiveProgram = box.get('activeProgram');
       if (hiveActiveProgram is HiveActiveProgram) {
         startDate = hiveActiveProgram.startDate;
-        print('Loaded active program from Hive: start date: ${startDate?.toString() ?? 'null'}');
+        debugPrint('Loaded active program from Hive: start date: ${startDate?.toString() ?? 'null'}');
       } else {
-        print('No active program found in Hive, using defaults');
+        debugPrint('No active program found in Hive, using defaults');
       }
     } catch (e) {
-      print('Error loading active program from Hive: $e');
+      debugPrint('Error loading active program from Hive: $e');
     }
   }
 }
@@ -657,12 +658,12 @@ class PainHistory {
       final box = Hive.box('rehabBox');
       final hiveEntries = entries.map((e) => HivePainRecordEntry.fromPainRecordEntry(e)).toList();
       await box.put('painHistory', hiveEntries);
-      print('Saved ${entries.length} pain history entries to Hive');
+      debugPrint('Saved ${entries.length} pain history entries to Hive');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'Pain history updated');
     } catch (e) {
-      print('Error saving pain history to Hive: $e');
+      debugPrint('Error saving pain history to Hive: $e');
       rethrow;
     }
   }
@@ -674,10 +675,10 @@ class PainHistory {
       if (hiveEntries is List<HivePainRecordEntry>) {
         entries.clear();
         entries.addAll(hiveEntries.map((he) => he.toPainRecordEntry()));
-        print('Loaded ${entries.length} pain history entries from Hive');
+        debugPrint('Loaded ${entries.length} pain history entries from Hive');
       }
     } catch (e) {
-      print('Error loading pain history from Hive: $e');
+      debugPrint('Error loading pain history from Hive: $e');
       // Reset to empty state on error
       entries.clear();
     }
@@ -760,12 +761,12 @@ class ExerciseHistory {
       final box = Hive.box('rehabBox');
       final hiveEntries = entries.map((e) => HiveExerciseRecordEntry.fromExerciseRecordEntry(e)).toList();
       await box.put('exerciseHistory', hiveEntries);
-      print('Saved ${entries.length} exercise history entries to Hive');
+      debugPrint('Saved ${entries.length} exercise history entries to Hive');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'Exercise history updated');
     } catch (e) {
-      print('Error saving exercise history to Hive: $e');
+      debugPrint('Error saving exercise history to Hive: $e');
       rethrow;
     }
   }
@@ -777,10 +778,10 @@ class ExerciseHistory {
       if (hiveEntries is List<HiveExerciseRecordEntry>) {
         entries.clear();
         entries.addAll(hiveEntries.map((he) => he.toExerciseRecordEntry()));
-        print('Loaded ${entries.length} exercise history entries from Hive');
+        debugPrint('Loaded ${entries.length} exercise history entries from Hive');
       }
     } catch (e) {
-      print('Error loading exercise history from Hive: $e');
+      debugPrint('Error loading exercise history from Hive: $e');
       // Reset to empty state on error
       entries.clear();
     }

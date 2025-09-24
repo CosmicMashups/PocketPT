@@ -23,19 +23,23 @@ class _HomePageWithDialogState extends State<HomePageWithDialog> with SingleTick
     )..forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       showDialog(
         context: context,
-        barrierDismissible: false,
+        barrierDismissible: true,
         builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final surfaceColor = Theme.of(context).colorScheme.surface;
           return Center(
             child: ScaleTransition(
               scale: _scaleController,
               child: Dialog(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
+                insetPadding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: surfaceColor,
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
@@ -50,45 +54,38 @@ class _HomePageWithDialogState extends State<HomePageWithDialog> with SingleTick
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Success Icon
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                            color: (isDark ? Colors.white : const Color(0xFF8B2E2E)).withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.check_circle,
-                            color: Color(0xFF8B2E2E),
+                            color: isDark ? Colors.white : const Color(0xFF8B2E2E),
                             size: 48,
                           ),
                         ),
                         const SizedBox(height: 24),
-                        
-                        // Title
                         Text(
-                          'Session Complete!',
+                          'Session Complete!'.trim(),
                           style: GoogleFonts.poppins(
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1F2937),
+                            color: isDark ? Colors.white : const Color(0xFF1F2937),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        
-                        // Subtitle
                         Text(
                           'You\'ve successfully completed today\'s exercise session. Great work on staying consistent with your rehabilitation!',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.ptSans(
                             fontSize: 16,
-                            color: const Color(0xFF6B7280),
+                            color: isDark ? Colors.white70 : const Color(0xFF6B7280),
                             height: 1.5,
                           ),
                         ),
                         const SizedBox(height: 32),
-                        
-                        // Action Button
                         Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
@@ -107,7 +104,7 @@ class _HomePageWithDialogState extends State<HomePageWithDialog> with SingleTick
                             ],
                           ),
                           child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () => Navigator.of(context).maybePop(),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,

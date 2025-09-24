@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'globals.dart';
 import 'rehabilitation_plan.dart';
@@ -21,16 +22,16 @@ class FastLoadingService {
     if (_isInitialized) return;
     
     try {
-      print('FastLoadingService: Initializing...');
+      debugPrint('FastLoadingService: Initializing...');
       
       // Start loading critical data immediately
       _loadCriticalData();
       
       _isInitialized = true;
-      print('FastLoadingService: Initialized successfully');
+      debugPrint('FastLoadingService: Initialized successfully');
       
     } catch (e) {
-      print('FastLoadingService: Error during initialization: $e');
+      debugPrint('FastLoadingService: Error during initialization: $e');
       rethrow;
     }
   }
@@ -41,7 +42,7 @@ class FastLoadingService {
     
     _isLoading = true;
     try {
-      print('FastLoadingService: Loading critical data...');
+      debugPrint('FastLoadingService: Loading critical data...');
       
       // Load only essential data for immediate startup
       await Future.wait([
@@ -51,14 +52,14 @@ class FastLoadingService {
         _loadActiveProgram(),
       ]);
       
-      print('FastLoadingService: Critical data loaded successfully');
+      debugPrint('FastLoadingService: Critical data loaded successfully');
       
       if (!_loadingCompleter.isCompleted) {
         _loadingCompleter.complete();
       }
       
     } catch (e) {
-      print('FastLoadingService: Error loading critical data: $e');
+      debugPrint('FastLoadingService: Error loading critical data: $e');
       if (!_loadingCompleter.isCompleted) {
         _loadingCompleter.completeError(e);
       }
@@ -82,10 +83,10 @@ class FastLoadingService {
         if (storedHasCompleted is bool) {
           UserDetails.hasCompletedAssessment = storedHasCompleted;
         }
-        print('FastLoadingService: User details loaded');
+        debugPrint('FastLoadingService: User details loaded');
       }
     } catch (e) {
-      print('FastLoadingService: Error loading user details: $e');
+      debugPrint('FastLoadingService: Error loading user details: $e');
     }
   }
   
@@ -102,10 +103,10 @@ class FastLoadingService {
           hour: hiveUserSettings.exerciseReminderHour,
           minute: hiveUserSettings.exerciseReminderMinute,
         );
-        print('FastLoadingService: User settings loaded');
+        debugPrint('FastLoadingService: User settings loaded');
       }
     } catch (e) {
-      print('FastLoadingService: Error loading user settings: $e');
+      debugPrint('FastLoadingService: Error loading user settings: $e');
     }
   }
   
@@ -124,10 +125,10 @@ class FastLoadingService {
         UserAssess.painDuration = hiveUserAssess.painDuration;
         UserAssess.isInjured = hiveUserAssess.isInjured;
         UserAssess.isAssessed = hiveUserAssess.isAssessed;
-        print('FastLoadingService: User assessment loaded');
+        debugPrint('FastLoadingService: User assessment loaded');
       }
     } catch (e) {
-      print('FastLoadingService: Error loading user assessment: $e');
+      debugPrint('FastLoadingService: Error loading user assessment: $e');
     }
   }
   
@@ -138,10 +139,10 @@ class FastLoadingService {
       final hiveActiveProgram = box.get('activeProgram');
       if (hiveActiveProgram is HiveActiveProgram) {
         ActiveProgram.startDate = hiveActiveProgram.startDate;
-        print('FastLoadingService: Active program loaded');
+        debugPrint('FastLoadingService: Active program loaded');
       }
     } catch (e) {
-      print('FastLoadingService: Error loading active program: $e');
+      debugPrint('FastLoadingService: Error loading active program: $e');
     }
   }
   
@@ -157,7 +158,7 @@ class FastLoadingService {
   /// Load non-critical data in background
   Future<void> loadBackgroundData() async {
     try {
-      print('FastLoadingService: Loading background data...');
+      debugPrint('FastLoadingService: Loading background data...');
       
       // Load non-critical data that can be loaded later
       await Future.wait([
@@ -167,10 +168,10 @@ class FastLoadingService {
         _loadRehabilitationPlans(),
       ]);
       
-      print('FastLoadingService: Background data loaded successfully');
+      debugPrint('FastLoadingService: Background data loaded successfully');
       
     } catch (e) {
-      print('FastLoadingService: Error loading background data: $e');
+      debugPrint('FastLoadingService: Error loading background data: $e');
     }
   }
   
@@ -188,10 +189,10 @@ class FastLoadingService {
         UserProgress.totalSeconds = hiveUserProgress.totalSeconds;
         UserProgress.notes = hiveUserProgress.notes;
         UserProgress.lastExerciseDate = hiveUserProgress.lastExerciseDate;
-        print('FastLoadingService: User progress loaded');
+        debugPrint('FastLoadingService: User progress loaded');
       }
     } catch (e) {
-      print('FastLoadingService: Error loading user progress: $e');
+      debugPrint('FastLoadingService: Error loading user progress: $e');
     }
   }
   
@@ -203,10 +204,10 @@ class FastLoadingService {
       if (hiveEntries is List<HivePainRecordEntry>) {
         PainHistory.entries.clear();
         PainHistory.entries.addAll(hiveEntries.map((he) => he.toPainRecordEntry()));
-        print('FastLoadingService: Pain history loaded (${PainHistory.entries.length} entries)');
+        debugPrint('FastLoadingService: Pain history loaded (${PainHistory.entries.length} entries)');
       }
     } catch (e) {
-      print('FastLoadingService: Error loading pain history: $e');
+      debugPrint('FastLoadingService: Error loading pain history: $e');
     }
   }
   
@@ -218,10 +219,10 @@ class FastLoadingService {
       if (hiveEntries is List<HiveExerciseRecordEntry>) {
         ExerciseHistory.entries.clear();
         ExerciseHistory.entries.addAll(hiveEntries.map((he) => he.toExerciseRecordEntry()));
-        print('FastLoadingService: Exercise history loaded (${ExerciseHistory.entries.length} entries)');
+        debugPrint('FastLoadingService: Exercise history loaded (${ExerciseHistory.entries.length} entries)');
       }
     } catch (e) {
-      print('FastLoadingService: Error loading exercise history: $e');
+      debugPrint('FastLoadingService: Error loading exercise history: $e');
     }
   }
   
@@ -229,9 +230,9 @@ class FastLoadingService {
   Future<void> _loadRehabilitationPlans() async {
     try {
       await UserRehabilitation.instance.loadPlansFromHive();
-      print('FastLoadingService: Rehabilitation plans loaded');
+      debugPrint('FastLoadingService: Rehabilitation plans loaded');
     } catch (e) {
-      print('FastLoadingService: Error loading rehabilitation plans: $e');
+      debugPrint('FastLoadingService: Error loading rehabilitation plans: $e');
     }
   }
   
@@ -251,6 +252,6 @@ class FastLoadingService {
     if (!_loadingCompleter.isCompleted) {
       _loadingCompleter.complete();
     }
-    print('FastLoadingService: Disposed');
+    debugPrint('FastLoadingService: Disposed');
   }
 }

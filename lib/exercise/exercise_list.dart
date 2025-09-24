@@ -108,8 +108,9 @@ class _ExercisesPageState extends State<ExercisesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.grey.shade200,
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : Colors.grey.shade200,
       appBar: AppBar(
         title: const Text(
           'Exercises',
@@ -182,14 +183,15 @@ class _ExerciseCardContent extends StatelessWidget {
   Widget build(BuildContext context) {
     String imagePath = 'assets/images/exercise/${exercise.imageUrl}';
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       margin: const EdgeInsets.all(15),
-      elevation: 10,
+      elevation: isDark ? 2 : 10,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
         side: const BorderSide(color: Color(0xFF8B2E2E), width: 1),
       ),
-      color: Colors.white,
+      color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(15),
         child: Column(

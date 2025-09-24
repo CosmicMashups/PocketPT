@@ -82,19 +82,20 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
       }
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -143,12 +144,12 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
                               blurRadius: 16,
                               offset: const Offset(0, 8),
                             ),
                           ],
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(16),
@@ -169,11 +170,11 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4)),
+                      BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.06), blurRadius: 10, offset: const Offset(0, 4)),
                     ],
                   ),
                   child: StreamBuilder<Duration>(
@@ -389,9 +390,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
             minChildSize: 0.07,
             maxChildSize: 0.8,
             builder: (context, scrollController) => Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF1A1C1E),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1A1C1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
               ),
               child: ListView(
                 controller: scrollController,

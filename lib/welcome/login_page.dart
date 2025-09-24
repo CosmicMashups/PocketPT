@@ -149,8 +149,9 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // Professional background
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC), // Professional background
       body: LoadingOverlay(
         isLoading: _isLoading,
         message: _isLoading ? 'Signing in...' : null,
@@ -239,9 +240,9 @@ class _LoginPageState extends State<LoginPage> {
               // Main Form Section
               Container(
                 padding: const EdgeInsets.all(32.0),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(32.0),
                     topRight: Radius.circular(32.0),
                   ),
@@ -255,10 +256,10 @@ class _LoginPageState extends State<LoginPage> {
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: const Color(0xFFE5E7EB),
+                            color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                             width: 1,
                           ),
                         ),
@@ -315,10 +316,10 @@ class _LoginPageState extends State<LoginPage> {
                           margin: const EdgeInsets.only(bottom: 24),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
+                            color: isDark ? Colors.red.withOpacity(0.1) : const Color(0xFFFEF2F2),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: const Color(0xFFFECACA),
+                              color: isDark ? Colors.red.withOpacity(0.3) : const Color(0xFFFECACA),
                               width: 1,
                             ),
                           ),
@@ -496,15 +497,15 @@ class _LoginPageState extends State<LoginPage> {
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: const Color(0xFFE5E7EB),
+                            color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -539,10 +540,10 @@ class _LoginPageState extends State<LoginPage> {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
+                            color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: const Color(0xFFE5E7EB),
+                              color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                               width: 1,
                             ),
                           ),

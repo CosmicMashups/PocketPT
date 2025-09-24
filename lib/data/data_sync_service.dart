@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'globals.dart';
 import 'rehabilitation_plan.dart';
 import 'data_persistence_service.dart';
@@ -22,16 +23,16 @@ class DataSyncService {
     if (_isInitialized) return;
     
     try {
-      print('DataSyncService: Initializing...');
+      debugPrint('DataSyncService: Initializing...');
       
       // Set up periodic sync (every 5 minutes)
       _setupPeriodicSync();
       
       _isInitialized = true;
-      print('DataSyncService: Initialized successfully');
+      debugPrint('DataSyncService: Initialized successfully');
       
     } catch (e) {
-      print('DataSyncService: Error during initialization: $e');
+      debugPrint('DataSyncService: Error during initialization: $e');
       rethrow;
     }
   }
@@ -39,7 +40,7 @@ class DataSyncService {
   /// Set up periodic data synchronization
   void _setupPeriodicSync() {
     // This would typically use a timer, but for now we'll rely on manual triggers
-    print('DataSyncService: Periodic sync setup completed');
+    debugPrint('DataSyncService: Periodic sync setup completed');
   }
   
   /// Comprehensive data synchronization
@@ -49,7 +50,7 @@ class DataSyncService {
     int totalOperations = 4;
     
     try {
-      print('DataSyncService: Starting comprehensive data sync...');
+      debugPrint('DataSyncService: Starting comprehensive data sync...');
       
       // Check authentication
       final user = _auth.currentUser;
@@ -63,14 +64,14 @@ class DataSyncService {
       try {
         final collectionResults = await FirebaseHelper.ensureAllCollectionsExist();
         if (collectionResults['success'] == true) {
-          print('DataSyncService: All Firebase collections ensured successfully');
-          print('DataSyncService: Created collections: ${collectionResults['createdCollections']}');
-          print('DataSyncService: Existing collections: ${collectionResults['existingCollections']}');
+          debugPrint('DataSyncService: All Firebase collections ensured successfully');
+          debugPrint('DataSyncService: Created collections: ${collectionResults['createdCollections']}');
+          debugPrint('DataSyncService: Existing collections: ${collectionResults['existingCollections']}');
         } else {
-          print('DataSyncService: Warning - Some collections could not be ensured: ${collectionResults['errors']}');
+          debugPrint('DataSyncService: Warning - Some collections could not be ensured: ${collectionResults['errors']}');
         }
       } catch (e) {
-        print('DataSyncService: Warning - Could not ensure Firebase collections: $e');
+        debugPrint('DataSyncService: Warning - Could not ensure Firebase collections: $e');
         // Continue anyway
       }
       
@@ -79,7 +80,7 @@ class DataSyncService {
         results['userData'] = await _syncUserData();
         if (results['userData']['success'] == true) successCount++;
       } catch (e) {
-        print('DataSyncService: Error syncing user data: $e');
+        debugPrint('DataSyncService: Error syncing user data: $e');
         results['userData'] = {'success': false, 'error': e.toString()};
       }
       
@@ -88,7 +89,7 @@ class DataSyncService {
         results['rehabilitationData'] = await _syncRehabilitationData();
         if (results['rehabilitationData']['success'] == true) successCount++;
       } catch (e) {
-        print('DataSyncService: Error syncing rehabilitation data: $e');
+        debugPrint('DataSyncService: Error syncing rehabilitation data: $e');
         results['rehabilitationData'] = {'success': false, 'error': e.toString()};
       }
       
@@ -97,7 +98,7 @@ class DataSyncService {
         results['progressData'] = await _syncProgressData();
         if (results['progressData']['success'] == true) successCount++;
       } catch (e) {
-        print('DataSyncService: Error syncing progress data: $e');
+        debugPrint('DataSyncService: Error syncing progress data: $e');
         results['progressData'] = {'success': false, 'error': e.toString()};
       }
       
@@ -106,7 +107,7 @@ class DataSyncService {
         results['settingsData'] = await _syncSettingsData();
         if (results['settingsData']['success'] == true) successCount++;
       } catch (e) {
-        print('DataSyncService: Error syncing settings data: $e');
+        debugPrint('DataSyncService: Error syncing settings data: $e');
         results['settingsData'] = {'success': false, 'error': e.toString()};
       }
       
@@ -122,13 +123,13 @@ class DataSyncService {
       results['syncCount'] = _syncCount;
       
       if (results['success']) {
-        print('DataSyncService: Comprehensive data sync completed successfully ($successCount/$totalOperations operations)');
+        debugPrint('DataSyncService: Comprehensive data sync completed successfully ($successCount/$totalOperations operations)');
       } else {
-        print('DataSyncService: Data sync completed with some failures ($successCount/$totalOperations operations)');
+        debugPrint('DataSyncService: Data sync completed with some failures ($successCount/$totalOperations operations)');
       }
       
     } catch (e) {
-      print('DataSyncService: Error during comprehensive sync: $e');
+      debugPrint('DataSyncService: Error during comprehensive sync: $e');
       results['success'] = false;
       results['error'] = e.toString();
       results['successCount'] = successCount;
@@ -141,26 +142,26 @@ class DataSyncService {
   /// Sync user data between Hive and Firebase
   Future<Map<String, dynamic>> _syncUserData() async {
     try {
-      print('DataSyncService: Syncing user data...');
-      print('DataSyncService: Current local data - firstName: "${UserDetails.firstName}", lastName: "${UserDetails.lastName}", email: "${UserDetails.email}"');
+      debugPrint('DataSyncService: Syncing user data...');
+      debugPrint('DataSyncService: Current local data - firstName: "${UserDetails.firstName}", lastName: "${UserDetails.lastName}", email: "${UserDetails.email}"');
       
       // Check if we have local user data first
       final hasLocalData = UserDetails.firstName.isNotEmpty || 
                           UserDetails.lastName.isNotEmpty || 
                           UserDetails.email.isNotEmpty;
       
-      print('DataSyncService: Has local data: $hasLocalData');
+      debugPrint('DataSyncService: Has local data: $hasLocalData');
       
       if (hasLocalData) {
-        print('DataSyncService: Local user data exists, syncing to Firebase...');
+        debugPrint('DataSyncService: Local user data exists, syncing to Firebase...');
         // We have local data, sync it to Firebase
         await UserDetails.updateInFirebase();
-        print('DataSyncService: Local user data synced to Firebase');
+        debugPrint('DataSyncService: Local user data synced to Firebase');
       } else {
-        print('DataSyncService: No local user data, loading from Firebase...');
+        debugPrint('DataSyncService: No local user data, loading from Firebase...');
         // No local data, load from Firebase
         await UserDetails.loadFromFirebase();
-        print('DataSyncService: After loading from Firebase - firstName: "${UserDetails.firstName}", lastName: "${UserDetails.lastName}", email: "${UserDetails.email}"');
+        debugPrint('DataSyncService: After loading from Firebase - firstName: "${UserDetails.firstName}", lastName: "${UserDetails.lastName}", email: "${UserDetails.email}"');
       }
       
       // Ensure data is saved to Hive for offline access
@@ -176,8 +177,8 @@ class DataSyncService {
       };
       
     } catch (e) {
-      print('DataSyncService: Error syncing user data: $e');
-      print('DataSyncService: Error type: ${e.runtimeType}');
+      debugPrint('DataSyncService: Error syncing user data: $e');
+      debugPrint('DataSyncService: Error type: ${e.runtimeType}');
       return {
         'success': false,
         'error': e.toString(),
@@ -188,7 +189,7 @@ class DataSyncService {
   /// Sync rehabilitation data between Hive and Firebase
   Future<Map<String, dynamic>> _syncRehabilitationData() async {
     try {
-      print('DataSyncService: Syncing rehabilitation data...');
+      debugPrint('DataSyncService: Syncing rehabilitation data...');
       
       // Load local first to detect existing generated data
       await UserRehabilitation.instance.loadPlansFromHive();
@@ -198,7 +199,7 @@ class DataSyncService {
 
       if (hasAnyLocal) {
         // Local data exists: keep it authoritative and push to Firebase if possible
-        print('DataSyncService: Local rehab data found (plans: ' 
+        debugPrint('DataSyncService: Local rehab data found (plans: ' 
             '${UserRehabilitation.instance.rehabPlans.length}, treatments: ' 
             '${UserRehabilitation.instance.treatmentReferences?.length ?? 0}). Pushing to Firebase.');
         try {
@@ -207,17 +208,17 @@ class DataSyncService {
             await UserRehabilitation.instance.savePlansToFirebase();
           }
         } catch (e) {
-          print('DataSyncService: Warning - Failed to push local rehab data to Firebase: $e');
+          debugPrint('DataSyncService: Warning - Failed to push local rehab data to Firebase: $e');
         }
       } else {
         // No local data: pull from Firebase, if available, then persist locally
-        print('DataSyncService: No local rehab data. Attempting to load from Firebase...');
+        debugPrint('DataSyncService: No local rehab data. Attempting to load from Firebase...');
         try {
           await UserRehabilitation.instance.loadPlansFromFirebase();
           await UserRehabilitation.instance.savePlansToHive();
-          print('DataSyncService: Pulled rehab data from Firebase and saved to Hive');
+          debugPrint('DataSyncService: Pulled rehab data from Firebase and saved to Hive');
         } catch (e) {
-          print('DataSyncService: Warning - Could not load rehab data from Firebase: $e');
+          debugPrint('DataSyncService: Warning - Could not load rehab data from Firebase: $e');
         }
       }
       
@@ -229,7 +230,7 @@ class DataSyncService {
       };
       
     } catch (e) {
-      print('DataSyncService: Error syncing rehabilitation data: $e');
+      debugPrint('DataSyncService: Error syncing rehabilitation data: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -240,7 +241,7 @@ class DataSyncService {
   /// Sync progress data between Hive and Firebase
   Future<Map<String, dynamic>> _syncProgressData() async {
     try {
-      print('DataSyncService: Syncing progress data...');
+      debugPrint('DataSyncService: Syncing progress data...');
       
       // Load from Hive (progress data is primarily local)
       await UserProgress.loadFromHive();
@@ -261,7 +262,7 @@ class DataSyncService {
       };
       
     } catch (e) {
-      print('DataSyncService: Error syncing progress data: $e');
+      debugPrint('DataSyncService: Error syncing progress data: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -272,7 +273,7 @@ class DataSyncService {
   /// Sync settings data between Hive and Firebase
   Future<Map<String, dynamic>> _syncSettingsData() async {
     try {
-      print('DataSyncService: Syncing settings data...');
+      debugPrint('DataSyncService: Syncing settings data...');
       
       // Load from Hive
       await UserSettings.loadFromHive();
@@ -296,7 +297,7 @@ class DataSyncService {
       };
       
     } catch (e) {
-      print('DataSyncService: Error syncing settings data: $e');
+      debugPrint('DataSyncService: Error syncing settings data: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -307,7 +308,7 @@ class DataSyncService {
   /// Force save all data to Firebase
   Future<Map<String, dynamic>> forceSaveToFirebase() async {
     try {
-      print('DataSyncService: Force saving all data to Firebase...');
+      debugPrint('DataSyncService: Force saving all data to Firebase...');
       
       final user = _auth.currentUser;
       if (user == null) {
@@ -336,7 +337,7 @@ class DataSyncService {
       };
       
     } catch (e) {
-      print('DataSyncService: Error force saving to Firebase: $e');
+      debugPrint('DataSyncService: Error force saving to Firebase: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -347,7 +348,7 @@ class DataSyncService {
   /// Load all data from Firebase
   Future<Map<String, dynamic>> loadAllFromFirebase() async {
     try {
-      print('DataSyncService: Loading all data from Firebase...');
+      debugPrint('DataSyncService: Loading all data from Firebase...');
       
       final user = _auth.currentUser;
       if (user == null) {
@@ -373,7 +374,7 @@ class DataSyncService {
       };
       
     } catch (e) {
-      print('DataSyncService: Error loading from Firebase: $e');
+      debugPrint('DataSyncService: Error loading from Firebase: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -384,7 +385,7 @@ class DataSyncService {
   /// Verify data integrity
   Future<Map<String, dynamic>> verifyDataIntegrity() async {
     try {
-      print('DataSyncService: Verifying data integrity...');
+      debugPrint('DataSyncService: Verifying data integrity...');
       
       final results = <String, dynamic>{};
       
@@ -419,12 +420,12 @@ class DataSyncService {
       results['success'] = true;
       results['timestamp'] = DateTime.now().toIso8601String();
       
-      print('DataSyncService: Data integrity verification completed');
+      debugPrint('DataSyncService: Data integrity verification completed');
       
       return results;
       
     } catch (e) {
-      print('DataSyncService: Error verifying data integrity: $e');
+      debugPrint('DataSyncService: Error verifying data integrity: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -446,7 +447,7 @@ class DataSyncService {
   /// Clear all data (for logout)
   Future<void> clearAllData() async {
     try {
-      print('DataSyncService: Clearing all data...');
+      debugPrint('DataSyncService: Clearing all data...');
       
       // Clear user data
       UserDetails.clearUserData();
@@ -471,10 +472,10 @@ class DataSyncService {
       // Save cleared data to Hive
       await DataPersistenceService.saveAllDataToHive();
       
-      print('DataSyncService: All data cleared successfully');
+      debugPrint('DataSyncService: All data cleared successfully');
       
     } catch (e) {
-      print('DataSyncService: Error clearing data: $e');
+      debugPrint('DataSyncService: Error clearing data: $e');
     }
   }
   
@@ -483,6 +484,6 @@ class DataSyncService {
     _isInitialized = false;
     _lastSyncTime = null;
     _syncCount = 0;
-    print('DataSyncService: Disposed');
+    debugPrint('DataSyncService: Disposed');
   }
 }

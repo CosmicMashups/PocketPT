@@ -11,20 +11,21 @@ class RehabPlanExpansionPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rehabPlans = ref.watch(rehabPlansProvider);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: Colors.grey.shade200,
+          color: isDark ? Colors.white10 : Colors.grey.shade200,
           width: 1,
         ),
       ),
       child: ExpansionTile(
         initiallyExpanded: true,
-        collapsedBackgroundColor: Colors.white,
-        backgroundColor: Colors.white,
+        collapsedBackgroundColor: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+        backgroundColor: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
         iconColor: const Color(0xFF6A5D7B), // Updated to new purple
         collapsedIconColor: const Color(0xFF6A5D7B), // Updated to new purple
         leading: Container(
@@ -119,10 +120,10 @@ class RehabPlanExpansionPanel extends ConsumerWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.surface : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: Colors.grey.shade200,
+            color: Theme.of(context).brightness == Brightness.dark ? Colors.white10 : Colors.grey.shade200,
             width: 1,
           ),
         ),

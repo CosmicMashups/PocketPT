@@ -1,4 +1,5 @@
 // Import packages
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -34,54 +35,100 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'data/hive_models.dart';
 // Main Function: To run the app
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase and Hive in parallel
-  await Future.wait([
-    Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
-    Hive.initFlutter(),
-  ]);
-  
-  // Register all Hive adapters
-  Hive.registerAdapter(HiveDailyProgressAdapter());
-  Hive.registerAdapter(HiveRehabilitationPlanAdapter());
-  Hive.registerAdapter(HivePainRecordEntryAdapter());
-  Hive.registerAdapter(HiveExerciseRecordEntryAdapter());
-  Hive.registerAdapter(HiveUserProgressAdapter());
-  Hive.registerAdapter(HiveUserAssessAdapter());
-  Hive.registerAdapter(HiveUserSettingsAdapter());
-  Hive.registerAdapter(HiveUserDetailsAdapter());
-  Hive.registerAdapter(HiveActiveProgramAdapter());
-  Hive.registerAdapter(HiveExerciseReferenceAdapter());
-  Hive.registerAdapter(HiveTreatmentReferenceAdapter());
-  Hive.registerAdapter(HiveExerciseIdsAdapter());
-  Hive.registerAdapter(HiveTreatmentIdsAdapter());
-  
-  // Open Hive box
-  await Hive.openBox('rehabBox');
-  
-  // Initialize services in parallel
-  await Future.wait([
-    DataSyncService.instance.initialize(),
-    AuthPersistenceService.instance.initialize(),
-    FastLoadingService.instance.initialize(),
-    AssetLoadingService.instance.initialize(),
-  ]);
+  // Global error handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: \\n${details.exceptionAsString()}');
+  };
 
-  // Load saved theme
-  await ThemeController.instance.loadFromHive();
-  
-  // Load authentication state from Hive
-  await AuthPersistenceService.instance.loadAuthStateFromHive();
-  
-  // Initialize the data persistence service
-  DataPersistenceService.instance.initialize();
-  
-  // Start the app immediately - critical data is already loading
-  runApp(ProviderScope(child: MyApp()));
-  
-  // Load background data and sync in background (non-blocking)
-  _loadBackgroundDataAndSync();
+  await runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // Keep app in portrait by default (safer UX for health app)
+    try {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]);
+    } catch (_) {}
+
+    // Initialize Firebase and Hive in parallel
+    try {
+      await Future.wait([
+        Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+        Hive.initFlutter(),
+      ]);
+    } catch (e) {
+      debugPrint('Main: Initialization failure (Firebase/Hive): $e');
+    }
+    
+    // Register all Hive adapters (ignore if already registered)
+    try {
+      Hive.registerAdapter(HiveDailyProgressAdapter());
+      Hive.registerAdapter(HiveRehabilitationPlanAdapter());
+      Hive.registerAdapter(HivePainRecordEntryAdapter());
+      Hive.registerAdapter(HiveExerciseRecordEntryAdapter());
+      Hive.registerAdapter(HiveUserProgressAdapter());
+      Hive.registerAdapter(HiveUserAssessAdapter());
+      Hive.registerAdapter(HiveUserSettingsAdapter());
+      Hive.registerAdapter(HiveUserDetailsAdapter());
+      Hive.registerAdapter(HiveActiveProgramAdapter());
+      Hive.registerAdapter(HiveExerciseReferenceAdapter());
+      Hive.registerAdapter(HiveTreatmentReferenceAdapter());
+      Hive.registerAdapter(HiveExerciseIdsAdapter());
+      Hive.registerAdapter(HiveTreatmentIdsAdapter());
+    } catch (e) {
+      debugPrint('Main: Hive adapter registration issue: $e');
+    }
+    
+    // Open Hive box
+    try {
+      await Hive.openBox('rehabBox');
+    } catch (e) {
+      debugPrint('Main: Failed opening Hive box: $e');
+    }
+    
+    // Initialize services in parallel
+    try {
+      await Future.wait([
+        DataSyncService.instance.initialize(),
+        AuthPersistenceService.instance.initialize(),
+        FastLoadingService.instance.initialize(),
+        AssetLoadingService.instance.initialize(),
+      ]);
+    } catch (e) {
+      debugPrint('Main: Service initialization problem: $e');
+    }
+
+    // Load saved theme
+    try {
+      await ThemeController.instance.loadFromHive();
+    } catch (e) {
+      debugPrint('Main: Theme load failed: $e');
+    }
+    
+    // Load authentication state from Hive
+    try {
+      await AuthPersistenceService.instance.loadAuthStateFromHive();
+    } catch (e) {
+      debugPrint('Main: Auth state load failed: $e');
+    }
+    
+    // Initialize the data persistence service
+    try {
+      DataPersistenceService.instance.initialize();
+    } catch (e) {
+      debugPrint('Main: DataPersistence init failed: $e');
+    }
+    
+    // Start the app immediately - critical data is already loading
+    runApp(const ProviderScope(child: MyApp()));
+    
+    // Load background data and sync in background (non-blocking)
+    _loadBackgroundDataAndSync();
+  }, (error, stack) {
+    debugPrint('Uncaught zone error: $error');
+  });
 }
 
 // Load background data and sync in background
@@ -95,22 +142,22 @@ void _loadBackgroundDataAndSync() async {
     
     // Sync data if user is authenticated
     if (AuthPersistenceService.instance.isAuthenticated) {
-      print('Main: User is authenticated, syncing data from Firebase in background...');
+      debugPrint('Main: User is authenticated, syncing data from Firebase in background...');
       AuthPersistenceService.instance.syncAllData().catchError((e) {
-        print('Main: Background sync failed: $e');
+        debugPrint('Main: Background sync failed: $e');
       });
     } else {
-      print('Main: User not authenticated, using local data only');
+      debugPrint('Main: User not authenticated, using local data only');
     }
   } catch (e) {
-    print('Main: Error in background loading: $e');
+    debugPrint('Main: Error in background loading: $e');
   }
 }
 
 // Function to save all data to Hive
 Future<void> saveAllDataToHive() async {
   try {
-    print('Saving all data to Hive...');
+    debugPrint('Saving all data to Hive...');
     
     // Save rehabilitation plans and treatments
     await UserRehabilitation.instance.savePlansToHive();
@@ -128,10 +175,10 @@ Future<void> saveAllDataToHive() async {
     await UserSettings.saveToHive();
     await ActiveProgram.saveToHive();
     
-    print('Successfully saved all data to Hive');
+    debugPrint('Successfully saved all data to Hive');
     
   } catch (e) {
-    print('Error saving data to Hive: $e');
+    debugPrint('Error saving data to Hive: $e');
   }
 }
 
@@ -190,7 +237,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<void> _saveDataOnAppPause() async {
     try {
-      print('App lifecycle: Saving data due to app pause/termination');
+      debugPrint('App lifecycle: Saving data due to app pause/termination');
       
       // Save all data
       await DataPersistenceService.instance.forceSave(reason: 'App pause/termination');
@@ -200,23 +247,23 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       
       // Force save to Firebase if authenticated
       if (AuthPersistenceService.instance.isAuthenticated) {
-        print('App lifecycle: Force saving to Firebase...');
+        debugPrint('App lifecycle: Force saving to Firebase...');
         final saveResults = await DataSyncService.instance.forceSaveToFirebase();
         if (saveResults['success'] == true) {
-          print('App lifecycle: Data successfully saved to Firebase');
+          debugPrint('App lifecycle: Data successfully saved to Firebase');
         } else {
-          print('App lifecycle: Failed to save to Firebase: ${saveResults['error']}');
+          debugPrint('App lifecycle: Failed to save to Firebase: ${saveResults['error']}');
         }
       }
       
     } catch (e) {
-      print('Error saving data on app pause: $e');
+      debugPrint('Error saving data on app pause: $e');
     }
   }
 
   Future<void> _reloadDataOnAppResume() async {
     try {
-      print('App lifecycle: Reloading data on app resume');
+      debugPrint('App lifecycle: Reloading data on app resume');
       
       // Check authentication status
       await AuthPersistenceService.instance.forceAuthCheck();
@@ -226,14 +273,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       
       // Sync data if authenticated
       if (AuthPersistenceService.instance.isAuthenticated) {
-        print('App lifecycle: User is authenticated, syncing data from Firebase...');
+        debugPrint('App lifecycle: User is authenticated, syncing data from Firebase...');
         await AuthPersistenceService.instance.syncAllData();
       } else {
-        print('App lifecycle: User not authenticated, using local data only');
+        debugPrint('App lifecycle: User not authenticated, using local data only');
       }
       
     } catch (e) {
-      print('Error reloading data on app resume: $e');
+      debugPrint('Error reloading data on app resume: $e');
     }
   }
 
@@ -243,6 +290,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       valueListenable: ThemeController.instance.themeMode,
       builder: (context, mode, _) {
         return MaterialApp(
+      navigatorKey: NavigationService.navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: kBackgroundColor,
@@ -356,55 +404,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Scaffold(
-              backgroundColor: kBackgroundColor,
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(kMainColor),
-                            strokeWidth: 3,
-                          ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'Loading PocketPT',
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: kTextHeading,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Please wait while we prepare your personalized experience',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 14,
-                              color: kTextNormal,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            return const _LoadingScaffold(
+              title: 'Loading PocketPT',
+              subtitle: 'Please wait while we prepare your personalized experience',
             );
           }
           if (snapshot.hasData) {
@@ -416,6 +418,73 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
         );
       },
+    );
+  }
+}
+
+class _LoadingScaffold extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _LoadingScaffold({super.key, required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? Theme.of(context).colorScheme.surface : Colors.white;
+    final titleColor = isDark ? Colors.white : kTextHeading;
+    final bodyColor = isDark ? Colors.white70 : kTextNormal;
+
+    return Scaffold(
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : kBackgroundColor,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(kMainColor),
+                    strokeWidth: 3,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: bodyColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -443,13 +512,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
       await FastLoadingService.instance.waitForCriticalData();
       
       // Check assessment status from local data (already loaded by FastLoadingService)
-      print('AuthWrapper: Using cached user data for assessment check');
+      debugPrint('AuthWrapper: Using cached user data for assessment check');
       
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error checking assessment status: $e');
+      debugPrint('Error checking assessment status: $e');
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -459,51 +530,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: kBackgroundColor,
-        body: Center(
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(kMainColor),
-                  strokeWidth: 3,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Initializing Assessment',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: kTextHeading,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Preparing your personalized rehabilitation plan',
-                  style: GoogleFonts.ptSans(
-                    fontSize: 14,
-                    color: kTextNormal,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
+      return const _LoadingScaffold(
+        title: 'Initializing Assessment',
+        subtitle: 'Preparing your personalized rehabilitation plan',
       );
     }
 
@@ -616,7 +645,10 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
 
-      body: _pages[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
 
       floatingActionButton: kDebugMode ? Container(
         decoration: BoxDecoration(
@@ -701,7 +733,7 @@ class _HomePageState extends State<HomePage> {
             Navigator.push(
               context,
               PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => PreRecordPage(),
+                pageBuilder: (context, animation, secondaryAnimation) => const PreRecordPage(),
                 transitionsBuilder: (context, animation, secondaryAnimation, child) {
                   // SlideTransition
                   const begin = Offset(1.0, 0.0);

@@ -18,8 +18,8 @@ class _TestPersistencePageState extends State<TestPersistencePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Persistence Test Suite'),
-        backgroundColor: const Color(0xFF800020),
-        foregroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -53,7 +53,7 @@ class _TestPersistencePageState extends State<TestPersistencePage> {
                   : const Icon(Icons.play_arrow),
                 label: Text(_isRunning ? 'Running Tests...' : 'Run All Tests'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF800020),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),

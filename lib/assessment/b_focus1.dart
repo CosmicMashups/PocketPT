@@ -30,8 +30,9 @@ class _AssessFocus1State extends State<AssessFocus1> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
       appBar: AppBar(
         backgroundColor: mainColor,
         title: Text(
@@ -94,15 +95,15 @@ class _AssessFocus1State extends State<AssessFocus1> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: const Color(0xFFE5E7EB),
+                  color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -150,15 +151,15 @@ class _AssessFocus1State extends State<AssessFocus1> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: const Color(0xFFE5E7EB),
+                  color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -365,12 +366,13 @@ class _AssessFocus1State extends State<AssessFocus1> {
   Widget _buildMuscleRegionOption(String title, String description, String imagePath, IconData icon, Color color) {
     final isSelected = generalMuscle == title;
     
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? color.withOpacity(0.1) : const Color(0xFFF9FAFB),
+        color: isSelected ? color.withOpacity(0.1) : (isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF9FAFB)),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected ? color : const Color(0xFFE5E7EB),
+          color: isSelected ? color : (isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
           width: isSelected ? 2 : 1,
         ),
       ),

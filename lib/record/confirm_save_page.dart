@@ -11,19 +11,20 @@ class ConfirmSavePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -52,16 +53,16 @@ class ConfirmSavePage extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 520),
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                 ),
               ],
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
