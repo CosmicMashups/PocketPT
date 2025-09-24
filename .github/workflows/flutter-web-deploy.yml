@@ -33,10 +33,18 @@ jobs:
       - name: Build Web
         run: flutter build web --release
 
+      # Debug: List build directory contents
+      - name: Debug - List build directory
+        run: |
+          echo "Build directory contents:"
+          ls -la ./build/web/
+          echo "Build directory size:"
+          du -sh ./build/web/
+
       # Deploy to GitHub Pages
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
-          force_orphan: true
+          cname: # Optional: add your custom domain here
