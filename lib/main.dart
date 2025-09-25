@@ -44,81 +44,102 @@ void main() async {
   await runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Keep app in portrait by default (safer UX for health app)
-    try {
-      await SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
-    } catch (_) {}
+    // Keep app in portrait by default (safer UX for health app) - skip on web
+    if (!kIsWeb) {
+      try {
+        await SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+          DeviceOrientation.portraitDown,
+        ]);
+      } catch (_) {}
+    }
 
     // Initialize Firebase and Hive in parallel
     try {
-      await Future.wait([
-        Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
-        Hive.initFlutter(),
-      ]);
+      if (kIsWeb) {
+        // On web, only initialize Firebase
+        await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      } else {
+        // On mobile/desktop, initialize both Firebase and Hive
+        await Future.wait([
+          Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+          Hive.initFlutter(),
+        ]);
+      }
     } catch (e) {
       debugPrint('Main: Initialization failure (Firebase/Hive): $e');
     }
     
-    // Register all Hive adapters (ignore if already registered)
-    try {
-      Hive.registerAdapter(HiveDailyProgressAdapter());
-      Hive.registerAdapter(HiveRehabilitationPlanAdapter());
-      Hive.registerAdapter(HivePainRecordEntryAdapter());
-      Hive.registerAdapter(HiveExerciseRecordEntryAdapter());
-      Hive.registerAdapter(HiveUserProgressAdapter());
-      Hive.registerAdapter(HiveUserAssessAdapter());
-      Hive.registerAdapter(HiveUserSettingsAdapter());
-      Hive.registerAdapter(HiveUserDetailsAdapter());
-      Hive.registerAdapter(HiveActiveProgramAdapter());
-      Hive.registerAdapter(HiveExerciseReferenceAdapter());
-      Hive.registerAdapter(HiveTreatmentReferenceAdapter());
-      Hive.registerAdapter(HiveExerciseIdsAdapter());
-      Hive.registerAdapter(HiveTreatmentIdsAdapter());
-    } catch (e) {
-      debugPrint('Main: Hive adapter registration issue: $e');
+    // Register all Hive adapters (ignore if already registered) - skip on web
+    if (!kIsWeb) {
+      try {
+        Hive.registerAdapter(HiveDailyProgressAdapter());
+        Hive.registerAdapter(HiveRehabilitationPlanAdapter());
+        Hive.registerAdapter(HivePainRecordEntryAdapter());
+        Hive.registerAdapter(HiveExerciseRecordEntryAdapter());
+        Hive.registerAdapter(HiveUserProgressAdapter());
+        Hive.registerAdapter(HiveUserAssessAdapter());
+        Hive.registerAdapter(HiveUserSettingsAdapter());
+        Hive.registerAdapter(HiveUserDetailsAdapter());
+        Hive.registerAdapter(HiveActiveProgramAdapter());
+        Hive.registerAdapter(HiveExerciseReferenceAdapter());
+        Hive.registerAdapter(HiveTreatmentReferenceAdapter());
+        Hive.registerAdapter(HiveExerciseIdsAdapter());
+        Hive.registerAdapter(HiveTreatmentIdsAdapter());
+      } catch (e) {
+        debugPrint('Main: Hive adapter registration issue: $e');
+      }
+      
+      // Open Hive box
+      try {
+        await Hive.openBox('rehabBox');
+      } catch (e) {
+        debugPrint('Main: Failed opening Hive box: $e');
+      }
     }
     
-    // Open Hive box
+    // Initialize services in parallel - skip Hive-dependent services on web
     try {
-      await Hive.openBox('rehabBox');
-    } catch (e) {
-      debugPrint('Main: Failed opening Hive box: $e');
-    }
-    
-    // Initialize services in parallel
-    try {
-      await Future.wait([
-        DataSyncService.instance.initialize(),
-        AuthPersistenceService.instance.initialize(),
-        FastLoadingService.instance.initialize(),
-        AssetLoadingService.instance.initialize(),
-      ]);
+      if (kIsWeb) {
+        // On web, only initialize Firebase-dependent services
+        await Future.wait([
+          DataSyncService.instance.initialize(),
+          AuthPersistenceService.instance.initialize(),
+        ]);
+      } else {
+        // On mobile/desktop, initialize all services
+        await Future.wait([
+          DataSyncService.instance.initialize(),
+          AuthPersistenceService.instance.initialize(),
+          FastLoadingService.instance.initialize(),
+          AssetLoadingService.instance.initialize(),
+        ]);
+      }
     } catch (e) {
       debugPrint('Main: Service initialization problem: $e');
     }
 
-    // Load saved theme
-    try {
-      await ThemeController.instance.loadFromHive();
-    } catch (e) {
-      debugPrint('Main: Theme load failed: $e');
-    }
-    
-    // Load authentication state from Hive
-    try {
-      await AuthPersistenceService.instance.loadAuthStateFromHive();
-    } catch (e) {
-      debugPrint('Main: Auth state load failed: $e');
-    }
-    
-    // Initialize the data persistence service
-    try {
-      DataPersistenceService.instance.initialize();
-    } catch (e) {
-      debugPrint('Main: DataPersistence init failed: $e');
+    // Load saved theme - skip on web
+    if (!kIsWeb) {
+      try {
+        await ThemeController.instance.loadFromHive();
+      } catch (e) {
+        debugPrint('Main: Theme load failed: $e');
+      }
+      
+      // Load authentication state from Hive
+      try {
+        await AuthPersistenceService.instance.loadAuthStateFromHive();
+      } catch (e) {
+        debugPrint('Main: Auth state load failed: $e');
+      }
+      
+      // Initialize the data persistence service
+      try {
+        DataPersistenceService.instance.initialize();
+      } catch (e) {
+        debugPrint('Main: DataPersistence init failed: $e');
+      }
     }
     
     // Start the app immediately - critical data is already loading
@@ -134,20 +155,33 @@ void main() async {
 // Load background data and sync in background
 void _loadBackgroundDataAndSync() async {
   try {
-    // Wait for critical data to be loaded
-    await FastLoadingService.instance.waitForCriticalData();
-    
-    // Load background data
-    await FastLoadingService.instance.loadBackgroundData();
-    
-    // Sync data if user is authenticated
-    if (AuthPersistenceService.instance.isAuthenticated) {
-      debugPrint('Main: User is authenticated, syncing data from Firebase in background...');
-      AuthPersistenceService.instance.syncAllData().catchError((e) {
-        debugPrint('Main: Background sync failed: $e');
-      });
+    if (kIsWeb) {
+      // On web, only sync Firebase data if authenticated
+      if (AuthPersistenceService.instance.isAuthenticated) {
+        debugPrint('Main: User is authenticated, syncing data from Firebase in background...');
+        AuthPersistenceService.instance.syncAllData().catchError((e) {
+          debugPrint('Main: Background sync failed: $e');
+        });
+      } else {
+        debugPrint('Main: User not authenticated, using Firebase data only');
+      }
     } else {
-      debugPrint('Main: User not authenticated, using local data only');
+      // On mobile/desktop, use full data loading
+      // Wait for critical data to be loaded
+      await FastLoadingService.instance.waitForCriticalData();
+      
+      // Load background data
+      await FastLoadingService.instance.loadBackgroundData();
+      
+      // Sync data if user is authenticated
+      if (AuthPersistenceService.instance.isAuthenticated) {
+        debugPrint('Main: User is authenticated, syncing data from Firebase in background...');
+        AuthPersistenceService.instance.syncAllData().catchError((e) {
+          debugPrint('Main: Background sync failed: $e');
+        });
+      } else {
+        debugPrint('Main: User not authenticated, using local data only');
+      }
     }
   } catch (e) {
     debugPrint('Main: Error in background loading: $e');
@@ -156,6 +190,11 @@ void _loadBackgroundDataAndSync() async {
 
 // Function to save all data to Hive
 Future<void> saveAllDataToHive() async {
+  if (kIsWeb) {
+    debugPrint('Skipping Hive save on web platform');
+    return;
+  }
+  
   try {
     debugPrint('Saving all data to Hive...');
     
@@ -239,13 +278,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     try {
       debugPrint('App lifecycle: Saving data due to app pause/termination');
       
-      // Save all data
-      await DataPersistenceService.instance.forceSave(reason: 'App pause/termination');
+      if (!kIsWeb) {
+        // Save all data to Hive (mobile/desktop only)
+        await DataPersistenceService.instance.forceSave(reason: 'App pause/termination');
+        
+        // Save authentication state to Hive
+        await AuthPersistenceService.instance.saveAuthStateToHive();
+      }
       
-      // Save authentication state
-      await AuthPersistenceService.instance.saveAuthStateToHive();
-      
-      // Force save to Firebase if authenticated
+      // Force save to Firebase if authenticated (works on all platforms)
       if (AuthPersistenceService.instance.isAuthenticated) {
         debugPrint('App lifecycle: Force saving to Firebase...');
         final saveResults = await DataSyncService.instance.forceSaveToFirebase();
@@ -268,15 +309,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // Check authentication status
       await AuthPersistenceService.instance.forceAuthCheck();
       
-      // Load data from Hive
-      await DataPersistenceService.loadAllDataFromHive();
+      if (!kIsWeb) {
+        // Load data from Hive (mobile/desktop only)
+        await DataPersistenceService.loadAllDataFromHive();
+      }
       
       // Sync data if authenticated
       if (AuthPersistenceService.instance.isAuthenticated) {
         debugPrint('App lifecycle: User is authenticated, syncing data from Firebase...');
         await AuthPersistenceService.instance.syncAllData();
       } else {
-        debugPrint('App lifecycle: User not authenticated, using local data only');
+        debugPrint('App lifecycle: User not authenticated, using ${kIsWeb ? 'Firebase' : 'local'} data only');
       }
       
     } catch (e) {
@@ -508,11 +551,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkAssessmentStatus() async {
     try {
-      // Wait for critical data to be loaded by FastLoadingService
-      await FastLoadingService.instance.waitForCriticalData();
-      
-      // Check assessment status from local data (already loaded by FastLoadingService)
-      debugPrint('AuthWrapper: Using cached user data for assessment check');
+      if (kIsWeb) {
+        // On web, skip FastLoadingService and use Firebase data directly
+        debugPrint('AuthWrapper: Using Firebase data for assessment check on web');
+      } else {
+        // Wait for critical data to be loaded by FastLoadingService
+        await FastLoadingService.instance.waitForCriticalData();
+        
+        // Check assessment status from local data (already loaded by FastLoadingService)
+        debugPrint('AuthWrapper: Using cached user data for assessment check');
+      }
       
       if (!mounted) return;
       setState(() {
