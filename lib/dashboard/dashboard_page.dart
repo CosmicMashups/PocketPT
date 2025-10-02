@@ -4,10 +4,12 @@ import '../record/pre_record_page.dart';
 import '../data/globals.dart';
 import '../data/rehabilitation_plan.dart';
 import '../data/treatment.dart';
+import '../data/optimized_data_service.dart';
 import '../assessment/preliminary.dart';
 import '../dailyAssessment/instructionVideo.dart';
 import '../dailyAssessment/cameraPose.dart';
 import '../assessment/generate_plan.dart';
+import '../data/user_data_notifier.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -38,6 +40,8 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
+    // Initialize the notifier with current data
+    UserDataNotifier.instance.initialize();
     // Load critical data immediately
     _refreshNotifications();
     
@@ -360,21 +364,13 @@ class _DashboardPageState extends State<DashboardPage> {
 
     final currentExercise = ExerciseHistory.getCurrentExercise();
     if (currentExercise != null) {
-      Navigator.push(
+      OptimizedNavigation.navigateWithDataPreload(
         context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const PreRecordPage(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            const begin = Offset(1.0, 0.0);
-            const end = Offset.zero;
-            const curve = Curves.easeInOut;
-
-            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-            var offsetAnimation = animation.drive(tween);
-
-            return SlideTransition(position: offsetAnimation, child: child);
-          },
-        ),
+        const PreRecordPage(),
+        dataKey: 'current_exercise_data',
+        dataPreloader: () async {
+          await UserRehabilitation.instance.loadPlansFromHive();
+        },
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -738,7 +734,10 @@ class _DashboardPageState extends State<DashboardPage> {
     final currentExercise = ExerciseHistory.getCurrentExercise();
     double progress = ExerciseHistory.calculateTodaysProgressPercentage();
 
-    return Scaffold(
+    return ListenableBuilder(
+      listenable: UserDataNotifier.instance,
+      builder: (context, child) {
+        return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -806,14 +805,39 @@ class _DashboardPageState extends State<DashboardPage> {
                             ),
                           ),
                               const SizedBox(height: 4),
-                          Text(
-                            '${UserDetails.firstName} ${UserDetails.lastName}',
-                            style: GoogleFonts.poppins(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                        Flexible(
+                          child: UserDataNotifier.instance.isLoading
+                              ? Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Loading...',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  '${UserDataNotifier.instance.firstName} ${UserDataNotifier.instance.lastName}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
+                        ),
                               const SizedBox(height: 8),
                                   Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -943,13 +967,17 @@ class _DashboardPageState extends State<DashboardPage> {
                                   color: const Color(0xFF1F2937),
                                 ),
                               ),
-                                Text(
-                                currentExercise?.exerciseName ?? 'No active exercise',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                  color: const Color(0xFF6B7280),
+                                Flexible(
+                                  child: Text(
+                                    currentExercise?.exerciseName ?? 'No active exercise',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: const Color(0xFF6B7280),
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -996,14 +1024,18 @@ class _DashboardPageState extends State<DashboardPage> {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                UserAssess.specificMuscle.isNotEmpty
-                                    ? UserAssess.specificMuscle
-                                    : 'Not specified',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  color: const Color(0xFF1F2937),
-                                  fontWeight: FontWeight.w600,
+                              Flexible(
+                                child: Text(
+                                  UserAssess.specificMuscle.isNotEmpty
+                                      ? UserAssess.specificMuscle
+                                      : 'Not specified',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    color: const Color(0xFF1F2937),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -1624,6 +1656,8 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
       ),
+    );
+      },
     );
   }
 }

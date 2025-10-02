@@ -206,12 +206,24 @@ class RehabilitationPlan {
   final int weekNumber;
   final List<ExerciseReference> exerciseReferences;
   final List<DailyProgress> daily;
+  final String id;
+  final String name;
+  final String description;
+  final DateTime createdAt;
+  final bool isActive;
+  final bool isGuestPlan;
 
   RehabilitationPlan({
     required this.weekNumber,
     required this.exerciseReferences,
     this.daily = const [],
-  });
+    this.id = '',
+    this.name = '',
+    this.description = '',
+    DateTime? createdAt,
+    this.isActive = true,
+    this.isGuestPlan = false,
+  }) : createdAt = createdAt ?? DateTime.now();
 
   // Get full exercise data from CSV
   Future<List<Exercise>> getExercises() async {
@@ -233,6 +245,7 @@ class UserRehabilitation {
 
   List<RehabilitationPlan> rehabPlans = [];
   List<TreatmentReference>? treatmentReferences;
+  RehabilitationPlan? activePlan;
 
   // Get full treatment data from CSV
   Future<List<Treatment>?> getTreatments() async {
@@ -261,66 +274,55 @@ class UserRehabilitation {
       // Ensure user document exists first
       await FirebaseHelper.ensureUserDocument();
 
-      // Extract all unique exercise IDs from rehabilitation plans
-      final Set<String> exerciseIds = <String>{};
-      for (final plan in rehabPlans) {
-        for (final exerciseRef in plan.exerciseReferences) {
-          exerciseIds.add(exerciseRef.exerciseId);
-        }
-      }
+      // Build rehabilitation plans document structure
+      // Document: rehabilitation/{userId}
+      // Fields:
+      //   Plan1: [ { exercise1: id, ... }, { treatment1: id, ... } ]
+      //   Plan2: [ { ... }, { ... } ]
+      final Map<String, dynamic> rehabDocData = <String, dynamic>{
+        'userId': userId,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      };
 
-      // Save exercise IDs in the required format (exercise1, exercise2, etc.)
-      if (exerciseIds.isNotEmpty) {
-        final Map<String, dynamic> exerciseData = <String, dynamic>{};
-        int index = 1;
-        for (final exerciseId in exerciseIds) {
-          exerciseData['exercise$index'] = exerciseId;
-          index++;
-        }
-        exerciseData['lastUpdated'] = FieldValue.serverTimestamp();
-        exerciseData['userId'] = userId;
-
-        await _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('exercise')
-            .doc('exercises')
-            .set(exerciseData);
-
-        print('Saved ${exerciseIds.length} exercise IDs to Firebase exercise collection');
-      }
-
-      // Save treatment IDs in the required format (treatment1, treatment2, etc.)
-      if (treatmentReferences != null && treatmentReferences!.isNotEmpty) {
-        final Map<String, dynamic> treatmentData = <String, dynamic>{};
-        int index = 1;
-        for (final treatmentRef in treatmentReferences!) {
-          treatmentData['treatment$index'] = treatmentRef.treatmentId;
-          index++;
-        }
-        treatmentData['lastUpdated'] = FieldValue.serverTimestamp();
-        treatmentData['userId'] = userId;
-
-        await _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('treatment')
-            .doc('treatments')
-            .set(treatmentData);
-
-        print('Saved ${treatmentReferences!.length} treatment IDs to Firebase treatment collection');
+      // If there are no plans and no treatments, clear the document
+      if (rehabPlans.isEmpty && (treatmentReferences == null || treatmentReferences!.isEmpty)) {
+        await _firestore.collection('rehabilitation').doc(userId).set(rehabDocData, SetOptions(merge: true));
+        print('Saved empty rehabilitation structure with metadata');
       } else {
-        // Clear treatments if none exist
-        await _firestore
-            .collection('users')
-            .doc(userId)
-            .collection('treatment')
-            .doc('treatments')
-            .delete();
-        print('Cleared treatment references from Firebase');
+        int planIndex = 1;
+        for (final plan in rehabPlans.isEmpty ? [
+          RehabilitationPlan(weekNumber: 1, exerciseReferences: [])
+        ] : rehabPlans) {
+          // Map 0: exercises as exercise# -> Exercise_ID
+          final Map<String, dynamic> exercisesMap = <String, dynamic>{};
+          int exerciseCounter = 1;
+          for (final exerciseRef in plan.exerciseReferences) {
+            exercisesMap['exercise$exerciseCounter'] = exerciseRef.exerciseId;
+            exerciseCounter++;
+          }
+
+          // Map 1: treatments as treatment# -> Treatment_ID
+          final Map<String, dynamic> treatmentsMap = <String, dynamic>{};
+          if (treatmentReferences != null && treatmentReferences!.isNotEmpty) {
+            int treatmentCounter = 1;
+            for (final treatmentRef in treatmentReferences!) {
+              treatmentsMap['treatment$treatmentCounter'] = treatmentRef.treatmentId;
+              treatmentCounter++;
+            }
+          }
+
+          rehabDocData['Plan$planIndex'] = <Map<String, dynamic>>[
+            exercisesMap,
+            treatmentsMap,
+          ];
+          planIndex++;
+        }
+
+        await _firestore.collection('rehabilitation').doc(userId).set(rehabDocData, SetOptions(merge: true));
+        print('Saved rehabilitation plans to Firebase in new structure');
       }
 
-      print('Successfully saved rehabilitation data to Firebase');
+      print('Successfully saved rehabilitation data to Firebase (new structure)');
     } catch (e) {
       print('Error saving rehabilitation data to Firebase: $e');
       rethrow;
@@ -340,94 +342,143 @@ class UserRehabilitation {
       // Ensure user document exists first
       await FirebaseHelper.ensureUserDocument();
 
-      // Load exercise IDs from Firebase
-      final DocumentSnapshot exerciseDoc = await _firestore
-          .collection('users')
+      // Load rehabilitation document: rehabilitation/{userId}
+      DocumentSnapshot rehabDoc = await _firestore
+          .collection('rehabilitation')
           .doc(userId)
-          .collection('exercise')
-          .doc('exercises')
           .get();
 
-      List<String> exerciseIds = [];
-      if (exerciseDoc.exists) {
-        final data = exerciseDoc.data() as Map<String, dynamic>;
-        // Extract exercise IDs from exercise1, exercise2, etc. fields
-        int index = 1;
-        while (data.containsKey('exercise$index')) {
-          exerciseIds.add(data['exercise$index'] as String);
-          index++;
+      rehabPlans = [];
+      treatmentReferences = null;
+
+      if (rehabDoc.exists) {
+        Map<String, dynamic> data = rehabDoc.data() as Map<String, dynamic>;
+
+        // Find all Plan# fields and process in order
+        List<String> planKeys = data.keys
+            .where((k) => k.toString().toLowerCase().startsWith('plan'))
+            .map((k) => k.toString())
+            .toList()
+          ..sort((a, b) {
+            int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+            int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+            return ai.compareTo(bi);
+          });
+
+        // One-time migration: if document exists but no Plan# fields, try legacy path
+        if (planKeys.isEmpty) {
+          print('Rehabilitation doc found but no Plan# fields. Attempting one-time migration from legacy subcollections...');
+          // Legacy: users/{uid}/exercise:exercises and users/{uid}/treatment:treatments
+          final DocumentSnapshot legacyExercise = await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('exercise')
+              .doc('exercises')
+              .get();
+          final DocumentSnapshot legacyTreatment = await _firestore
+              .collection('users')
+              .doc(userId)
+              .collection('treatment')
+              .doc('treatments')
+              .get();
+
+          final Map<String, dynamic> exercisesMap = <String, dynamic>{};
+          final Map<String, dynamic> treatmentsMap = <String, dynamic>{};
+
+          if (legacyExercise.exists) {
+            final Map<String, dynamic> exData = legacyExercise.data() as Map<String, dynamic>;
+            int e = 1;
+            while (exData.containsKey('exercise$e')) {
+              exercisesMap['exercise$e'] = exData['exercise$e'];
+              e++;
+            }
+          }
+          if (legacyTreatment.exists) {
+            final Map<String, dynamic> trData = legacyTreatment.data() as Map<String, dynamic>;
+            int t = 1;
+            while (trData.containsKey('treatment$t')) {
+              treatmentsMap['treatment$t'] = trData['treatment$t'];
+              t++;
+            }
+          }
+
+          if (exercisesMap.isNotEmpty || treatmentsMap.isNotEmpty) {
+            final Map<String, dynamic> migrated = <String, dynamic>{
+              'userId': userId,
+              'lastUpdated': FieldValue.serverTimestamp(),
+              'Plan1': <Map<String, dynamic>>[exercisesMap, treatmentsMap],
+            };
+            await _firestore.collection('rehabilitation').doc(userId).set(migrated, SetOptions(merge: true));
+            print('Migration wrote Plan1 to rehabilitation/{userId}. Reloading document...');
+            rehabDoc = await _firestore.collection('rehabilitation').doc(userId).get();
+            data = rehabDoc.data() as Map<String, dynamic>;
+            planKeys = data.keys
+                .where((k) => k.toString().toLowerCase().startsWith('plan'))
+                .map((k) => k.toString())
+                .toList()
+              ..sort((a, b) {
+                int ai = int.tryParse(a.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                int bi = int.tryParse(b.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+                return ai.compareTo(bi);
+              });
+          } else {
+            print('Legacy subcollections empty; skipping migration.');
+          }
         }
-        print('Loaded ${exerciseIds.length} exercise IDs from Firebase');
-      } else {
-        print('No exercise IDs found in Firebase');
-      }
 
-      // Load treatment IDs from Firebase
-      final DocumentSnapshot treatmentDoc = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('treatment')
-          .doc('treatments')
-          .get();
+        List<TreatmentReference> aggregatedTreatmentRefs = <TreatmentReference>[];
 
-      List<String> treatmentIds = [];
-      if (treatmentDoc.exists) {
-        final data = treatmentDoc.data() as Map<String, dynamic>;
-        // Extract treatment IDs from treatment1, treatment2, etc. fields
-        int index = 1;
-        while (data.containsKey('treatment$index')) {
-          treatmentIds.add(data['treatment$index'] as String);
-          index++;
+        for (final key in planKeys) {
+          final dynamic planValue = data[key];
+          if (planValue is List && planValue.length >= 2) {
+            final Map<String, dynamic> exercisesMap = Map<String, dynamic>.from(planValue[0] as Map);
+            final Map<String, dynamic> treatmentsMap = Map<String, dynamic>.from(planValue[1] as Map);
+
+            // Extract exercise IDs by scanning exercise# fields
+            final List<String> exerciseIds = <String>[];
+            int eIndex = 1;
+            while (exercisesMap.containsKey('exercise$eIndex')) {
+              final dynamic id = exercisesMap['exercise$eIndex'];
+              if (id is String && id.isNotEmpty) {
+                exerciseIds.add(id);
+              }
+              eIndex++;
+            }
+
+            // Map exercise IDs to ExerciseReference using CSV defaults for reps/sets
+            final List<Exercise> exercises = await ExerciseDataService.getExercisesByIds(exerciseIds);
+            final List<ExerciseReference> exerciseRefs = exercises.map((ex) =>
+                ExerciseReference(exerciseId: ex.exerciseId, repetitions: ex.repetitions, sets: ex.sets)
+            ).toList();
+
+            rehabPlans.add(
+              RehabilitationPlan(
+                weekNumber: rehabPlans.length + 1,
+                exerciseReferences: exerciseRefs,
+                daily: [],
+              ),
+            );
+
+            // Extract treatment IDs
+            int tIndex = 1;
+            while (treatmentsMap.containsKey('treatment$tIndex')) {
+              final dynamic tid = treatmentsMap['treatment$tIndex'];
+              if (tid is String && tid.isNotEmpty) {
+                aggregatedTreatmentRefs.add(TreatmentReference(treatmentId: tid));
+              }
+              tIndex++;
+            }
+          }
         }
-        print('Loaded ${treatmentIds.length} treatment IDs from Firebase');
+
+        treatmentReferences = aggregatedTreatmentRefs.isNotEmpty ? aggregatedTreatmentRefs : null;
+
+        print('Loaded ${rehabPlans.length} plans and ${aggregatedTreatmentRefs.length} treatment refs from rehabilitation collection');
       } else {
-        print('No treatment IDs found in Firebase');
+        print('No rehabilitation document found for user');
       }
 
-      // Map exercise IDs to full exercise data from CSV
-      if (exerciseIds.isNotEmpty) {
-        final List<Exercise> exercises = await ExerciseDataService.getExercisesByIds(exerciseIds);
-        
-        // Reconstruct rehabilitation plans from loaded exercise data
-        // For now, create a simple plan with all exercises
-        // In a real implementation, you might want to store additional metadata
-        final List<ExerciseReference> exerciseReferences = exercises.map((exercise) => 
-          ExerciseReference(
-            exerciseId: exercise.exerciseId,
-            repetitions: exercise.repetitions,
-            sets: exercise.sets,
-          )).toList();
-
-        // Create a rehabilitation plan with the loaded exercises
-        rehabPlans = [
-          RehabilitationPlan(
-            weekNumber: 1,
-            exerciseReferences: exerciseReferences,
-            daily: [], // Initialize empty daily progress
-          )
-        ];
-
-        print('Reconstructed rehabilitation plan with ${exerciseReferences.length} exercises');
-      } else {
-        rehabPlans = [];
-        print('No exercises to reconstruct rehabilitation plan');
-      }
-
-      // Map treatment IDs to full treatment data from CSV
-      if (treatmentIds.isNotEmpty) {
-        final List<Treatment> treatments = await ExerciseDataService.getTreatmentsByIds(treatmentIds);
-        
-        // Convert to treatment references
-        treatmentReferences = treatments.map((treatment) => 
-          TreatmentReference(treatmentId: treatment.treatmentId)).toList();
-
-        print('Reconstructed ${treatmentReferences!.length} treatment references');
-      } else {
-        treatmentReferences = null;
-        print('No treatments to reconstruct');
-      }
-
-      print('Successfully loaded and reconstructed rehabilitation data from Firebase');
+      print('Successfully loaded and reconstructed rehabilitation data from Firebase (new structure)');
     } catch (e) {
       print('Error loading rehabilitation data from Firebase: $e');
       // Reset to empty state on error

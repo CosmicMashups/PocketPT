@@ -73,7 +73,7 @@ dependencies:
   hive: ^2.2.3
 
   # For pytorch
-  # pytorch-lite: ^2.10.4
+  flutter_pytorch_lite: ^0.1.0+3
 
 # App Icon
 flutter_icons:
@@ -116,6 +116,7 @@ flutter:
 
     - assets/videos/
     - assets/data/
+    - assets/model/
 
     - assets/lottie/
 

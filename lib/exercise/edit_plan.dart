@@ -804,12 +804,16 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          exercise.exerciseName,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: mainColor,
+                        Flexible(
+                          child: Text(
+                            exercise.exerciseName,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: mainColor,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -887,15 +891,17 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
               const SizedBox(height: 12),
               
               // Description
-              Text(
-                exercise.description,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: detailColor,
-                  height: 1.4,
+              Flexible(
+                child: Text(
+                  exercise.description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: detailColor,
+                    height: 1.4,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
               
               const SizedBox(height: 16),

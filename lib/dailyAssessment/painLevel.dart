@@ -83,6 +83,8 @@ class _PainLevelPageState extends State<PainLevelPage> {
             fontSize: 20,
             color: const Color(0xFF1F2937),
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
       body: SingleChildScrollView(

@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import '../data/globals.dart';
 import '../data/pose_detection_service.dart';
 import '../data/facial_pain_recognition_service.dart';
+import '../data/cnn_pose_detection_service.dart';
 import '../widgets/enhanced_pose_skeleton_painter.dart';
 import '../dailyAssessment/instructionVideo.dart';
 import '../dailyAssessment/painLevel.dart';
@@ -39,6 +40,7 @@ class _CameraPosePageState extends State<CameraPosePage> {
   String _selectedSide = 'Right'; // 'Left' or 'Right' side to assess
   final PoseDetectionService _poseService = PoseDetectionService();
   final FacialPainRecognitionService _facialPainService = FacialPainRecognitionService();
+  final CNNPoseDetectionService _cnnService = CNNPoseDetectionService();
   bool _isStreaming = false;
   bool _processingFrame = false;
   Timer? _throttleTimer;
@@ -84,7 +86,7 @@ class _CameraPosePageState extends State<CameraPosePage> {
     _initializeServices();
   }
   
-  // Initialize both pose detection and facial pain recognition services
+  // Initialize all services
   Future<void> _initializeServices() async {
     try {
       // Initialize facial pain recognition service
@@ -92,6 +94,14 @@ class _CameraPosePageState extends State<CameraPosePage> {
       debugPrint('Facial pain recognition service initialized');
     } catch (e) {
       debugPrint('Error initializing facial pain service: $e');
+    }
+    
+    try {
+      // Initialize CNN pose detection service
+      await _cnnService.initialize();
+      debugPrint('CNN pose detection service initialized');
+    } catch (e) {
+      debugPrint('Error initializing CNN service: $e');
     }
     
     // Initialize camera
@@ -175,14 +185,16 @@ class _CameraPosePageState extends State<CameraPosePage> {
 
       _processingFrame = true;
       try {
-        // Run both pose detection and facial pain recognition in parallel
+        // Run pose detection, facial pain recognition, and CNN assessment in parallel
         final futures = await Future.wait([
           _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]),
           _facialPainService.detectFacialPain(image: image, camera: cameras[_selectedCameraIndex]),
+          _cnnService.performComprehensiveROMAssessment(image),
         ]);
         
         final poses = futures[0] as List;
         final facialPainResult = futures[1] as Map<String, dynamic>;
+        final cnnResult = futures[2] as Map<String, dynamic>;
         
         // Process pose detection results
         if (poses.isNotEmpty) {
@@ -203,6 +215,9 @@ class _CameraPosePageState extends State<CameraPosePage> {
           
           // Perform ROM assessment based on selected mode (only if pain is not locked)
           if (!_isPainLocked) {
+            // Integrate CNN results with pose-based assessment
+            _integrateCNNResults(cnnResult);
+            
             if (_mode == 'Triceps' || _mode == 'Shoulders') {
               // Use existing comprehensive ROM assessment for upper body
               try {
@@ -212,7 +227,11 @@ class _CameraPosePageState extends State<CameraPosePage> {
                   setState(() {
                     _romResults = assessment;
                     _compensations = assessment['compensations'];
-                    _overallPainScore = assessment['overallPainScore'] ?? 0;
+                    
+                    // Combine pose-based and CNN-based pain scores
+                    final posePainScore = assessment['overallPainScore'] ?? 0;
+                    final cnnPainScore = cnnResult['overallPainScore'] ?? 0;
+                    _overallPainScore = _combinePainScores(posePainScore, cnnPainScore);
                     
                     // Update current ROM display based on mode
                     _updateCurrentROMDisplay();
@@ -234,20 +253,17 @@ class _CameraPosePageState extends State<CameraPosePage> {
                 }
               } catch (e) {
                 debugPrint('Comprehensive assessment failed: $e');
-                // Fallback to basic angle calculation if comprehensive assessment fails
-                final angle = _computeRelevantAngle(landmarks);
-                if (angle != null) {
-                  _lastComputedAngle = angle;
-                  final score = _mapAngleToScore(angle);
-                  if (score != UserAssess.painScale) {
-                    UserAssess.painScale = score;
-                    UserAssess.painLevel = score.toString();
+                // Fallback to CNN-only assessment if pose assessment fails
+                if (mounted) {
+                  setState(() {
+                    _overallPainScore = cnnResult['overallPainScore'] ?? 5;
+                    UserAssess.painScale = _overallPainScore;
+                    UserAssess.painLevel = _overallPainScore.toString();
                     PainHistory.recordTodayAndSave(
                       painScale: UserAssess.painScale,
                       painLevel: UserAssess.painLevel,
                     );
-                    if (mounted) setState(() {});
-                  }
+                  });
                 }
               }
             } else if (_mode == 'Calf') {
@@ -286,45 +302,23 @@ class _CameraPosePageState extends State<CameraPosePage> {
 
   
 
-  double? _computeRelevantAngle(Map<String, Offset> lm) {
-    final side = _selectedSide.toLowerCase();
-    
-    if (_mode == 'Triceps') {
-      if (side == 'left' && lm.containsKey('leftShoulder') && lm.containsKey('leftElbow') && lm.containsKey('leftWrist')) {
-        return _poseService.calculateAngle(lm['leftShoulder']!, lm['leftElbow']!, lm['leftWrist']!);
-      } else if (side == 'right' && lm.containsKey('rightShoulder') && lm.containsKey('rightElbow') && lm.containsKey('rightWrist')) {
-        return _poseService.calculateAngle(lm['rightShoulder']!, lm['rightElbow']!, lm['rightWrist']!);
-      }
-    } else if (_mode == 'Shoulders') {
-      if (side == 'left' && lm.containsKey('leftHip') && lm.containsKey('leftShoulder') && lm.containsKey('leftElbow')) {
-        return _poseService.calculateAngle(lm['leftHip']!, lm['leftShoulder']!, lm['leftElbow']!);
-      } else if (side == 'right' && lm.containsKey('rightHip') && lm.containsKey('rightShoulder') && lm.containsKey('rightElbow')) {
-        return _poseService.calculateAngle(lm['rightHip']!, lm['rightShoulder']!, lm['rightElbow']!);
-      }
+  // CNN Integration Methods
+  void _integrateCNNResults(Map<String, dynamic> cnnResult) {
+    // Store CNN results for display and analysis
+    if (cnnResult.containsKey('cnn')) {
+      final cnnData = cnnResult['cnn'] as Map<String, dynamic>;
+      debugPrint('CNN Assessment: ${cnnData['prediction']} (${cnnData['confidence']?.toStringAsFixed(2)})');
     }
-    return null;
+  }
+
+  int _combinePainScores(int poseScore, int cnnScore) {
+    // Weighted combination: 60% pose-based, 40% CNN-based
+    // This allows both geometric analysis and visual pain detection to contribute
+    final combinedScore = (poseScore * 0.6 + cnnScore * 0.4).round();
+    return combinedScore.clamp(1, 10);
   }
 
   int? _lastProcessedTime; // ms timestamp for throttling
-
-  // Standardized angle to pain score mapping (aligned with clinical standards)
-  int _mapAngleToScore(double angle) {
-    if (_mode == 'Triceps') {
-      // Triceps: 0° (flexed) -> 180° (extended)
-      // Using standardized clinical pain scale
-      if (angle < 90) return 9; // Severe limitation (8-10 range)
-      if (angle < 135) return 6; // Moderate limitation (5-7 range)
-      return 1; // Good ROM (0-1 range)
-    } else if (_mode == 'Shoulders') {
-      // Shoulders: 180° (arm down) -> 90° (T-pose) -> <90° (overhead)
-      // Using standardized clinical pain scale
-      if (angle < 90) return 9; // Severe pain (8-10 range)
-      if (angle <= 110) return 6; // Moderate pain (5-7 range)
-      if (angle <= 150) return 3; // Low pain (2-4 range)
-      return 1; // Good mobility (0-1 range)
-    }
-    return 5; // Default moderate when mode is unknown
-  }
 
   // New: Calf dorsiflexion analysis based on Jupyter code
   void _analyzeCalfDorsiflexion(Map<String, Offset> landmarks) {
@@ -772,6 +766,7 @@ class _CameraPosePageState extends State<CameraPosePage> {
     try { _controller.stopImageStream(); } catch (_) {}
     _controller.dispose();
     _facialPainService.dispose();
+    _cnnService.dispose();
     super.dispose();
   }
 
@@ -1241,6 +1236,42 @@ class _CameraPosePageState extends State<CameraPosePage> {
                         'Tracking',
                         style: GoogleFonts.poppins(
                           fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(width: 8),
+                
+                // CNN assessment indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _cnnService.isModelLoaded 
+                        ? Colors.purple.withOpacity(0.9)
+                        : Colors.grey.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _cnnService.isModelLoaded ? Colors.purple : Colors.grey,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _cnnService.isModelLoaded ? Icons.psychology : Icons.psychology_outlined,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _cnnService.isModelLoaded ? 'CNN' : 'CNN',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),

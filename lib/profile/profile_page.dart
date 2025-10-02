@@ -8,6 +8,7 @@ import '../data/data_management_widget.dart';
 import '../data/data_persistence_service.dart';
 import '../data/auth_persistence_service.dart';
 import '../data/theme_controller.dart';
+import '../data/user_data_notifier.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -27,6 +28,13 @@ class _ProfilePageState extends State<ProfilePage> {
   static const errorColor = Color(0xFFEF4444); // Red
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the notifier with current data
+    UserDataNotifier.instance.initialize();
+  }
 
   // Handle logout with proper data saving and Firebase sign out
   Future<void> _handleLogout() async {
@@ -114,10 +122,133 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // Show profile picture selection dialog
+  Future<void> _showProfilePictureDialog() async {
+    final List<String> profilePictures = [
+      '01.jpg', '02.jpg', '03.jpg', '04.jpg', '05.jpg', '06.jpg',
+      '07.jpg', '08.jpg', '09.jpg', '10.jpg', '11.jpg', '12.jpg'
+    ];
+    
+    final String? selectedPicture = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Select Profile Picture',
+            style: TextStyle(
+              color: mainColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Container(
+            width: double.maxFinite,
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1,
+              ),
+              itemCount: profilePictures.length,
+              itemBuilder: (context, index) {
+                final picture = profilePictures[index];
+                final isSelected = picture == UserDataNotifier.instance.profilePicture;
+                
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).pop(picture);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? mainColor : Colors.grey.withOpacity(0.3),
+                        width: isSelected ? 3 : 1,
+                      ),
+                      boxShadow: isSelected ? [
+                        BoxShadow(
+                          color: mainColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ] : null,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/images/pfp/$picture',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[200],
+                            child: Icon(
+                              Icons.person,
+                              color: Colors.grey[400],
+                              size: 32,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: detailColor),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    
+    if (selectedPicture != null && selectedPicture != UserDataNotifier.instance.profilePicture) {
+      // Update the profile picture
+      UserDataNotifier.instance.updateUserData(profilePicture: selectedPicture);
+      
+      // Save to Hive
+      await UserDetails.saveToHive();
+      
+      // Update in Firebase
+      try {
+        await UserDetails.updateInFirebase(newProfilePicture: selectedPicture);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Profile picture updated successfully'),
+              backgroundColor: successColor,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to sync profile picture: ${e.toString()}'),
+              backgroundColor: errorColor,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
+    return ListenableBuilder(
+      listenable: UserDataNotifier.instance,
+      builder: (context, child) {
+        return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
       appBar: AppBar(
         title: Text(
@@ -192,25 +323,52 @@ class _ProfilePageState extends State<ProfilePage> {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: mainColor.withOpacity(0.3),
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: mainColor.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
+                      GestureDetector(
+                        onTap: _showProfilePictureDialog,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: mainColor.withOpacity(0.3),
+                              width: 3,
                             ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundImage: const AssetImage('assets/images/profile/profile.jpg'),
-                          backgroundColor: Colors.grey[200],
+                            boxShadow: [
+                              BoxShadow(
+                                color: mainColor.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 50,
+                                backgroundImage: AssetImage('assets/images/pfp/${UserDataNotifier.instance.profilePicture}'),
+                                backgroundColor: Colors.grey[200],
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: mainColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 20),
@@ -218,21 +376,59 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '${UserDetails.firstName} ${UserDetails.lastName}',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                color: mainColor,
-                              ),
+                            Flexible(
+                              child: UserDataNotifier.instance.isLoading
+                                  ? Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(mainColor),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Loading...',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: detailColor,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : Text(
+                                      '${UserDataNotifier.instance.firstName} ${UserDataNotifier.instance.lastName}',
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w700,
+                                        color: mainColor,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                             ),
                             const SizedBox(height: 6),
-                            Text(
-                              UserDetails.email,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: detailColor,
-                              ),
+                            Flexible(
+                              child: UserDataNotifier.instance.isLoading
+                                  ? Text(
+                                      'Loading email...',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: detailColor,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    )
+                                  : Text(
+                                      UserDataNotifier.instance.email,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: detailColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                             ),
                             const SizedBox(height: 12),
                             Container(
@@ -281,16 +477,17 @@ class _ProfilePageState extends State<ProfilePage> {
                               title: 'Edit Profile',
                               fieldLabels: ['First Name', 'Last Name', 'Email'],
                               initialValues: [
-                                UserDetails.firstName,
-                                UserDetails.lastName,
-                                UserDetails.email,
+                                UserDataNotifier.instance.firstName,
+                                UserDataNotifier.instance.lastName,
+                                UserDataNotifier.instance.email,
                               ],
                               onSave: (values) async {
-                                setState(() {
-                                  UserDetails.firstName = values[0];
-                                  UserDetails.lastName = values[1];
-                                  UserDetails.email = values[2];
-                                });
+                                // Update through the notifier
+                                UserDataNotifier.instance.updateUserData(
+                                  firstName: values[0],
+                                  lastName: values[1],
+                                  email: values[2],
+                                );
 
                                 // Save to Hive
                                 await UserDetails.saveToHive();
@@ -489,10 +686,31 @@ class _ProfilePageState extends State<ProfilePage> {
                   'Read our terms and conditions',
                   Icons.description,
                   () {
-                    showReusableDialog(context, 'Terms of Service', [
-                      'The information provided above is intended for general informational purposes only...',
-                      'Please consult with a qualified healthcare provider before beginning any exercise regimen.',
-                    ]);
+                    showReusableDialog(context,
+                      'Terms of Service',
+                      [
+                        'Welcome to PocketPT, a user-centric rehabilitation application designed to assist individuals in managing muscle strains and injuries through treatment, rehabilitation, and strengthening.',
+                        '1. Acceptance of Terms:',
+                        'By using PocketPT, you agree to these Terms of Service and our Privacy Policy. If you do not agree, please discontinue use.',
+                        '2. Eligibility:',
+                        'Users must be at least 18 years old or have parental/guardian consent to use the app.',
+                        '3. Purpose of the Application:',
+                        'PocketPT is a research-based academic project for educational and self-management support only. It is not a substitute for professional medical advice. Always consult a healthcare provider for medical concerns.',
+                        '4. User Responsibilities:',
+                        '- Provide accurate and truthful information.',
+                        '- Use the app only for personal, non-commercial purposes.',
+                        '- Do not misuse, modify, or attempt unauthorized access.',
+                        '5. Data Collection & Confidentiality:',
+                        'Feedback and anonymized data may be collected strictly for research purposes and handled in accordance with the Privacy Policy and Data Privacy Act of 2012.',
+                        '6. Intellectual Property:',
+                        'All app content and features are the intellectual property of the developers and cannot be copied or redistributed without permission.',
+                        '7. Limitation of Liability:',
+                        'PocketPT is provided "as is." The developers are not liable for injuries, damages, or losses resulting from reliance on the app. Users assume full responsibility for their health decisions.',
+                        '8. Termination:',
+                        'We reserve the right to suspend or terminate access if these Terms are violated.',
+                        '9. Changes to Terms:',
+                        'Terms of Service may be updated periodically. Continued use of PocketPT after changes means acceptance of the new terms.'
+                      ]);
                   },
                 ),
                 _buildActionTile(
@@ -500,10 +718,36 @@ class _ProfilePageState extends State<ProfilePage> {
                   'Learn how we protect your data',
                   Icons.privacy_tip,
                   () {
-                    showReusableDialog(context, 'Privacy Policy', [
-                      'The developers are committed to upholding the highest standards of data privacy...',
-                      'All data collected will be used only for academic purposes...',
-                    ]);
+                    showReusableDialog(context,
+                      'Privacy Policy',
+                      [
+                        'PocketPT values and protects your privacy. This Privacy Policy explains how we collect, use, store, and safeguard your personal information.',
+                        '1. Information We Collect:',
+                        '- Personal Information: Email address or contact details (if voluntarily provided).',
+                        '- Usage Data: App interaction logs, survey responses, and anonymized feedback.',
+                        '- Health-Related Inputs: Self-reported symptoms or injury details, used solely for rehabilitation guidance.',
+                        '2. Purpose of Data Collection:',
+                        '- To support academic research and system development.',
+                        '- To provide rehabilitation guidance through the app.',
+                        '- To improve user experience and app functionality.',
+                        '3. Confidentiality and Data Protection:',
+                        '- All data is treated as confidential and only used for research purposes.',
+                        '- No data will be sold, shared, or disclosed to unauthorized parties.',
+                        '- Security measures are implemented to prevent unauthorized access or breaches.',
+                        '4. Compliance with Law:',
+                        'PocketPT complies with the Data Privacy Act of 2012 (RA 10173) and applicable laws on data collection and protection.',
+                        '5. Data Retention:',
+                        'Data is retained only as long as necessary for research objectives and securely deleted afterward.',
+                        '6. Your Rights as a User:',
+                        '- Access the data you provided.',
+                        '- Request corrections of inaccuracies.',
+                        '- Request deletion of your data (subject to research requirements).',
+                        '- Withdraw consent at any time.',
+                        '7. Third-Party Services:',
+                        'PocketPT does not share personal data with third parties unless explicitly required for academic purposes with consent.',
+                        '8. Updates to Privacy Policy:',
+                        'This Privacy Policy may be updated periodically. Users will be notified of significant changes.'
+                      ]);
                   },
                 ),
               ],
@@ -557,6 +801,8 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 

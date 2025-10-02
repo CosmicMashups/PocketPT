@@ -163,12 +163,16 @@ class _PreRecordPageState extends State<PreRecordPage> {
                   return Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          currentExercise?.exerciseName ?? 'No Exercise',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 22,
-                            color: const Color(0xFF1F2937),
+                        child: Flexible(
+                          child: Text(
+                            currentExercise?.exerciseName ?? 'No Exercise',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 22,
+                              color: const Color(0xFF1F2937),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),

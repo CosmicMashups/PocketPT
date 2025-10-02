@@ -3,9 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/gestures.dart';
 import 'dart:async';
 import '../data/simple_auth_service.dart';
+import '../data/guest_mode_service.dart';
+import '../data/optimized_data_service.dart';
 import '../widgets/progressive_loading_widget.dart';
 import 'email_verification_page.dart';
 import 'register_page.dart';
+import 'forgot_password_page.dart';
 import '../main.dart';
 
 /// Login page with progressive loading and streamlined flow
@@ -22,6 +25,7 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   
   final SimpleAuthService _authService = SimpleAuthService.instance;
+  final GuestModeService _guestModeService = GuestModeService.instance;
   
   bool _isLoading = false;
   String? _errorMessage = '';
@@ -43,20 +47,27 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final result = await _authService
-          .signInWithEmailAndPassword(
-            _emailController.text.trim(),
-            _passwordController.text.trim(),
-          )
-          .timeout(const Duration(seconds: 12));
+      // Use optimized data service for login with caching
+      final result = await OptimizedDataService().getData(
+        'login_${_emailController.text.trim()}',
+        () => _authService.signInWithEmailAndPassword(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        ).timeout(const Duration(seconds: 12)),
+      );
 
-      if (result.success) {
+      if (result?.success == true) {
+        // Preload user data for smooth navigation
+        await OptimizedDataService().preloadData(
+          'user_data',
+          () async => result,
+        );
         _navigateToHome();
-      } else if (result.requiresEmailVerification) {
-        _showEmailVerificationPage(result.email!);
+      } else if (result?.requiresEmailVerification == true) {
+        _showEmailVerificationPage(result!.email!);
       } else {
         setState(() {
-          _errorMessage = result.error;
+          _errorMessage = result?.error ?? 'Login failed. Please try again.';
           _isLoading = false;
         });
       }
@@ -81,17 +92,26 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final result = await _authService.signInWithGoogle().timeout(const Duration(seconds: 12));
+      // Use optimized data service for Google sign-in
+      final result = await OptimizedDataService().getData(
+        'google_signin',
+        () => _authService.signInWithGoogle().timeout(const Duration(seconds: 12)),
+      );
 
-      if (result.success) {
+      if (result?.success == true) {
+        // Preload user data for smooth navigation
+        await OptimizedDataService().preloadData(
+          'user_data',
+          () async => result,
+        );
         _navigateToHome();
-      } else if (result.cancelled) {
+      } else if (result?.cancelled == true) {
         setState(() {
           _isLoading = false;
         });
       } else {
         setState(() {
-          _errorMessage = result.error;
+          _errorMessage = result?.error ?? 'Google sign in failed. Please try again.';
           _isLoading = false;
         });
       }
@@ -143,6 +163,49 @@ class _LoginPageState extends State<LoginPage> {
       context,
       MaterialPageRoute(builder: (context) => const RegisterPage()),
     );
+  }
+
+  /// Navigate to forgot password page
+  void _navigateToForgotPassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+    );
+  }
+
+  /// Handle guest mode login
+  Future<void> _handleGuestMode() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      // Initialize guest mode service
+      await _guestModeService.initialize();
+      
+      // Start guest session
+      final result = await _guestModeService.startGuestSession().timeout(const Duration(seconds: 10));
+
+      if (result['success']) {
+        _navigateToHome();
+      } else {
+        setState(() {
+          _errorMessage = result['error'] ?? 'Failed to start guest session';
+          _isLoading = false;
+        });
+      }
+    } on TimeoutException {
+      setState(() {
+        _errorMessage = 'Connection timed out. Please try again.';
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An unexpected error occurred. Please try again.';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -214,20 +277,30 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           const SizedBox(height: 24),
-                          Text(
-                            'PocketPT',
-                            style: GoogleFonts.poppins(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
+                          Flexible(
+                            child: Text(
+                              'PocketPT',
+                              style: GoogleFonts.poppins(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            'Professional Rehabilitation Platform',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 16,
-                              color: Colors.white.withOpacity(0.9),
+                          Flexible(
+                            child: Text(
+                              'Professional Rehabilitation Platform',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 16,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -391,6 +464,23 @@ class _LoginPageState extends State<LoginPage> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 16),
+                      
+                      // Forgot Password Link
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _navigateToForgotPassword,
+                          child: Text(
+                            'Forgot Password?',
+                            style: GoogleFonts.ptSans(
+                              color: const Color(0xFF8B2E2E),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 24),
                       
                       Container(
@@ -525,6 +615,50 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           onPressed: _isLoading ? null : _handleGoogleSignIn,
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide.none,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Continue as Guest Button
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: OutlinedButton.icon(
+                          icon: const Icon(
+                            Icons.person_outline,
+                            color: Color(0xFF6B7280),
+                            size: 20,
+                          ),
+                          label: Text(
+                            'Continue as Guest',
+                            style: GoogleFonts.ptSans(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: const Color(0xFF6B7280),
+                            ),
+                          ),
+                          onPressed: _isLoading ? null : _handleGuestMode,
                           style: OutlinedButton.styleFrom(
                             side: BorderSide.none,
                             padding: const EdgeInsets.symmetric(vertical: 18),

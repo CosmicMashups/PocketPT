@@ -30,6 +30,8 @@ class ReportPage extends ConsumerWidget {
             fontSize: 20,
             letterSpacing: 0.5,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         automaticallyImplyLeading: false,
         centerTitle: true,

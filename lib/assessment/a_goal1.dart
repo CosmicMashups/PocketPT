@@ -193,6 +193,8 @@ class _AssessGoal1State extends State<AssessGoal1> {
                       color: mainColor,
                       height: 1.3,
                     ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
 
                   const SizedBox(height: 8),
@@ -357,20 +359,28 @@ class _AssessGoal1State extends State<AssessGoal1> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: GoogleFonts.ptSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? color : mainColor,
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: GoogleFonts.ptSans(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? color : mainColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      description,
-                      style: GoogleFonts.ptSans(
-                        fontSize: 14,
-                        color: isSelected ? color.withOpacity(0.8) : detailColor,
+                    Flexible(
+                      child: Text(
+                        description,
+                        style: GoogleFonts.ptSans(
+                          fontSize: 14,
+                          color: isSelected ? color.withOpacity(0.8) : detailColor,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

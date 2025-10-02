@@ -5,6 +5,7 @@ import 'package:hive/hive.dart';
 import 'globals.dart';
 import 'rehabilitation_plan.dart';
 import 'hive_models.dart';
+import 'user_data_notifier.dart';
 
 /// Service to handle fast loading of critical data for immediate app startup
 class FastLoadingService {
@@ -79,11 +80,26 @@ class FastLoadingService {
         UserDetails.email = hiveUserDetails.email;
         UserDetails.password = hiveUserDetails.password;
         UserDetails.notifications = hiveUserDetails.notifications;
+        UserDetails.isGuest = hiveUserDetails.isGuest;
+        UserDetails.guestSessionId = hiveUserDetails.guestSessionId;
+        
+        // Load assessment completion flag if present
         final storedHasCompleted = box.get('hasCompletedAssessment');
         if (storedHasCompleted is bool) {
           UserDetails.hasCompletedAssessment = storedHasCompleted;
         }
-        debugPrint('FastLoadingService: User details loaded');
+        
+        debugPrint('FastLoadingService: User details loaded - firstName: "${UserDetails.firstName}", lastName: "${UserDetails.lastName}", email: "${UserDetails.email}", isGuest: ${UserDetails.isGuest}');
+        
+        // Notify UI of data changes
+        UserDataNotifier.instance.updateUserData(
+          firstName: UserDetails.firstName,
+          lastName: UserDetails.lastName,
+          email: UserDetails.email,
+          hasCompletedAssessment: UserDetails.hasCompletedAssessment,
+        );
+      } else {
+        debugPrint('FastLoadingService: No user details found in Hive');
       }
     } catch (e) {
       debugPrint('FastLoadingService: Error loading user details: $e');

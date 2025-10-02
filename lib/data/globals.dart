@@ -8,6 +8,7 @@ import 'hive_models.dart';
 import 'rehabilitation_plan.dart';
 import 'data_persistence_service.dart';
 import 'firebase_helper.dart';
+import 'user_data_notifier.dart';
 
 // Class: AppDetails
 class AppDetails {
@@ -20,7 +21,10 @@ class UserDetails {
   static String lastName = '';
   static String email = '';
   static String password = '';
+  static String profilePicture = '01.jpg'; // Default profile picture
   static bool hasCompletedAssessment = false;
+  static bool isGuest = false;
+  static String? guestSessionId;
   static List<String> notifications = [
     // 'You have a new workout plan: Push-Ups 3 sets, 10 reps.',
     // 'Reminder: Complete your lateral raise exercises today.',
@@ -41,9 +45,13 @@ class UserDetails {
   // Load user data from Firebase
   static Future<void> loadFromFirebase() async {
     try {
+      // Set loading state
+      UserDataNotifier.instance.setLoading(true);
+      
       final User? currentUser = _auth.currentUser;
       if (currentUser == null) {
         debugPrint('UserDetails.loadFromFirebase: No authenticated user found');
+        UserDataNotifier.instance.setLoading(false);
         return;
       }
 
@@ -76,6 +84,7 @@ class UserDetails {
         final String? firebaseFirstName = userData['firstName'];
         final String? firebaseLastName = userData['lastName'];
         final String? firebaseEmail = userData['email'];
+        final String? firebaseProfilePicture = userData['profilePicture'];
         final bool? firebaseHasCompletedAssessment = userData['hasCompletedAssessment'];
         
         debugPrint('UserDetails.loadFromFirebase: Firebase firstName: "$firebaseFirstName"');
@@ -86,10 +95,19 @@ class UserDetails {
         firstName = firebaseFirstName ?? '';
         lastName = firebaseLastName ?? '';
         email = firebaseEmail ?? currentUser.email ?? '';
+        profilePicture = firebaseProfilePicture ?? '01.jpg'; // Default to first profile picture
         password = ''; // Never store password in plain text
         hasCompletedAssessment = firebaseHasCompletedAssessment ?? false;
         
         debugPrint('UserDetails.loadFromFirebase: Final values - firstName: "$firstName", lastName: "$lastName", email: "$email"');
+        
+        // Notify UI of data changes
+        UserDataNotifier.instance.updateUserData(
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          hasCompletedAssessment: hasCompletedAssessment,
+        );
         
         // Save to Hive for offline access
         await saveToHive();
@@ -115,9 +133,20 @@ class UserDetails {
         
         debugPrint('UserDetails.loadFromFirebase: Created new user document in Firebase: $firstName $lastName ($email)');
         
+        // Notify UI of data changes
+        UserDataNotifier.instance.updateUserData(
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          hasCompletedAssessment: hasCompletedAssessment,
+        );
+        
         // Save to Hive for offline access
         await saveToHive();
       }
+      
+      // Clear loading state
+      UserDataNotifier.instance.setLoading(false);
     } catch (e) {
       debugPrint('UserDetails.loadFromFirebase: Error loading user data from Firebase: $e');
       debugPrint('UserDetails.loadFromFirebase: Error type: ${e.runtimeType}');
@@ -125,6 +154,9 @@ class UserDetails {
         debugPrint('UserDetails.loadFromFirebase: Firebase error code: ${e.code}');
         debugPrint('UserDetails.loadFromFirebase: Firebase error message: ${e.message}');
       }
+      
+      // Clear loading state on error
+      UserDataNotifier.instance.setLoading(false);
     }
   }
 
@@ -133,6 +165,7 @@ class UserDetails {
     String? newFirstName,
     String? newLastName,
     String? newEmail,
+    String? newProfilePicture,
   }) async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -157,6 +190,10 @@ class UserDetails {
         updateData['email'] = newEmail;
         email = newEmail;
       }
+      if (newProfilePicture != null) {
+        updateData['profilePicture'] = newProfilePicture;
+        profilePicture = newProfilePicture;
+      }
 
       // Use set with merge to create document if it doesn't exist
       await _firestore
@@ -165,6 +202,14 @@ class UserDetails {
           .set(updateData, SetOptions(merge: true));
       
       debugPrint('Updated user data in Firebase');
+      
+      // Notify UI of data changes
+      UserDataNotifier.instance.updateUserData(
+        firstName: newFirstName,
+        lastName: newLastName,
+        email: newEmail,
+        profilePicture: newProfilePicture,
+      );
       
       // Save to Hive for offline access
       await saveToHive();
@@ -179,6 +224,90 @@ class UserDetails {
 
   // Get current user ID
   static String? get currentUserId => _auth.currentUser?.uid;
+  
+  // Check if user data is properly loaded
+  static bool get hasUserData => firstName.isNotEmpty || lastName.isNotEmpty || email.isNotEmpty;
+  
+  // Verify Hive data integrity
+  static Future<bool> verifyHiveData() async {
+    try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        await Hive.openBox('rehabBox');
+      }
+      
+      final box = Hive.box('rehabBox');
+      final hiveUserDetails = box.get('userDetails');
+      
+      if (hiveUserDetails is HiveUserDetails) {
+        final hasValidData = hiveUserDetails.firstName.isNotEmpty || 
+                            hiveUserDetails.lastName.isNotEmpty || 
+                            hiveUserDetails.email.isNotEmpty;
+        debugPrint('UserDetails.verifyHiveData: Data integrity check - Valid: $hasValidData');
+        debugPrint('UserDetails.verifyHiveData: Stored data - firstName: "${hiveUserDetails.firstName}", lastName: "${hiveUserDetails.lastName}", email: "${hiveUserDetails.email}"');
+        return hasValidData;
+      }
+      
+      debugPrint('UserDetails.verifyHiveData: No user data found in Hive');
+      return false;
+    } catch (e) {
+      debugPrint('UserDetails.verifyHiveData: Error verifying Hive data: $e');
+      return false;
+    }
+  }
+  
+  // Test method to verify offline functionality
+  static Future<Map<String, dynamic>> testOfflineFunctionality() async {
+    try {
+      debugPrint('UserDetails.testOfflineFunctionality: Starting offline test...');
+      
+      // Save current data to Hive
+      await saveToHive();
+      debugPrint('UserDetails.testOfflineFunctionality: Data saved to Hive');
+      
+      // Clear current data
+      final originalFirstName = firstName;
+      final originalLastName = lastName;
+      final originalEmail = email;
+      firstName = '';
+      lastName = '';
+      email = '';
+      debugPrint('UserDetails.testOfflineFunctionality: Current data cleared');
+      
+      // Load from Hive
+      await loadFromHive();
+      debugPrint('UserDetails.testOfflineFunctionality: Data loaded from Hive');
+      
+      // Verify data was restored
+      final dataRestored = firstName == originalFirstName && 
+                          lastName == originalLastName && 
+                          email == originalEmail;
+      
+      debugPrint('UserDetails.testOfflineFunctionality: Data restoration test - Success: $dataRestored');
+      debugPrint('UserDetails.testOfflineFunctionality: Restored data - firstName: "$firstName", lastName: "$lastName", email: "$email"');
+      
+      return {
+        'success': dataRestored,
+        'originalData': {
+          'firstName': originalFirstName,
+          'lastName': originalLastName,
+          'email': originalEmail,
+        },
+        'restoredData': {
+          'firstName': firstName,
+          'lastName': lastName,
+          'email': email,
+        },
+        'message': dataRestored ? 'Offline functionality working correctly' : 'Offline functionality failed'
+      };
+    } catch (e) {
+      debugPrint('UserDetails.testOfflineFunctionality: Error during test: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+        'message': 'Offline functionality test failed'
+      };
+    }
+  }
 
   // Ensure all Firebase collections exist for the current user
   static Future<Map<String, dynamic>> ensureAllCollectionsExist() async {
@@ -238,6 +367,8 @@ class UserDetails {
     email = '';
     password = '';
     hasCompletedAssessment = false;
+    isGuest = false;
+    guestSessionId = null;
     notifications.clear();
     debugPrint('User data cleared');
   }
@@ -257,55 +388,120 @@ class UserDetails {
   // Hive persistence methods
   static Future<void> saveToHive() async {
     try {
+      // Check if Hive box is open
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('UserDetails.saveToHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
+      
       final box = Hive.box('rehabBox');
       final hiveUserDetails = HiveUserDetails(
         firstName: firstName,
         lastName: lastName,
         email: email,
         password: password,
-        notifications: notifications,
+        notifications: List<String>.from(notifications),
+        isGuest: isGuest,
+        guestSessionId: guestSessionId,
+        profilePicture: profilePicture,
       );
+      
       await box.put('userDetails', hiveUserDetails);
       // Persist assessment completion flag separately to avoid adapter changes
       await box.put('hasCompletedAssessment', hasCompletedAssessment);
-      debugPrint('Saved user details to Hive');
+      
+      debugPrint('UserDetails.saveToHive: Successfully saved - firstName: "$firstName", lastName: "$lastName", email: "$email", isGuest: $isGuest');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'User details updated');
     } catch (e) {
-      debugPrint('Error saving user details to Hive: $e');
+      debugPrint('UserDetails.saveToHive: Error saving to Hive: $e');
+      debugPrint('UserDetails.saveToHive: Error type: ${e.runtimeType}');
       rethrow;
     }
   }
 
   static Future<void> loadFromHive() async {
     try {
+      // Check if Hive box is open
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('UserDetails.loadFromHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
+      
       final box = Hive.box('rehabBox');
       final hiveUserDetails = box.get('userDetails');
+      
       if (hiveUserDetails is HiveUserDetails) {
         firstName = hiveUserDetails.firstName;
         lastName = hiveUserDetails.lastName;
         email = hiveUserDetails.email;
         password = hiveUserDetails.password;
-        notifications = hiveUserDetails.notifications;
+        notifications = List<String>.from(hiveUserDetails.notifications);
+        isGuest = hiveUserDetails.isGuest;
+        guestSessionId = hiveUserDetails.guestSessionId;
+        profilePicture = hiveUserDetails.profilePicture;
+        
         // Load assessment completion flag if present
         final storedHasCompleted = box.get('hasCompletedAssessment');
         if (storedHasCompleted is bool) {
           hasCompletedAssessment = storedHasCompleted;
         }
-        debugPrint('Loaded user details from Hive: $firstName $lastName ($email)');
+        
+        debugPrint('UserDetails.loadFromHive: Successfully loaded - firstName: "$firstName", lastName: "$lastName", email: "$email", isGuest: $isGuest');
+        
+        // Notify UI of data changes
+        UserDataNotifier.instance.updateUserData(
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          hasCompletedAssessment: hasCompletedAssessment,
+        );
       } else {
-        debugPrint('No user details found in Hive, attempting to load from Firebase');
+        debugPrint('UserDetails.loadFromHive: No user details found in Hive');
         // Try to load from Firebase if no local data exists
-        await loadFromFirebase();
+        try {
+          await loadFromFirebase();
+        } catch (firebaseError) {
+          debugPrint('UserDetails.loadFromHive: Firebase fallback failed: $firebaseError');
+          // Set default values if both Hive and Firebase fail
+          firstName = '';
+          lastName = '';
+          email = '';
+          password = '';
+          hasCompletedAssessment = false;
+          isGuest = false;
+          guestSessionId = null;
+          notifications = [];
+        }
       }
     } catch (e) {
-      debugPrint('Error loading user details from Hive: $e');
+      debugPrint('UserDetails.loadFromHive: Error loading from Hive: $e');
+      debugPrint('UserDetails.loadFromHive: Error type: ${e.runtimeType}');
+      
       // Fallback to Firebase if Hive fails
       try {
+        debugPrint('UserDetails.loadFromHive: Attempting Firebase fallback...');
         await loadFromFirebase();
       } catch (firebaseError) {
-        debugPrint('Error loading from Firebase fallback: $firebaseError');
+        debugPrint('UserDetails.loadFromHive: Firebase fallback failed: $firebaseError');
+        // Set default values if both Hive and Firebase fail
+        firstName = '';
+        lastName = '';
+        email = '';
+        password = '';
+        hasCompletedAssessment = false;
+        isGuest = false;
+        guestSessionId = null;
+        notifications = [];
+        
+        // Notify UI with empty data
+        UserDataNotifier.instance.updateUserData(
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          hasCompletedAssessment: hasCompletedAssessment,
+        );
       }
     }
   }

@@ -191,20 +191,30 @@ class _RegisterPageState extends State<RegisterPage> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          Text(
-                            'Join PocketPT',
-                            style: GoogleFonts.poppins(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
+                          Flexible(
+                            child: Text(
+                              'Join PocketPT',
+                              style: GoogleFonts.poppins(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            'Start Your Rehabilitation Journey',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 16,
-                              color: Colors.white.withOpacity(0.9),
+                          Flexible(
+                            child: Text(
+                              'Start Your Rehabilitation Journey',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 16,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -399,9 +409,33 @@ class _RegisterPageState extends State<RegisterPage> {
                                 children: [
                                   const Text("By checking this, you agree to the "),
                                   GestureDetector(
-                                    onTap: () => _showTermsDialog(context, 'Terms of Service', [
-                                      'The information provided above is intended for general informational purposes only...',
-                                    ]),
+                                    onTap: () => _showTermsDialog(
+                                      context,
+                                      'Terms of Service',
+                                      [
+                                        'Welcome to PocketPT, a user-centric rehabilitation application designed to assist individuals in managing muscle strains and injuries through treatment, rehabilitation, and strengthening.',
+                                        '1. Acceptance of Terms:',
+                                        'By using PocketPT, you agree to these Terms of Service and our Privacy Policy. If you do not agree, please discontinue use.',
+                                        '2. Eligibility:',
+                                        'Users must be at least 18 years old or have parental/guardian consent to use the app.',
+                                        '3. Purpose of the Application:',
+                                        'PocketPT is a research-based academic project for educational and self-management support only. It is not a substitute for professional medical advice. Always consult a healthcare provider for medical concerns.',
+                                        '4. User Responsibilities:',
+                                        '- Provide accurate and truthful information.',
+                                        '- Use the app only for personal, non-commercial purposes.',
+                                        '- Do not misuse, modify, or attempt unauthorized access.',
+                                        '5. Data Collection & Confidentiality:',
+                                        'Feedback and anonymized data may be collected strictly for research purposes and handled in accordance with the Privacy Policy and Data Privacy Act of 2012.',
+                                        '6. Intellectual Property:',
+                                        'All app content and features are the intellectual property of the developers and cannot be copied or redistributed without permission.',
+                                        '7. Limitation of Liability:',
+                                        'PocketPT is provided "as is." The developers are not liable for injuries, damages, or losses resulting from reliance on the app. Users assume full responsibility for their health decisions.',
+                                        '8. Termination:',
+                                        'We reserve the right to suspend or terminate access if these Terms are violated.',
+                                        '9. Changes to Terms:',
+                                        'Terms of Service may be updated periodically. Continued use of PocketPT after changes means acceptance of the new terms.'
+                                      ],
+                                    ),
                                     child: const Text(
                                       "Terms of Service",
                                       style: TextStyle(
@@ -413,9 +447,38 @@ class _RegisterPageState extends State<RegisterPage> {
                                   ),
                                   const Text(" and "),
                                   GestureDetector(
-                                    onTap: () => _showTermsDialog(context, 'Privacy Policy', [
-                                      'The developers are committed to upholding the highest standards...',
-                                    ]),
+                                    onTap: () => _showTermsDialog(
+                                      context,
+                                      'Privacy Policy',
+                                      [
+                                        'PocketPT values and protects your privacy. This Privacy Policy explains how we collect, use, store, and safeguard your personal information.',
+                                        '1. Information We Collect:',
+                                        '- Personal Information: Email address or contact details (if voluntarily provided).',
+                                        '- Usage Data: App interaction logs, survey responses, and anonymized feedback.',
+                                        '- Health-Related Inputs: Self-reported symptoms or injury details, used solely for rehabilitation guidance.',
+                                        '2. Purpose of Data Collection:',
+                                        '- To support academic research and system development.',
+                                        '- To provide rehabilitation guidance through the app.',
+                                        '- To improve user experience and app functionality.',
+                                        '3. Confidentiality and Data Protection:',
+                                        '- All data is treated as confidential and only used for research purposes.',
+                                        '- No data will be sold, shared, or disclosed to unauthorized parties.',
+                                        '- Security measures are implemented to prevent unauthorized access or breaches.',
+                                        '4. Compliance with Law:',
+                                        'PocketPT complies with the Data Privacy Act of 2012 (RA 10173) and applicable laws on data collection and protection.',
+                                        '5. Data Retention:',
+                                        'Data is retained only as long as necessary for research objectives and securely deleted afterward.',
+                                        '6. Your Rights as a User:',
+                                        '- Access the data you provided.',
+                                        '- Request corrections of inaccuracies.',
+                                        '- Request deletion of your data (subject to research requirements).',
+                                        '- Withdraw consent at any time.',
+                                        '7. Third-Party Services:',
+                                        'PocketPT does not share personal data with third parties unless explicitly required for academic purposes with consent.',
+                                        '8. Updates to Privacy Policy:',
+                                        'This Privacy Policy may be updated periodically. Users will be notified of significant changes.'
+                                      ],
+                                    ),
                                     child: const Text(
                                       "Privacy Policy",
                                       style: TextStyle(

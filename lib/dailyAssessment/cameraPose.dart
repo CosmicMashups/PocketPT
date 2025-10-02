@@ -545,6 +545,8 @@ class _CameraPosePageState extends State<CameraPosePage> {
                 fontSize: 18,
                 color: isDark ? Colors.white : const Color(0xFF1F2937),
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               "${_mode} (${_selectedSide})",
@@ -553,6 +555,8 @@ class _CameraPosePageState extends State<CameraPosePage> {
                 fontSize: 14,
                 color: isDark ? Colors.white70 : const Color(0xFF6B7280),
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

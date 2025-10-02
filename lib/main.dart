@@ -21,6 +21,9 @@ import 'data/data_sync_service.dart';
 import 'data/fast_loading_service.dart';
 import 'data/asset_loading_service.dart';
 import 'data/theme_controller.dart';
+import 'data/navigation_service.dart';
+import 'data/performance_optimization_service.dart';
+import 'data/user_data_notifier.dart';
 import 'welcome/login_page.dart';
 import 'dashboard/dashboard_page.dart';
 import 'assessment/preliminary.dart';
@@ -279,6 +282,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       debugPrint('App lifecycle: Saving data due to app pause/termination');
       
       if (!kIsWeb) {
+        // Save user details to Hive first (most critical)
+        await UserDetails.saveToHive();
+        debugPrint('App lifecycle: User details saved to Hive');
+        
         // Save all data to Hive (mobile/desktop only)
         await DataPersistenceService.instance.forceSave(reason: 'App pause/termination');
         
@@ -310,8 +317,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       await AuthPersistenceService.instance.forceAuthCheck();
       
       if (!kIsWeb) {
+        // Verify Hive data integrity first
+        final hasValidHiveData = await UserDetails.verifyHiveData();
+        debugPrint('App lifecycle: Hive data integrity check - Valid: $hasValidHiveData');
+        
         // Load data from Hive (mobile/desktop only)
         await DataPersistenceService.loadAllDataFromHive();
+        
+        // Re-initialize UserDataNotifier with loaded data
+        UserDataNotifier.instance.initialize();
       }
       
       // Sync data if authenticated
@@ -332,9 +346,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.instance.themeMode,
       builder: (context, mode, _) {
-        return MaterialApp(
-      navigatorKey: NavigationService.navigatorKey,
-      debugShowCheckedModeBanner: false,
+        return OptimizedPageWrapper(
+          pageKey: 'main_app',
+          enableLifecycleTracking: true,
+          onPageInit: () {
+            PerformanceOptimizationService().clearAll();
+          },
+          child: MaterialApp(
+            navigatorKey: NavigationService.navigatorKey,
+            debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: kBackgroundColor,
         primaryColor: kMainColor,
@@ -459,6 +479,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         },
       ),
 
+          ),
         );
       },
     );
@@ -469,7 +490,7 @@ class _LoadingScaffold extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _LoadingScaffold({super.key, required this.title, required this.subtitle});
+  const _LoadingScaffold({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -554,6 +575,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       if (kIsWeb) {
         // On web, skip FastLoadingService and use Firebase data directly
         debugPrint('AuthWrapper: Using Firebase data for assessment check on web');
+        // Load user data from Firebase
+        await UserDetails.loadFromFirebase();
       } else {
         // Wait for critical data to be loaded by FastLoadingService
         await FastLoadingService.instance.waitForCriticalData();
@@ -561,6 +584,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
         // Check assessment status from local data (already loaded by FastLoadingService)
         debugPrint('AuthWrapper: Using cached user data for assessment check');
       }
+      
+      // Initialize the user data notifier with current data
+      UserDataNotifier.instance.initialize();
       
       if (!mounted) return;
       setState(() {
@@ -638,58 +664,71 @@ class _HomePageState extends State<HomePage> {
 
       drawer: Drawer(
         backgroundColor: Colors.white,
-        child: Column(
-          children: [
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [kMainColor, kSubColor],
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                height: 200,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [kMainColor, kSubColor],
+                  ),
                 ),
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.medical_services,
-                      size: 48,
-                      color: Colors.white,
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'PocketPT',
-                      style: TextStyle(
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.medical_services,
+                        size: 48,
                         color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
                       ),
-                    ),
-                    Text(
-                      'Professional Rehabilitation',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
+                      SizedBox(height: 12),
+                      Text(
+                        'PocketPT',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
+                      Text(
+                        'Professional Rehabilitation',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Welcome to your personalized rehabilitation platform',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: kTextNormal,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Welcome to your personalized rehabilitation platform',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 16,
+                          color: kTextNormal,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      // Add navigation items here if needed
+                    ],
+                  ),
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
 

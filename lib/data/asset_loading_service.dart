@@ -40,7 +40,7 @@ class AssetLoadingService {
   
   /// Preload critical assets
   Future<void> _preloadCriticalAssets() async {
-    final context = NavigationService.navigatorKey.currentContext;
+    final context = AssetNavigationService.navigatorKey.currentContext;
     if (context == null) {
       debugPrint('AssetLoadingService: Skipping precache, no context yet');
       return;
@@ -109,6 +109,6 @@ class AssetLoadingService {
 }
 
 /// Navigation service for accessing context
-class NavigationService {
+class AssetNavigationService {
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 }

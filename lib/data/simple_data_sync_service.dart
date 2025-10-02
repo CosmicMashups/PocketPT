@@ -4,6 +4,7 @@ import 'globals.dart';
 import 'rehabilitation_plan.dart';
 import 'data_persistence_service.dart';
 import 'firebase_helper.dart';
+import 'guest_mode_service.dart';
 
 /// Simplified unified data sync service with clear fallbacks
 class SimpleDataSyncService {
@@ -41,6 +42,12 @@ class SimpleDataSyncService {
   Future<Map<String, dynamic>> syncUserData() async {
     try {
       print('SimpleDataSyncService: Starting user data sync...');
+      
+      // Check if in guest mode
+      if (UserDetails.isGuest) {
+        print('SimpleDataSyncService: Guest mode detected, using local storage only');
+        return await _syncGuestData();
+      }
       
       final user = _auth.currentUser;
       if (user == null) {
@@ -99,10 +106,32 @@ class SimpleDataSyncService {
     print('SimpleDataSyncService: Hive sync completed');
   }
   
+  /// Sync guest data (Hive only)
+  Future<Map<String, dynamic>> _syncGuestData() async {
+    try {
+      // Load all data from Hive for guest mode
+      await DataPersistenceService.loadAllDataFromHive();
+      
+      print('SimpleDataSyncService: Guest data sync completed');
+      return {'success': true, 'source': 'guest_hive', 'message': 'Guest mode - local storage only'};
+      
+    } catch (e) {
+      print('SimpleDataSyncService: Error syncing guest data: $e');
+      return {'success': false, 'error': e.toString()};
+    }
+  }
+  
   /// Clear all user data
   Future<void> clearUserData() async {
     try {
       print('SimpleDataSyncService: Clearing user data...');
+      
+      // Check if in guest mode
+      if (UserDetails.isGuest) {
+        print('SimpleDataSyncService: Clearing guest data...');
+        await GuestModeService.instance.clearGuestData();
+        return;
+      }
       
       // Clear from Hive
       final box = Hive.box('rehabBox');
@@ -111,6 +140,7 @@ class SimpleDataSyncService {
       // Clear rehabilitation data
       UserRehabilitation.instance.rehabPlans.clear();
       UserRehabilitation.instance.treatmentReferences = null;
+      UserRehabilitation.instance.activePlan = null;
       
       print('SimpleDataSyncService: User data cleared');
       
@@ -119,9 +149,9 @@ class SimpleDataSyncService {
     }
   }
   
-  /// Check if user is authenticated
-  bool get isAuthenticated => _auth.currentUser != null;
+  /// Check if user is authenticated or in guest mode
+  bool get isAuthenticated => _auth.currentUser != null || UserDetails.isGuest;
   
   /// Get current user ID
-  String? get currentUserId => _auth.currentUser?.uid;
+  String? get currentUserId => _auth.currentUser?.uid ?? UserDetails.guestSessionId;
 }

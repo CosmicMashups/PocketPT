@@ -352,13 +352,16 @@ class HiveUserDetailsAdapter extends TypeAdapter<HiveUserDetails> {
       email: fields[2] as String,
       password: fields[3] as String,
       notifications: (fields[4] as List).cast<String>(),
+      isGuest: fields[5] as bool,
+      guestSessionId: fields[6] as String?,
+      profilePicture: fields[7] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, HiveUserDetails obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.firstName)
       ..writeByte(1)
@@ -368,7 +371,13 @@ class HiveUserDetailsAdapter extends TypeAdapter<HiveUserDetails> {
       ..writeByte(3)
       ..write(obj.password)
       ..writeByte(4)
-      ..write(obj.notifications);
+      ..write(obj.notifications)
+      ..writeByte(5)
+      ..write(obj.isGuest)
+      ..writeByte(6)
+      ..write(obj.guestSessionId)
+      ..writeByte(7)
+      ..write(obj.profilePicture);
   }
 
   @override

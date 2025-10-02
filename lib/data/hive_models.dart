@@ -233,6 +233,12 @@ class HiveUserDetails extends HiveObject {
   String password;
   @HiveField(4)
   List<String> notifications;
+  @HiveField(5)
+  bool isGuest;
+  @HiveField(6)
+  String? guestSessionId;
+  @HiveField(7)
+  String profilePicture;
 
   HiveUserDetails({
     required this.firstName,
@@ -240,6 +246,9 @@ class HiveUserDetails extends HiveObject {
     required this.email,
     required this.password,
     required this.notifications,
+    this.isGuest = false,
+    this.guestSessionId,
+    required this.profilePicture,
   });
 }
 
