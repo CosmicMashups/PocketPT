@@ -523,8 +523,14 @@ class UserRehabilitation {
         await box.put('exerciseIds', hiveExerciseIds);
         print('Saved ${exerciseIds.length} exercise IDs to Hive');
       } else {
-        await box.delete('exerciseIds');
-        print('Cleared exercise IDs from Hive');
+        // Only clear stored IDs if we explicitly have plans loaded (even if empty).
+        // If rehabPlans is empty, we assume data might not be loaded yet and preserve existing Hive data.
+        if (rehabPlans.isNotEmpty) {
+          await box.delete('exerciseIds');
+          print('Cleared exercise IDs from Hive (explicit empty plan)');
+        } else {
+          print('Exercise IDs empty but no plans loaded; preserving existing Hive exercise IDs');
+        }
       }
 
       // Save treatment IDs to Hive
@@ -534,8 +540,13 @@ class UserRehabilitation {
         await box.put('treatmentIds', hiveTreatmentIds);
         print('Saved ${treatmentIds.length} treatment IDs to Hive');
       } else {
-        await box.delete('treatmentIds');
-        print('Cleared treatment IDs from Hive');
+        // Only clear when treatmentReferences is explicitly set (including explicitly empty list)
+        if (treatmentReferences != null) {
+          await box.delete('treatmentIds');
+          print('Cleared treatment IDs from Hive (explicit empty treatment list)');
+        } else {
+          print('Treatment references null (not loaded); preserving existing Hive treatment IDs');
+        }
       }
       
       print('Successfully saved rehabilitation data to Hive');

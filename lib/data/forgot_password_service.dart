@@ -46,29 +46,21 @@ class ForgotPasswordService {
         return ForgotPasswordResult.error('Please enter a valid email address');
       }
       
-      // Check if user exists in Firebase Auth
-      final signInMethods = await _auth.fetchSignInMethodsForEmail(email.trim()).timeout(_timeout);
+      // Normalize email (lowercase) to avoid case-sensitivity issues
+      final String normalizedEmail = email.trim().toLowerCase();
+      
+      // Check sign-in methods via Auth (do not disclose existence)
+      final signInMethods = await _auth.fetchSignInMethodsForEmail(normalizedEmail).timeout(_timeout);
       
       if (signInMethods.isEmpty) {
-        return ForgotPasswordResult.error('No account found with this email address');
+        print('ForgotPasswordService: No sign-in methods found; returning generic success.');
+        return ForgotPasswordResult.codeSent(normalizedEmail);
       }
       
-      // Check if user exists in Firestore users collection
-      final userQuery = await _firestore
-          .collection('users')
-          .where('email', isEqualTo: email.trim())
-          .limit(1)
-          .get()
-          .timeout(_timeout);
-      
-      if (userQuery.docs.isEmpty) {
-        return ForgotPasswordResult.error('No account found with this email address');
-      }
-      
-      print('ForgotPasswordService: Email exists, generating verification code...');
+      print('ForgotPasswordService: Email recognized by Auth, generating verification code...');
       
       // Generate and send verification code
-      return await _generateAndSendVerificationCode(email.trim());
+      return await _generateAndSendVerificationCode(normalizedEmail);
       
     } on FirebaseAuthException catch (e) {
       return ForgotPasswordResult.error(_getAuthErrorMessage(e));
@@ -146,10 +138,12 @@ class ForgotPasswordService {
         return ForgotPasswordResult.error('No internet connection. Please check your network and try again.');
       }
       
+      final String normalizedEmail = email.trim().toLowerCase();
+      
       // Get stored verification code
       final doc = await _firestore
           .collection('password_reset_codes')
-          .doc(email.trim())
+          .doc(normalizedEmail)
           .get()
           .timeout(_timeout);
       
@@ -165,7 +159,7 @@ class ForgotPasswordService {
       // Check if code is expired
       if (DateTime.now().isAfter(expiresAt)) {
         // Clean up expired code
-        await _cleanupVerificationCode(email.trim());
+        await _cleanupVerificationCode(normalizedEmail);
         return ForgotPasswordResult.error('Verification code has expired. Please request a new code.');
       }
       
@@ -182,12 +176,12 @@ class ForgotPasswordService {
       // Mark code as used
       await _firestore
           .collection('password_reset_codes')
-          .doc(email.trim())
+          .doc(normalizedEmail)
           .update({'used': true})
           .timeout(_timeout);
       
       print('ForgotPasswordService: Code verified successfully');
-      return ForgotPasswordResult.codeVerified(email.trim());
+      return ForgotPasswordResult.codeVerified(normalizedEmail);
       
     } catch (e) {
       if (e.toString().contains('timeout')) {
@@ -212,29 +206,18 @@ class ForgotPasswordService {
       if (!passwordValidation['valid']) {
         return ForgotPasswordResult.error(passwordValidation['error']);
       }
-      
-      // Get the user by email
-      final userQuery = await _firestore
-          .collection('users')
-          .where('email', isEqualTo: email.trim())
-          .limit(1)
-          .get()
-          .timeout(_timeout);
-      
-      if (userQuery.docs.isEmpty) {
-        return ForgotPasswordResult.error('User not found. Please try again.');
-      }
+      final String normalizedEmail = email.trim().toLowerCase();
       
       // Update password in Firebase Auth
       // Note: This requires the user to be signed in or using admin SDK
       // For security, we'll use Firebase Auth's sendPasswordResetEmail instead
-      await _auth.sendPasswordResetEmail(email: email.trim()).timeout(_timeout);
+      await _auth.sendPasswordResetEmail(email: normalizedEmail).timeout(_timeout);
       
       // Clean up verification code
-      await _cleanupVerificationCode(email.trim());
+      await _cleanupVerificationCode(normalizedEmail);
       
       print('ForgotPasswordService: Password reset email sent successfully');
-      return ForgotPasswordResult.passwordResetSent(email.trim());
+      return ForgotPasswordResult.passwordResetSent(normalizedEmail);
       
     } on FirebaseAuthException catch (e) {
       return ForgotPasswordResult.error(_getPasswordResetErrorMessage(e));
@@ -262,10 +245,12 @@ class ForgotPasswordService {
         return ForgotPasswordResult.error(passwordValidation['error']);
       }
       
+      final String normalizedEmail = email.trim().toLowerCase();
+      
       // Verify that the code was used (additional security check)
       final doc = await _firestore
           .collection('password_reset_codes')
-          .doc(email.trim())
+          .doc(normalizedEmail)
           .get()
           .timeout(_timeout);
       
@@ -275,13 +260,13 @@ class ForgotPasswordService {
       
       // For security, we'll send a password reset email instead of directly changing password
       // This ensures the user has control over their account
-      await _auth.sendPasswordResetEmail(email: email.trim()).timeout(_timeout);
+      await _auth.sendPasswordResetEmail(email: normalizedEmail).timeout(_timeout);
       
       // Clean up verification code
-      await _cleanupVerificationCode(email.trim());
+      await _cleanupVerificationCode(normalizedEmail);
       
       print('ForgotPasswordService: Password reset email sent successfully');
-      return ForgotPasswordResult.passwordResetSent(email.trim());
+      return ForgotPasswordResult.passwordResetSent(normalizedEmail);
       
     } on FirebaseAuthException catch (e) {
       return ForgotPasswordResult.error(_getPasswordResetErrorMessage(e));

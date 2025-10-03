@@ -72,6 +72,9 @@ dependencies:
   hive_flutter: ^1.1.0
   hive: ^2.2.3
 
+  # Local notifications
+  flutter_local_notifications: ^17.2.1
+
   # For pytorch
   flutter_pytorch_lite: ^0.1.0+3
 
@@ -80,6 +83,24 @@ flutter_icons:
   android: true
   ios: true
   image_path: "assets/images/logo/pocketpt.png"
+
+# Flutter Native Splash Configuration
+flutter_native_splash:
+  android: true
+  ios: true
+  web: true
+  
+  background_image: "assets/images/logo/bg.png"
+  image: "assets/images/logo/pocketpt.png"
+  color: "#8B2E2E"
+  
+  branding: "assets/images/logo/branding.png"
+  branding_mode: "bottom"
+
+  android_12:
+    color: "#8B2E2E"
+    image: "assets/images/logo/pocketpt.png"
+    branding: "assets/images/logo/branding.png"
 
 dev_dependencies:
   flutter_test:

@@ -41,10 +41,12 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _handleEmailSignIn() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     try {
       // Use optimized data service for login with caching
@@ -66,30 +68,38 @@ class _LoginPageState extends State<LoginPage> {
       } else if (result?.requiresEmailVerification == true) {
         _showEmailVerificationPage(result!.email!);
       } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = result?.error ?? 'Login failed. Please try again.';
+            _isLoading = false;
+          });
+        }
+      }
+    } on TimeoutException {
+      if (mounted) {
         setState(() {
-          _errorMessage = result?.error ?? 'Login failed. Please try again.';
+          _errorMessage = 'Connection timed out. Please check your internet and try again.';
           _isLoading = false;
         });
       }
-    } on TimeoutException {
-      setState(() {
-        _errorMessage = 'Connection timed out. Please check your internet and try again.';
-        _isLoading = false;
-      });
     } catch (e) {
-      setState(() {
-        _errorMessage = 'An unexpected error occurred. Please try again.';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'An unexpected error occurred. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
   /// Handle Google sign in
   Future<void> _handleGoogleSignIn() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     try {
       // Use optimized data service for Google sign-in
@@ -106,33 +116,43 @@ class _LoginPageState extends State<LoginPage> {
         );
         _navigateToHome();
       } else if (result?.cancelled == true) {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = result?.error ?? 'Google sign in failed. Please try again.';
+            _isLoading = false;
+          });
+        }
+      }
+    } on TimeoutException {
+      if (mounted) {
         setState(() {
-          _errorMessage = result?.error ?? 'Google sign in failed. Please try again.';
+          _errorMessage = 'Connection timed out. Please check your internet and try again.';
           _isLoading = false;
         });
       }
-    } on TimeoutException {
-      setState(() {
-        _errorMessage = 'Connection timed out. Please check your internet and try again.';
-        _isLoading = false;
-      });
     } catch (e) {
-      setState(() {
-        _errorMessage = 'An unexpected error occurred. Please try again.';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'An unexpected error occurred. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 
   /// Show email verification page
   void _showEmailVerificationPage(String email) {
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
 
     Navigator.push(
           context,
@@ -175,10 +195,12 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Handle guest mode login
   Future<void> _handleGuestMode() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    }
 
     try {
       // Initialize guest mode service
@@ -190,21 +212,27 @@ class _LoginPageState extends State<LoginPage> {
       if (result['success']) {
         _navigateToHome();
       } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = result['error'] ?? 'Failed to start guest session';
+            _isLoading = false;
+          });
+        }
+      }
+    } on TimeoutException {
+      if (mounted) {
         setState(() {
-          _errorMessage = result['error'] ?? 'Failed to start guest session';
+          _errorMessage = 'Connection timed out. Please try again.';
           _isLoading = false;
         });
       }
-    } on TimeoutException {
-      setState(() {
-        _errorMessage = 'Connection timed out. Please try again.';
-        _isLoading = false;
-      });
     } catch (e) {
-      setState(() {
-        _errorMessage = 'An unexpected error occurred. Please try again.';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'An unexpected error occurred. Please try again.';
+          _isLoading = false;
+        });
+      }
     }
   }
 

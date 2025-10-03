@@ -351,18 +351,14 @@ class _AssessLowerBodyState extends State<AssessLowerBody> {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              // Icon
+              // Image icon
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isSelected ? color : color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? Colors.white : color,
-                  size: 24,
-                ),
+                child: _buildMuscleImage(title, isSelected ? Colors.white : color),
               ),
               const SizedBox(width: 16),
               // Content
@@ -407,6 +403,25 @@ class _AssessLowerBodyState extends State<AssessLowerBody> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMuscleImage(String title, Color fallbackTint) {
+    final Map<String, String> titleToAsset = {
+      'Quadriceps': 'assets/images/muscle/quadriceps.png',
+      'Hamstrings': 'assets/images/muscle/hamstrings.png',
+      'Calf': 'assets/images/muscle/ankle.png',
+      'Ankle': 'assets/images/muscle/ankle.png',
+      'Gluteals': 'assets/images/muscle/glutes.png',
+    };
+    final path = titleToAsset[title];
+    if (path == null) {
+      return Icon(Icons.image_not_supported, color: fallbackTint, size: 24);
+    }
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: Image.asset(path, fit: BoxFit.contain),
     );
   }
 }

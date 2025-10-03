@@ -47,7 +47,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (result.success) {
         setState(() {
           _isLoading = false;
-          _successMessage = 'Verification code sent to your email';
+          _successMessage = 'If an account exists for this email, you\'ll receive a verification code shortly.';
         });
         
         // Navigate to verification code page
@@ -115,7 +115,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       ),
       body: LoadingOverlay(
         isLoading: _isLoading,
-        message: _isLoading ? 'Sending verification code...' : null,
+        message: _isLoading ? 'Processing your request...' : null,
         child: SingleChildScrollView(
           child: Column(
             children: [

@@ -157,6 +157,8 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     setState(() {
       UserProgress.notes = _notesController.text;
     });
+    // Persist notes immediately to avoid cross-data loss from batched auto-saves
+    UserProgress.saveToHive();
   }
 
   Future<void> _updateRehabilitationPlan() async {

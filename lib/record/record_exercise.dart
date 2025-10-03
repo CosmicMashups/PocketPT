@@ -33,7 +33,12 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
     try {
       cameras = await availableCameras();
       if (cameras.isNotEmpty) {
-        _controller = CameraController(cameras[0], ResolutionPreset.high);
+        // Use lower resolution and disable audio to reduce load on low-end devices
+        _controller = CameraController(
+          cameras[0],
+          ResolutionPreset.medium,
+          enableAudio: false,
+        );
         await _controller.initialize();
         if (mounted) {
           setState(() {

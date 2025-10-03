@@ -16,6 +16,10 @@ class PoseDetectionService {
     ),
   );
 
+  // State from last processed frame to support coordinate normalization
+  Size? _lastImageSize;
+  bool _isFrontCamera = false;
+
   // Detect poses from a camera image
   Future<List<Pose>> detectFromCameraImage({
     required CameraImage image,
@@ -45,6 +49,10 @@ class PoseDetectionService {
         bytesPerRow: image.planes.first.bytesPerRow,
       );
 
+      // Persist context for downstream landmark normalization
+      _lastImageSize = imageSize;
+      _isFrontCamera = camera.lensDirection == CameraLensDirection.front;
+
       final inputImage = InputImage.fromBytes(bytes: bytes, metadata: inputImageData);
       final poses = await _poseDetector.processImage(inputImage);
       return poses;
@@ -67,10 +75,23 @@ class PoseDetectionService {
   // Get pose landmarks as a map
   Map<String, Offset> getPoseLandmarks(Pose pose) {
     final landmarks = <String, Offset>{};
+    final Size? imgSize = _lastImageSize;
+    // Helper to normalize and mirror if needed
+    Offset _toNormalized(Offset p) {
+      if (imgSize == null || imgSize.width == 0 || imgSize.height == 0) {
+        return p; // Fallback: raw coordinates
+      }
+      double nx = p.dx / imgSize.width;
+      double ny = p.dy / imgSize.height;
+      if (_isFrontCamera) {
+        nx = 1.0 - nx; // Mirror horizontally for front camera preview
+      }
+      return Offset(nx, ny);
+    }
     for (final entry in pose.landmarks.entries) {
       final type = entry.key;
       final lm = entry.value;
-      final point = Offset(lm.x, lm.y);
+      final point = _toNormalized(Offset(lm.x, lm.y));
       switch (type) {
         case PoseLandmarkType.nose:
           landmarks['nose'] = point; break;
@@ -106,6 +127,10 @@ class PoseDetectionService {
           landmarks['leftHeel'] = point; break;
         case PoseLandmarkType.rightHeel:
           landmarks['rightHeel'] = point; break;
+        case PoseLandmarkType.leftFootIndex:
+          landmarks['leftFootIndex'] = point; break;
+        case PoseLandmarkType.rightFootIndex:
+          landmarks['rightFootIndex'] = point; break;
         case PoseLandmarkType.leftEar:
           landmarks['leftEar'] = point; break;
         case PoseLandmarkType.rightEar:

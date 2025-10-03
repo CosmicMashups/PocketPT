@@ -10,6 +10,7 @@ import '../dailyAssessment/instructionVideo.dart';
 import '../dailyAssessment/cameraPose.dart';
 import '../assessment/generate_plan.dart';
 import '../data/user_data_notifier.dart';
+import '../data/local_notifications_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -31,11 +32,14 @@ class NotificationItem {
   });
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
   List<String> notifications = UserDetails.notifications;
 
   // Derived notifications store (computed fresh on each open)
   List<NotificationItem> _computedNotifications = [];
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -82,13 +86,21 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
+          scrollable: true,
           backgroundColor: const Color(0xFFF1F1F1),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               const Icon(Icons.notifications, color: Color(0xFF557A95)),
               const SizedBox(width: 8),
-              Text('Notifications', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+              Expanded(
+                child: Text(
+                  'Notifications',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
+                ),
+              ),
             ],
           ),
           content: (_computedNotifications.isEmpty && notifications.isEmpty)
@@ -224,6 +236,35 @@ class _DashboardPageState extends State<DashboardPage> {
     setState(() {
       _computedNotifications = dynamicNotes;
     });
+
+    // Also show device notifications for actionable reminders (deduped per day)
+    for (final note in dynamicNotes) {
+      if (!note.isClickable) continue;
+      // Map a stable small id per action type
+      final int id;
+      switch (note.actionType) {
+        case 'daily_assessment':
+          id = 1001;
+          break;
+        case 'start_exercise':
+          id = 1002;
+          break;
+        case 'resume_exercise':
+          id = 1003;
+          break;
+        case 'regenerate_plan':
+          id = 1004;
+          break;
+        default:
+          id = 1999;
+      }
+      LocalNotificationsService.instance.showUniqueDailyNotification(
+        id: id,
+        title: 'PocketPT',
+        body: note.text,
+        actionType: note.actionType,
+      );
+    }
   }
 
   bool _isTimePassed(TimeOfDay target, TimeOfDay now) {
@@ -316,19 +357,28 @@ class _DashboardPageState extends State<DashboardPage> {
       barrierDismissible: false,
       builder: (ctx) {
         return AlertDialog(
+          scrollable: true,
           backgroundColor: Theme.of(ctx).colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               const Icon(Icons.assignment, color: Color(0xFF800020)),
               const SizedBox(width: 8),
-              Text('Daily Re-Assessment Required', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+              Expanded(
+                child: Text(
+                  'Daily Re-Assessment Required',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
+                ),
+              ),
             ],
           ),
           content: SingleChildScrollView(
             child: Text(
               'Please complete today\'s quick pain re-assessment.',
               style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+              softWrap: true,
             ),
           ),
           actions: [
@@ -385,18 +435,27 @@ class _DashboardPageState extends State<DashboardPage> {
       barrierDismissible: false,
       builder: (ctx) {
         return AlertDialog(
+          scrollable: true,
           backgroundColor: Theme.of(ctx).colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               const Icon(Icons.autorenew, color: Color(0xFF800020)),
               const SizedBox(width: 8),
-              Text('Regenerate Plan?', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+              Expanded(
+                child: Text(
+                  'Regenerate Plan?',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
+                ),
+              ),
             ],
           ),
           content: Text(
             'Your pain level has been unchanged for 7 days. Would you like to regenerate a new rehabilitation plan and treatments?',
             style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+            softWrap: true,
           ),
           actions: [
             ElevatedButton(
@@ -437,19 +496,28 @@ class _DashboardPageState extends State<DashboardPage> {
         barrierDismissible: false,
         builder: (ctx) {
           return AlertDialog(
+            scrollable: true,
             backgroundColor: Theme.of(ctx).colorScheme.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 const Icon(Icons.assignment, color: Color(0xFF800020)),
                 const SizedBox(width: 8),
-                Text('Daily Re-Assessment Required', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+                Expanded(
+                  child: Text(
+                    'Daily Re-Assessment Required',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                  ),
+                ),
               ],
             ),
             content: SingleChildScrollView(
               child: Text(
                 'Please complete today\'s quick pain re-assessment.',
                 style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+                softWrap: true,
               ),
             ),
             actions: [
@@ -493,18 +561,27 @@ class _DashboardPageState extends State<DashboardPage> {
         barrierDismissible: false,
         builder: (ctx) {
           return AlertDialog(
+            scrollable: true,
             backgroundColor: Theme.of(ctx).colorScheme.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 const Icon(Icons.health_and_safety, color: Color(0xFF800020)),
                 const SizedBox(width: 8),
-                Text('Daily Pain Check', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+                Expanded(
+                  child: Text(
+                    'Daily Pain Check',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                  ),
+                ),
               ],
             ),
             content: Text(
               'Your pain level seems different today. Would you like to retake the quick pain assessment now?',
               style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+              softWrap: true,
             ),
             actions: [
               TextButton(
@@ -551,18 +628,27 @@ class _DashboardPageState extends State<DashboardPage> {
         barrierDismissible: false, // Make it persistent
         builder: (ctx) {
           return AlertDialog(
+            scrollable: true,
             backgroundColor: Theme.of(ctx).colorScheme.surface,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 const Icon(Icons.autorenew, color: Color(0xFF800020)),
                 const SizedBox(width: 8),
-                Text('Regenerate Plan?', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+                Expanded(
+                  child: Text(
+                    'Regenerate Plan?',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                  ),
+                ),
               ],
             ),
             content: Text(
               'Your pain level has been unchanged for 7 days. Would you like to regenerate a new rehabilitation plan and treatments?',
               style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+              softWrap: true,
             ),
             actions: [
               ElevatedButton(
@@ -730,6 +816,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentExercise = ExerciseHistory.getCurrentExercise();
     double progress = ExerciseHistory.calculateTodaysProgressPercentage();

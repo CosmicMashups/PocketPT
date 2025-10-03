@@ -124,6 +124,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         cameras[_selectedCameraIndex],  // Use the selected camera
         ResolutionPreset.high,  // Set the camera resolution
         enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
       );
 
       await _controller.initialize();  // Initialize the camera
@@ -261,6 +262,71 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     } catch (e) {
       debugPrint('Error starting image stream: $e');
       _isStreaming = false;
+      // Retry once after a short delay to handle devices that fail on first attempt
+      if (mounted && _controller.value.isInitialized) {
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (!_isStreaming) {
+          try {
+            await _controller.startImageStream((CameraImage image) async {
+              if (_processingFrame) return;
+              if (_throttleTimer != null && _throttleTimer!.isActive) return;
+              _throttleTimer = Timer(const Duration(milliseconds: 150), () {});
+              final int nowMs = DateTime.now().millisecondsSinceEpoch;
+              _lastProcessedTime ??= nowMs;
+              if (nowMs - _lastProcessedTime! < 120) {
+                return;
+              }
+              _lastProcessedTime = nowMs;
+
+              _processingFrame = true;
+              try {
+                final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
+                if (poses.isNotEmpty) {
+                  final landmarks = _poseService.getPoseLandmarks(poses.first);
+                  if (landmarks.isEmpty) return;
+                  if (_showSkeleton) {
+                    _currentLandmarks = landmarks;
+                    if (mounted) setState(() {});
+                  }
+                  if (_mode == 'Triceps' || _mode == 'Shoulders') {
+                    try {
+                      final assessment = _poseService.performComprehensiveROMAssessment(landmarks);
+                      if (mounted && assessment.isNotEmpty) {
+                        setState(() {
+                          _romResults = assessment;
+                          _compensations = assessment['compensations'];
+                          _overallPainScore = assessment['overallPainScore'] ?? 0;
+                          _updateCurrentROMDisplay();
+                          UserAssess.painScale = _overallPainScore;
+                          UserAssess.painLevel = _overallPainScore.toString();
+                          if (assessment.containsKey('painDescription')) {
+                            UserAssess.painLevel = assessment['painDescription'];
+                          }
+                          PainHistory.recordTodayAndSave(
+                            painScale: UserAssess.painScale,
+                            painLevel: UserAssess.painLevel,
+                          );
+                        });
+                      }
+                    } catch (_) {}
+                  } else if (_mode == 'Calf') {
+                    _analyzeCalfDorsiflexion(landmarks);
+                    if (mounted) setState(() {});
+                  } else if (_mode == 'Hamstrings') {
+                    _analyzeHamstringROM(landmarks);
+                    if (mounted) setState(() {});
+                  }
+                }
+              } finally {
+                _processingFrame = false;
+              }
+            });
+            _isStreaming = true;
+          } catch (e2) {
+            debugPrint('Retry startImageStream failed: $e2');
+          }
+        }
+      }
     }
   }
 

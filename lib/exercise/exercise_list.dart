@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'exercise_detail.dart';
+import '../data/widget_cache_service.dart';
+import '../data/performance_optimization_service.dart';
 
 class Exercise {
   final String id;
@@ -136,12 +138,18 @@ class _ExercisesPageState extends State<ExercisesPage> {
 
           List<Exercise> exercises = snapshot.data!;
 
-          return ListView.builder(
+          return CachedListView(
+            cacheKey: 'exercise_list',
             itemCount: exercises.length,
+            padding: EdgeInsets.zero,
             itemBuilder: (context, index) {
-              return ExerciseCard(
-                exercise: exercises[index],
-                isSelecting: widget.selectingForAddition || widget.selectingForReplacement,
+              final item = exercises[index];
+              return KeyedSubtree(
+                key: ValueKey('exercise_${item.id}_$index'),
+                child: ExerciseCard(
+                  exercise: item,
+                  isSelecting: widget.selectingForAddition || widget.selectingForReplacement,
+                ),
               );
             },
           );
@@ -200,14 +208,18 @@ class _ExerciseCardContent extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  imagePath,
+                child: SizedBox(
                   width: 80,
                   height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.error, color: Colors.red);
-                  },
+                  child: PerformanceOptimizationService().buildOptimizedImage(
+                    imagePath: imagePath,
+                    imageKey: 'exercise_thumb_${exercise.id}',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    placeholder: Container(color: Colors.grey[300]),
+                    errorWidget: const Icon(Icons.error, color: Colors.red),
+                  ),
                 ),
               ),
               title: Text(

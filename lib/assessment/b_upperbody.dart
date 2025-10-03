@@ -372,18 +372,14 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              // Icon
+              // Image icon
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isSelected ? color : color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? Colors.white : color,
-                  size: 24,
-                ),
+                child: _buildMuscleImage(title, isSelected ? Colors.white : color),
               ),
               const SizedBox(width: 16),
               // Content
@@ -428,6 +424,28 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMuscleImage(String title, Color fallbackTint) {
+    final Map<String, String> titleToAsset = {
+      'Deltoids': 'assets/images/muscle/deltoids.png',
+      'Rotator Cuff Muscles': 'assets/images/muscle/rotator_cuff.png',
+      'Biceps': 'assets/images/muscle/biceps.png',
+      'Triceps': 'assets/images/muscle/triceps.png',
+      'Forearm Muscles': 'assets/images/muscle/forearm_muscles.png',
+      'Hand Muscles': 'assets/images/muscle/hand_muscles.png',
+      'Wrist Flexors/Extensors': 'assets/images/muscle/wrist_flexors_extensors.png',
+      'Chest': 'assets/images/muscle/chest.png',
+    };
+    final path = titleToAsset[title];
+    if (path == null) {
+      return Icon(Icons.image_not_supported, color: fallbackTint, size: 24);
+    }
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: Image.asset(path, fit: BoxFit.contain),
     );
   }
 }

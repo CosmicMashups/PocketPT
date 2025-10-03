@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/painting.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
@@ -24,6 +27,7 @@ import 'data/theme_controller.dart';
 import 'data/navigation_service.dart';
 import 'data/performance_optimization_service.dart';
 import 'data/user_data_notifier.dart';
+import 'data/local_notifications_service.dart';
 import 'welcome/login_page.dart';
 import 'dashboard/dashboard_page.dart';
 import 'assessment/preliminary.dart';
@@ -117,6 +121,8 @@ void main() async {
           FastLoadingService.instance.initialize(),
           AssetLoadingService.instance.initialize(),
         ]);
+        // Initialize local notifications (after Hive so we can use its box)
+        await LocalNotificationsService.instance.initialize();
       }
     } catch (e) {
       debugPrint('Main: Service initialization problem: $e');
@@ -248,6 +254,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Tune global image cache for low-end devices
+    try {
+      PaintingBinding.instance.imageCache.maximumSize = 200; // max number of images
+      PaintingBinding.instance.imageCache.maximumSizeBytes = 50 << 20; // ~50MB
+    } catch (_) {}
+
+    // Lightweight frame timing monitor for profiling jank during thesis measurements
+    try {
+      const int budgetMs = 16; // 60 FPS frame budget
+      SchedulerBinding.instance.addTimingsCallback((List<FrameTiming> timings) {
+        for (final t in timings) {
+          final totalMs = t.totalSpan.inMilliseconds;
+          if (totalMs > budgetMs * 2) { // flag frames > 32ms
+            debugPrint('Perf: Slow frame ${totalMs}ms (build:${t.buildDuration.inMilliseconds}ms, raster:${t.rasterDuration.inMilliseconds}ms)');
+          }
+        }
+      });
+    } catch (_) {}
   }
 
   @override
@@ -355,6 +379,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           child: MaterialApp(
             navigatorKey: NavigationService.navigatorKey,
             debugShowCheckedModeBanner: false,
+            scrollBehavior: const AppScrollBehavior(),
       theme: ThemeData(
         scaffoldBackgroundColor: kBackgroundColor,
         primaryColor: kMainColor,
@@ -483,6 +508,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         );
       },
     );
+  }
+}
+
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.trackpad,
+      };
+
+  @override
+  Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) {
+    // Remove default glow to avoid extra layer work
+    return child;
   }
 }
 

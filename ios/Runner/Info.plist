@@ -47,18 +47,18 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
-	<key>UIStatusBarHidden</key>
-	<false/>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>REVERSED_CLIENT_ID</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.679886971863-85d1ahqil53vbn97mfe52i69if2ofv61</string>
-			</array>
-		</dict>
-	</array>
-</dict>
+		<key>UIStatusBarHidden</key>
+		<false/>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>REVERSED_CLIENT_ID</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.679886971863-85d1ahqil53vbn97mfe52i69if2ofv61</string>
+				</array>
+			</dict>
+		</array>
+	</dict>
 </plist>
