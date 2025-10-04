@@ -31,7 +31,9 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
+# Ignore build directories except for web build
 /build/
+!/build/web/
 
 # Symbolication related
 app.*.symbols
