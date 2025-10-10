@@ -1,18 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
-import '../providers/report_providers.dart';
 import '../../data/globals.dart';
 import '../../data/rehabilitation_plan.dart';
+import '../../data/user_data_notifier.dart';
 
-class ExportPDFButton extends ConsumerWidget {
+class ExportPDFButton extends StatefulWidget {
   const ExportPDFButton({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  State<ExportPDFButton> createState() => _ExportPDFButtonState();
+}
+
+class _ExportPDFButtonState extends State<ExportPDFButton> {
+  @override
+  void initState() {
+    super.initState();
+    // Listen for rehabilitation plan changes
+    UserDataNotifier.instance.addListener(_onRehabilitationPlanChanged);
+  }
+  
+  @override
+  void dispose() {
+    UserDataNotifier.instance.removeListener(_onRehabilitationPlanChanged);
+    super.dispose();
+  }
+  
+  void _onRehabilitationPlanChanged() {
+    if (mounted) {
+      setState(() {
+        // Trigger rebuild when rehabilitation plans change
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -69,7 +94,7 @@ class ExportPDFButton extends ConsumerWidget {
                       ),
                       elevation: 3,
                     ),
-                    onPressed: () => _generateAndExportPDF(context, ref),
+                    onPressed: () => _generateAndExportPDF(context),
                   ),
                 ),
               ],
@@ -133,8 +158,11 @@ class ExportPDFButton extends ConsumerWidget {
     );
   }
 
-  Future<void> _generateAndExportPDF(BuildContext context, WidgetRef ref) async {
-    final rehabPlans = ref.read(rehabPlansProvider);
+  Future<void> _generateAndExportPDF(BuildContext context) async {
+    // Use the most up-to-date rehabilitation plans from UserDataNotifier
+    final rehabPlans = UserDataNotifier.instance.rehabPlans.isNotEmpty 
+        ? UserDataNotifier.instance.rehabPlans 
+        : UserRehabilitation.instance.rehabPlans;
     final pdf = pw.Document();
 
     // Load data from globals
@@ -243,7 +271,7 @@ class ExportPDFButton extends ConsumerWidget {
     );
   }
 
-  pw.Widget _buildRehabPlansSection(List<RehabPlan> plans) {
+  pw.Widget _buildRehabPlansSection(List<RehabilitationPlan> plans) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -269,21 +297,21 @@ class ExportPDFButton extends ConsumerWidget {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  plan.title,
+                  'Week ${plan.weekNumber} Plan',
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
                   ),
                 ),
                 pw.SizedBox(height: 6),
-                _buildDetailRow('ICD-10 Code:', plan.icdCode),
-                _buildDetailRow('Status:', plan.status),
+                _buildDetailRow('Week Number:', plan.weekNumber.toString()),
+                _buildDetailRow('Status:', plan.isActive ? 'Active' : 'Inactive'),
                 _buildDetailRow(
-                  'Start Date:', 
-                  DateFormat('MMMM d, yyyy').format(plan.startDate),
+                  'Created Date:', 
+                  DateFormat('MMMM d, yyyy').format(plan.createdAt),
                 ),
-                _buildDetailRow('Focus Area:', plan.focusArea),
-                _buildDetailRow('Target Muscle:', plan.targetMuscle),
+                _buildDetailRow('Exercise Count:', plan.exerciseReferences.length.toString()),
+                _buildDetailRow('Daily Entries:', plan.daily.length.toString()),
               ],
             ),
           ),

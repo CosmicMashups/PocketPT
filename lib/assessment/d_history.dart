@@ -1,11 +1,9 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../data/globals.dart';
 import 'c_painduration.dart';
 import 'e_summary.dart';
-
 class AssessHistory extends StatefulWidget {
   const AssessHistory({super.key});
 
@@ -22,6 +20,13 @@ class _AssessHistoryState extends State<AssessHistory> {
   static const detailColor = Color(0xFF6B7280); // Gray
   static const backgroundColor = Color(0xFFF8FAFC); // Light background
   static const successColor = Color(0xFF10B981); // Green
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize isInjured from global variables
+    isInjured = UserAssess.isInjured;
+  }
 
   @override
   Widget build(BuildContext context) {

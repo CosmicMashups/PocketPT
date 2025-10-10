@@ -7,7 +7,8 @@ import '../data/treatment.dart';
 import 'generate_treatment.dart';
 import '../data/globals.dart';
 import '../data/data_persistence_service.dart';
-
+import '../data/guest_mode_service.dart';
+import '../widgets/loading_indicator.dart';
 class GeneratePlanPage extends StatefulWidget {
   const GeneratePlanPage({super.key});
 
@@ -134,47 +135,10 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
   }
 
   Widget _buildLoadingState() {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(
-              color: Color(0xFF8B2E2E),
-              strokeWidth: 3,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              "Generating Your Plan",
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1F2937),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Please wait while we create your personalized treatment plan...",
-              style: GoogleFonts.ptSans(
-                fontSize: 14,
-                color: const Color(0xFF6B7280),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+    return const Center(
+      child: LoadingIndicator(
+        message: 'Generating Your Treatment Plan',
+        size: 60,
       ),
     );
   }
@@ -493,7 +457,15 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                         await ActiveProgram.saveToHive();
                       }
                       await saveAllDataToHive();
-                      await DataPersistenceService.instance.forceSave(reason: 'Assessment completed');
+                      
+                      // Handle guest mode data saving
+                      if (UserDetails.isGuest) {
+                        final guestModeService = GuestModeService.instance;
+                        await guestModeService.forceSaveAllData();
+                      } else {
+                        await DataPersistenceService.instance.forceSave(reason: 'Assessment completed');
+                      }
+                      
                       // Save flag eagerly to Hive to ensure AuthWrapper sees it on cold start
                       try {
                         final box = Hive.box('rehabBox');

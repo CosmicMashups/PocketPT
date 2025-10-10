@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import '../data/rehabilitation_plan.dart';
 import '../data/treatment.dart';
 import '../assessment/generate_treatment.dart';
-// import '../data/treatment.dart';
 import 'exercise_list.dart' as exList;
-// import '../assessment/generate_treatment.dart';
 import '../data/globals.dart';
-
+import '../data/user_data_notifier.dart';
+// removed data wrappers: using direct globals like a_goal1.dart
+import '../widgets/loading_indicator.dart';
 class ExerciseManagerPage extends StatefulWidget {
   const ExerciseManagerPage({super.key});
 
@@ -16,7 +16,7 @@ class ExerciseManagerPage extends StatefulWidget {
 }
 
 class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
-  final TextEditingController _notesController = TextEditingController();
+  late final TextEditingController _notesController;
   final Random _random = Random();
   List<TreatmentReference>? _treatmentReferences;
   bool _isLoadingTreatments = false;
@@ -26,7 +26,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
   @override
   void initState() {
     super.initState();
-    _notesController.text = UserProgress.notes ?? '';
+    _notesController = TextEditingController(text: UserProgress.notes ?? '');
     _loadExerciseReferences();
     _loadTreatments();
   }
@@ -99,6 +99,11 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
           _isLoadingTreatments = false;
         });
         await UserRehabilitation.instance.savePlansToHive();
+        
+        // Notify all listeners that treatment references have changed
+        UserDataNotifier.instance.notifyRehabilitationPlanChanged(
+          reason: 'Treatment references updated'
+        );
       }
     } catch (e) {
       debugPrint('Error loading treatment references: $e');
@@ -132,6 +137,11 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
           _isLoadingTreatments = false;
         });
         await UserRehabilitation.instance.savePlansToHive();
+        
+        // Notify all listeners that treatment references have been refreshed
+        UserDataNotifier.instance.notifyRehabilitationPlanChanged(
+          reason: 'Treatment references refreshed'
+        );
       }
     } catch (e) {
       debugPrint('Error refreshing treatment references: $e');
@@ -180,6 +190,11 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
       
       // Save to Hive
       await UserRehabilitation.instance.savePlansToHive();
+      
+      // Notify all listeners that rehabilitation plan has changed
+      UserDataNotifier.instance.notifyRehabilitationPlanChanged(
+        reason: 'Exercise references updated'
+      );
     } catch (e) {
       debugPrint('Error updating rehabilitation plan: $e');
     }
@@ -348,12 +363,19 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
 
   @override
   Widget build(BuildContext context) {
+    return _buildContent();
+  }
+  
+  Widget _buildContent() {
     if (_isLoadingExercises) {
       return Scaffold(
         backgroundColor: backgroundColor,
         appBar: _buildAppBar("Exercise Manager"),
         body: const Center(
-          child: CircularProgressIndicator(),
+          child: LoadingIndicator(
+            message: 'Loading exercise data...',
+            size: 40,
+          ),
         ),
       );
     }

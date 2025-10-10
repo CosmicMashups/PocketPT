@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/globals.dart';
+import '../data/page_specific_data_service.dart';
 import 'preliminary.dart';
 import 'b_focus1.dart';
 
@@ -13,7 +14,7 @@ class AssessGoal1 extends StatefulWidget {
 }
 
 class _AssessGoal1State extends State<AssessGoal1> {
-  String rehabGoal = UserAssess.rehabGoal; // <-- Load global value if already set
+  String rehabGoal = ''; // Will be loaded from global variables
 
   // Professional healthcare color scheme
   static const mainColor = Color(0xFF8B2E2E); // Professional blue
@@ -23,7 +24,27 @@ class _AssessGoal1State extends State<AssessGoal1> {
   static const successColor = Color(0xFF10B981); // Green
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize rehabGoal from global variables
+    if (UserAssess.rehabGoal.isNotEmpty) {
+      rehabGoal = UserAssess.rehabGoal;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Load data from global variables instead of using OptimizedPageLoader
+    // This ensures the page always displays properly
+    if (rehabGoal.isEmpty && UserAssess.rehabGoal.isNotEmpty) {
+      rehabGoal = UserAssess.rehabGoal;
+    }
+    
+    return _buildPageContent(context);
+  }
+
+
+  Widget _buildPageContent(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
       appBar: AppBar(
@@ -335,6 +356,19 @@ class _AssessGoal1State extends State<AssessGoal1> {
           setState(() {
             rehabGoal = title;
             UserAssess.rehabGoal = title;
+          });
+          
+          // Save data using optimized service
+          PageSpecificDataService.instance.saveAssessmentData({
+            'rehabGoal': title,
+            'generalMuscle': UserAssess.generalMuscle,
+            'specificMuscle': UserAssess.specificMuscle,
+            'painScale': UserAssess.painScale,
+            'painLevel': UserAssess.painLevel,
+            'painType': UserAssess.painType,
+            'painDuration': UserAssess.painDuration,
+            'isInjured': UserAssess.isInjured,
+            'isAssessed': UserAssess.isAssessed,
           });
         },
         borderRadius: BorderRadius.circular(16),

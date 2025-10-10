@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/simple_auth_service.dart';
 import 'dart:async';
-
 /// Simplified email verification page with progressive loading
 class SimpleEmailVerificationPage extends StatefulWidget {
   final String email;

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'globals.dart';
+import 'rehabilitation_plan.dart';
+import 'treatment.dart';
 
 /// Service to notify UI components when user data changes
 class UserDataNotifier extends ChangeNotifier {
@@ -15,6 +17,11 @@ class UserDataNotifier extends ChangeNotifier {
   bool _hasCompletedAssessment = false;
   bool _isLoading = false;
   
+  // Rehabilitation plan data for notifications
+  List<RehabilitationPlan> _rehabPlans = [];
+  List<TreatmentReference>? _treatmentReferences;
+  String _lastPlanUpdateTime = '';
+  
   // Getters
   String get firstName => _firstName;
   String get lastName => _lastName;
@@ -23,6 +30,11 @@ class UserDataNotifier extends ChangeNotifier {
   bool get hasCompletedAssessment => _hasCompletedAssessment;
   bool get isLoading => _isLoading;
   
+  // Rehabilitation plan getters
+  List<RehabilitationPlan> get rehabPlans => _rehabPlans;
+  List<TreatmentReference>? get treatmentReferences => _treatmentReferences;
+  String get lastPlanUpdateTime => _lastPlanUpdateTime;
+  
   /// Initialize with current UserDetails values
   void initialize() {
     _firstName = UserDetails.firstName;
@@ -30,6 +42,13 @@ class UserDataNotifier extends ChangeNotifier {
     _email = UserDetails.email;
     _profilePicture = UserDetails.profilePicture;
     _hasCompletedAssessment = UserDetails.hasCompletedAssessment;
+    
+    // Initialize rehabilitation plan data
+    _rehabPlans = List.from(UserRehabilitation.instance.rehabPlans);
+    _treatmentReferences = UserRehabilitation.instance.treatmentReferences != null 
+        ? List.from(UserRehabilitation.instance.treatmentReferences!) 
+        : null;
+    
     notifyListeners();
   }
   
@@ -132,4 +151,35 @@ class UserDataNotifier extends ChangeNotifier {
   
   /// Check if user data is empty (not loaded yet)
   bool get isEmpty => _firstName.isEmpty && _lastName.isEmpty && _email.isEmpty;
+  
+  /// Check if user data is fully loaded
+  bool get isFullyLoaded => _firstName.isNotEmpty || _lastName.isNotEmpty || _email.isNotEmpty;
+  
+  /// Get loading status for UI
+  bool get shouldShowLoading => _isLoading || isEmpty;
+  
+  /// Notify when rehabilitation plans are updated
+  void notifyRehabilitationPlanChanged({String? reason}) {
+    _rehabPlans = List.from(UserRehabilitation.instance.rehabPlans);
+    _treatmentReferences = UserRehabilitation.instance.treatmentReferences != null 
+        ? List.from(UserRehabilitation.instance.treatmentReferences!) 
+        : null;
+    _lastPlanUpdateTime = DateTime.now().toIso8601String();
+    
+    if (reason != null) {
+      print('UserDataNotifier: Rehabilitation plan updated - $reason');
+    }
+    
+    notifyListeners();
+  }
+  
+  /// Force refresh rehabilitation plan data from UserRehabilitation
+  void refreshRehabilitationPlans() {
+    _rehabPlans = List.from(UserRehabilitation.instance.rehabPlans);
+    _treatmentReferences = UserRehabilitation.instance.treatmentReferences != null 
+        ? List.from(UserRehabilitation.instance.treatmentReferences!) 
+        : null;
+    _lastPlanUpdateTime = DateTime.now().toIso8601String();
+    notifyListeners();
+  }
 }

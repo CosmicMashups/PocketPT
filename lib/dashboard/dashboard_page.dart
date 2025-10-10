@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../record/pre_record_page.dart';
 import '../data/globals.dart';
 import '../data/rehabilitation_plan.dart';
-import '../data/treatment.dart';
-import '../data/optimized_data_service.dart';
 import '../assessment/preliminary.dart';
 import '../dailyAssessment/instructionVideo.dart';
-import '../dailyAssessment/cameraPose.dart';
 import '../assessment/generate_plan.dart';
 import '../data/user_data_notifier.dart';
 import '../data/local_notifications_service.dart';
+// removed loader: using direct global data like a_goal1.dart
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -33,122 +30,450 @@ class NotificationItem {
 }
 
 class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
-  List<String> notifications = UserDetails.notifications;
-
-  // Derived notifications store (computed fresh on each open)
+  List<String> notifications = [];
   List<NotificationItem> _computedNotifications = [];
 
   @override
   bool get wantKeepAlive => true;
-
+  
   @override
   void initState() {
     super.initState();
+    // Listen for rehabilitation plan changes
+    UserDataNotifier.instance.addListener(_onRehabilitationPlanChanged);
+  }
+  
+  @override
+  void dispose() {
+    UserDataNotifier.instance.removeListener(_onRehabilitationPlanChanged);
+    super.dispose();
+  }
+  
+  void _onRehabilitationPlanChanged() {
+    if (mounted) {
+      setState(() {
+        // Trigger rebuild when rehabilitation plans change
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    final data = _gatherDashboardData();
+
+    // Refresh notifications based on current globals
+    _refreshNotifications();
+
+    final hasCompletedAssessment = data['hasCompletedAssessment'] ?? false;
+    if (!hasCompletedAssessment) {
+      return _buildAssessmentRequiredState(context);
+    }
+
+    return _buildDashboardContent(context, data);
+  }
+
+  Map<String, dynamic> _gatherDashboardData() {
+    // Build a data map similar to what the previous loader provided
+    final userDetails = {
+      'firstName': UserDataNotifier.instance.firstName,
+      'lastName': UserDataNotifier.instance.lastName,
+      'email': UserDataNotifier.instance.email,
+      'profilePicture': UserDataNotifier.instance.profilePicture,
+    };
+
+    final userProgress = {
+      'streak': UserProgress.streak,
+      'totalExercises': UserProgress.totalExercises,
+    };
+
+    // Use the most up-to-date rehabilitation plans from UserDataNotifier
+    final rehabilitationPlans = UserDataNotifier.instance.rehabPlans.isNotEmpty 
+        ? UserDataNotifier.instance.rehabPlans 
+        : UserRehabilitation.instance.rehabPlans;
+
+    return {
+      'hasCompletedAssessment': UserDetails.hasCompletedAssessment,
+      'userDetails': userDetails,
+      'userProgress': userProgress,
+      'rehabilitationPlans': rehabilitationPlans,
+      // notifications are computed via _refreshNotifications
+    };
+  }
+
+  // Removed: legacy loading/error states since we now build directly from globals
+  // _buildLoadingState and _buildErrorState were used by the old loader.
+
+  // Removed legacy loading/error UI from previous loader-based approach
+
+  Widget _buildAssessmentRequiredState(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        backgroundColor: const Color(0xFF8B2E2E),
+        automaticallyImplyLeading: false,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.assessment, size: 80, color: Color(0xFF8B2E2E)),
+            const SizedBox(height: 24),
+            const Text(
+              'Assessment Required',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF8B2E2E),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Please complete your assessment to access the dashboard.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AssessPrelim()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B2E2E),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+              child: const Text(
+                'Start Assessment',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboardContent(BuildContext context, Map<String, dynamic> data) {
     // Initialize the notifier with current data
     UserDataNotifier.instance.initialize();
-    // Load critical data immediately
-    _refreshNotifications();
     
     // Defer heavy operations to after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureTreatmentsLoaded();
-      final hasPlan = UserRehabilitation.instance.rehabPlans.isNotEmpty;
-      if (hasPlan) {
-        // Delay dialog showing to improve perceived performance
-        Future.delayed(const Duration(milliseconds: 500), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
           if (mounted) {
             _maybeShowDailyAssessmentDialog(context);
             _maybeShowDailyPainChangeDialog(context);
             _maybeShowRegeneratePlanDialog(context);
           }
         });
-      }
-    });
+    
+    return _buildMainDashboard(context, data);
   }
 
-  Future<void> _ensureTreatmentsLoaded() async {
-    // Ensure treatment references are loaded from Hive if they exist
-    if (UserRehabilitation.instance.treatmentReferences == null && 
-        UserRehabilitation.instance.rehabPlans.isNotEmpty) {
-      try {
-        await UserRehabilitation.instance.loadPlansFromHive();
-        if (mounted) {
-          setState(() {}); // Refresh UI to show treatment references
-        }
-      } catch (e) {
-        debugPrint('Error loading treatment references in dashboard: $e');
-      }
-    }
+  Widget _buildMainDashboard(BuildContext context, Map<String, dynamic> data) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Scaffold(
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : Colors.grey.shade100,
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        backgroundColor: const Color(0xFF8B2E2E),
+        automaticallyImplyLeading: false,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Section
+            _buildWelcomeSection(data),
+            const SizedBox(height: 24),
+            
+            // Progress Section
+            _buildProgressSection(data),
+            const SizedBox(height: 24),
+            
+            // Notifications Section
+            _buildNotificationsSection(),
+            const SizedBox(height: 24),
+            
+            // Treatment Plans Section
+            _buildTreatmentPlansSection(data),
+          ],
+        ),
+      ),
+    );
   }
 
-  void _showNotificationsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          scrollable: true,
-          backgroundColor: const Color(0xFFF1F1F1),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
+  Widget _buildWelcomeSection(Map<String, dynamic> data) {
+    final userDetails = data['userDetails'] ?? {};
+    final firstName = userDetails['firstName'] ?? '';
+    final profilePicture = userDetails['profilePicture'] ?? '01.jpg';
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundImage: AssetImage('assets/images/pfp/$profilePicture'),
+            backgroundColor: Colors.white,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back, ${firstName.isNotEmpty ? firstName : 'User'}!',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Ready for your rehabilitation journey?',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressSection(Map<String, dynamic> data) {
+    final userProgress = data['userProgress'] ?? {};
+    final streak = userProgress['streak'] ?? 0;
+    final totalExercises = userProgress['totalExercises'] ?? 0;
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Your Progress',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF8B2E2E),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
             children: [
-              const Icon(Icons.notifications, color: Color(0xFF557A95)),
-              const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'Notifications',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
+                child: _buildProgressCard(
+                  'Streak',
+                  '$streak days',
+                  Icons.local_fire_department,
+                  const Color(0xFFF59E0B),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildProgressCard(
+                  'Exercises',
+                  '$totalExercises completed',
+                  Icons.fitness_center,
+                  const Color(0xFF10B981),
                 ),
               ),
             ],
           ),
-          content: (_computedNotifications.isEmpty && notifications.isEmpty)
-              ? Text('No new notifications', style: GoogleFonts.poppins())
-              : SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      // Dynamic notifications (clickable)
-                      ..._computedNotifications.map((notification) => _buildNotificationCard(
-                        notification: notification,
-                        context: context,
-                      )),
-                      // Static notifications (non-clickable)
-                      ...notifications.map((notification) => Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+          Row(
+            children: [
+              const Icon(Icons.notifications, color: Color(0xFF8B2E2E)),
+              const SizedBox(width: 8),
+              Text(
+                  'Notifications',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF8B2E2E),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_computedNotifications.isEmpty)
+            const Text('No notifications at this time.')
+          else
+            ..._computedNotifications.take(3).map((notification) => 
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  notification.text,
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTreatmentPlansSection(Map<String, dynamic> data) {
+    final rehabilitationPlans = data['rehabilitationPlans'] ?? [];
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                )
-                              ],
-                            ),
-                            child: Row(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(Icons.campaign, color: Color(0xFF557A95)),
-                                const SizedBox(width: 10),
-                                Expanded(child: Text(notification, style: GoogleFonts.poppins(fontSize: 15))),
-                              ],
-                            ),
-                          )),
+          Row(
+            children: [
+              const Icon(Icons.medical_services, color: Color(0xFF8B2E2E)),
+              const SizedBox(width: 8),
+              Text(
+                'Treatment Plans',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF8B2E2E),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (rehabilitationPlans.isEmpty)
+            const Text('No treatment plans available. Complete your assessment to generate a plan.')
+          else
+            ...rehabilitationPlans.map((plan) => 
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Week ${plan.weekNumber ?? 1} Plan',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF8B2E2E),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${plan.exerciseReferences?.length ?? 0} exercises',
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
                     ],
                   ),
                 ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Close', style: GoogleFonts.poppins()),
             ),
           ],
-        );
-      },
+      ),
     );
   }
+
 
   void _refreshNotifications() {
     final List<NotificationItem> dynamicNotes = [];
@@ -273,218 +598,8 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     return nowMinutes >= targetMinutes;
   }
 
-  Widget _buildNotificationCard({
-    required NotificationItem notification,
-    required BuildContext context,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        onTap: notification.isClickable ? () => _handleNotificationAction(notification.actionType, context) : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: notification.isClickable 
-                ? Border.all(color: const Color(0xFF557A95).withOpacity(0.3), width: 1)
-                : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              )
-            ],
-          ),
-          child: Row(
-            children: [
-              Icon(
-                notification.isClickable ? Icons.touch_app : Icons.campaign,
-                color: notification.isClickable ? const Color(0xFF557A95) : const Color(0xFF557A95),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  notification.text,
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    color: notification.isClickable ? const Color(0xFF557A95) : Colors.black87,
-                    fontWeight: notification.isClickable ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ),
-              if (notification.isClickable)
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Color(0xFF557A95),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  void _handleNotificationAction(String actionType, BuildContext context) {
-    // Close the notification dialog first
-    Navigator.of(context).pop();
-    
-    switch (actionType) {
-      case 'daily_assessment':
-        _showDailyAssessmentDialog(context);
-        break;
-      case 'start_exercise':
-        _navigateToExercise(context);
-        break;
-      case 'resume_exercise':
-        _navigateToExercise(context);
-        break;
-      case 'regenerate_plan':
-        _showRegeneratePlanDialog(context);
-        break;
-      default:
-        // No action for 'none' or unknown types
-        break;
-    }
-  }
 
-  void _showDailyAssessmentDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return AlertDialog(
-          scrollable: true,
-          backgroundColor: Theme.of(ctx).colorScheme.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              const Icon(Icons.assignment, color: Color(0xFF800020)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Daily Re-Assessment Required',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Text(
-              'Please complete today\'s quick pain re-assessment.',
-              style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
-              softWrap: true,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text('Later', style: GoogleFonts.poppins(color: Colors.grey[700])),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const InstructionVideoPage()),
-                );
-              },
-              child: Text('Start', style: GoogleFonts.poppins(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _navigateToExercise(BuildContext context) {
-    final rehabPlans = UserRehabilitation.instance.rehabPlans;
-    if (rehabPlans.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No rehabilitation plan available. Please complete assessment first.')),
-      );
-      return;
-    }
-
-    final currentExercise = ExerciseHistory.getCurrentExercise();
-    if (currentExercise != null) {
-      OptimizedNavigation.navigateWithDataPreload(
-        context,
-        const PreRecordPage(),
-        dataKey: 'current_exercise_data',
-        dataPreloader: () async {
-          await UserRehabilitation.instance.loadPlansFromHive();
-        },
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All exercises completed for today!')),
-      );
-    }
-  }
-
-  void _showRegeneratePlanDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return AlertDialog(
-          scrollable: true,
-          backgroundColor: Theme.of(ctx).colorScheme.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              const Icon(Icons.autorenew, color: Color(0xFF800020)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Regenerate Plan?',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            'Your pain level has been unchanged for 7 days. Would you like to regenerate a new rehabilitation plan and treatments?',
-            style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
-            softWrap: true,
-          ),
-          actions: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[600]),
-              onPressed: () {
-                PainHistory.markPromptedToday();
-                Navigator.of(ctx).pop();
-              },
-              child: Text('Not Now', style: GoogleFonts.poppins(color: Colors.white)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                _archiveCurrentProgram();
-                if (mounted) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const GeneratePlanPage()),
-                  );
-                }
-              },
-              child: Text('Regenerate', style: GoogleFonts.poppins(color: Colors.white)),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   void _maybeShowDailyAssessmentDialog(BuildContext context) {
     if (!UserSettings.isDailyReminder) return;
@@ -746,1005 +861,4 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     ActiveProgram.startDate = DateTime.now();
   }
 
-  Widget _buildClinicalMetricCard({
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-        ),
-        child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 20,
-                ),
-              ),
-              const Spacer(),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 4),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-              fontSize: 14,
-                fontWeight: FontWeight.w600,
-              color: const Color(0xFF1F2937),
-              ),
-            ),
-            Text(
-            subtitle,
-              style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: const Color(0xFF6B7280),
-              ),
-            ),
-          ],
-      ),
-    );
-  }
-
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final currentExercise = ExerciseHistory.getCurrentExercise();
-    double progress = ExerciseHistory.calculateTodaysProgressPercentage();
-
-    return ListenableBuilder(
-      listenable: UserDataNotifier.instance,
-      builder: (context, child) {
-        return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Professional Header with Patient Info
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFF8B2E2E), // Professional blue
-                      const Color(0xFFC24A4A),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF8B2E2E).withOpacity(0.15),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
-                              width: 3,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                      ),
-                      child: CircleAvatar(
-                            radius: 36,
-                        backgroundImage: const AssetImage('assets/images/profile/profile.jpg'),
-                        backgroundColor: Colors.grey[200],
-                      ),
-                    ),
-                        const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                                'Patient Dashboard',
-                            style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  color: Colors.white.withOpacity(0.9),
-                                  fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                              const SizedBox(height: 4),
-                        Flexible(
-                          child: UserDataNotifier.instance.isLoading
-                              ? Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Loading...',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 16,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Text(
-                                  '${UserDataNotifier.instance.firstName} ${UserDataNotifier.instance.lastName}',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                        ),
-                              const SizedBox(height: 8),
-                                  Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                    ),
-                                    child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.local_fire_department, 
-                                      color: Colors.orange, size: 20),
-                                    const SizedBox(width: 6),
-                                        Text(
-                                      '${UserProgress.streak} Day Streak',
-                                          style: GoogleFonts.poppins(
-                                        fontSize: 14,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            onPressed: () => _showNotificationsDialog(context),
-                            icon: Stack(
-                              children: [
-                                const Icon(
-                                  Icons.notifications_outlined,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                                if (_computedNotifications.isNotEmpty || notifications.isNotEmpty)
-                                  Positioned(
-                                    right: 0,
-                                    top: 0,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFEF4444),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      constraints: const BoxConstraints(
-                                        minWidth: 16,
-                                        minHeight: 16,
-                                      ),
-                                      child: Text(
-                                        '${_computedNotifications.length + notifications.length}',
-                                        style: GoogleFonts.poppins(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                          ),
-                        ],
-                      ),
-                    ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Clinical Progress Overview
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.trending_up,
-                            color: Color(0xFF8B2E2E),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                'Today\'s Progress',
-                                  style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF1F2937),
-                                ),
-                              ),
-                                Flexible(
-                                  child: Text(
-                                    currentExercise?.exerciseName ?? 'No active exercise',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: const Color(0xFF6B7280),
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: progress > 0.5 
-                                ? const Color(0xFF10B981).withOpacity(0.1)
-                                : const Color(0xFFF59E0B).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: progress > 0.5 
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFF59E0B),
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            '${(progress * 100).toInt()}%',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: progress > 0.5 
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFF59E0B),
-                            ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                    const SizedBox(height: 20),
-                            Row(
-                              children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                              Text(
-                                'Target Muscle',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: const Color(0xFF6B7280),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Flexible(
-                                child: Text(
-                                  UserAssess.specificMuscle.isNotEmpty
-                                      ? UserAssess.specificMuscle
-                                      : 'Not specified',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    color: const Color(0xFF1F2937),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (currentExercise != null) ...[
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                    Text(
-                                  'Exercise Details',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                    color: const Color(0xFF6B7280),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${currentExercise.sets} sets × ${currentExercise.repetitions} reps',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    color: const Color(0xFF1F2937),
-                                    fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      PageRouteBuilder(
-                                        pageBuilder: (context, animation, secondaryAnimation) =>
-                                            const PreRecordPage(),
-                                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                          const begin = Offset(1.0, 0.0);
-                                          const end = Offset.zero;
-                                          const curve = Curves.easeInOut;
-                                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                          var offsetAnimation = animation.drive(tween);
-                                          return SlideTransition(position: offsetAnimation, child: child);
-                                        },
-                                      ),
-                                    );
-                                  },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8B2E2E),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              progress == 0 ? Icons.play_arrow : Icons.refresh,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              progress == 0 ? 'Start Exercise Session' : 'Resume Exercise',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                        ),
-                      ),
-                            ),
-                          ],
-                        ),
-              ),
-
-              // Clinical Metrics
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Clinical Metrics',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1F2937),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                children: [
-                        Expanded(
-                          child: _buildClinicalMetricCard(
-                            title: 'Compliance',
-                            value: '${UserProgress.streak}',
-                            subtitle: 'Consecutive Days',
-                    icon: Icons.local_fire_department,
-                            color: const Color(0xFFF59E0B),
-                  ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildClinicalMetricCard(
-                    title: 'Exercises',
-                    value: '${UserProgress.totalExercises}',
-                            subtitle: 'Total Completed',
-                    icon: Icons.fitness_center,
-                            color: const Color(0xFFC24A4A),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildClinicalMetricCard(
-                            title: 'Duration',
-                            value: '${UserProgress.totalMinutes}',
-                            subtitle: 'Minutes',
-                    icon: Icons.timer,
-                            color: const Color(0xFF10B981),
-                          ),
-                  ),
-                ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // AI Assessment Tools
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFF6366F1),
-                      const Color(0xFF8B5CF6),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF6366F1).withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.psychology,
-                            size: 28,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'AI-Powered Assessment',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Advanced CNN-based pose estimation for clinical pain assessment',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: Colors.white.withOpacity(0.9),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Clinical Benefits',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '• Objective pain measurement\n• Real-time posture analysis\n• Clinical-grade accuracy',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.8),
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                    SizedBox(
-                          width: 120,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const CameraPosePage(),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF6366F1),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                              elevation: 0,
-                        ),
-                        child: Text(
-                              'Launch AI Assessment',
-                          style: GoogleFonts.poppins(
-                                fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                              textAlign: TextAlign.center,
-                        ),
-                      ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Treatment Plan Section
-              const SizedBox(height: 24),
-              Text(
-                'Treatment Plan',
-                style: GoogleFonts.poppins(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1F2937),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Column(
-                children: UserRehabilitation.instance.rehabPlans.isEmpty
-                    ? [
-                        // Assessment Required Card
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                const Color(0xFFDC2626),
-                                const Color(0xFFEF4444),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFDC2626).withOpacity(0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.assignment_outlined,
-                                      size: 28,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Initial Assessment Required',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Complete the comprehensive assessment to generate your personalized treatment plan.',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 14,
-                                            color: Colors.white.withOpacity(0.9),
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const AssessPrelim(),
-                                      ),
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: const Color(0xFFDC2626),
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.assignment, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Begin Assessment',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ]
-                    : UserRehabilitation.instance.rehabPlans.map((plan) {
-                        return Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-                              width: 1,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(
-                                      Icons.medical_information,
-                                      color: Color(0xFF8B2E2E),
-                                      size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                          'Week ${plan.weekNumber.toString().padLeft(2, '0')} Treatment Plan',
-                                      style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w700,
-                                        fontSize: 18,
-                                            color: const Color(0xFF1F2937),
-                                          ),
-                                        ),
-                                        Text(
-                                          'Active rehabilitation program',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 14,
-                                            color: const Color(0xFF6B7280),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              // Exercises Section
-                              Text(
-                                'Prescribed Exercises',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF1F2937),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                                    FutureBuilder<List<Exercise>>(
-                                      future: plan.getExercises(),
-                                      builder: (context, snapshot) {
-                                        if (snapshot.connectionState == ConnectionState.waiting) {
-                                          return const Center(child: CircularProgressIndicator());
-                                        }
-                                        if (snapshot.hasError) {
-                                          return Text('Error loading exercises: ${snapshot.error}');
-                                        }
-                                        final exercises = snapshot.data ?? [];
-                                        return Column(
-                                          children: exercises.map(
-                                      (exercise) => Container(
-                                        margin: const EdgeInsets.only(bottom: 8),
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF9FAFB),
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(
-                                            color: const Color(0xFFE5E7EB),
-                                            width: 1,
-                                          ),
-                                        ),
-                                        child: Row(
-                                              children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(6),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: const Icon(
-                                                  Icons.fitness_center,
-                                                size: 16,
-                                                color: Color(0xFF8B2E2E),
-                                                ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Text(
-                                                    exercise.exerciseName,
-                                                style: GoogleFonts.poppins(
-                                                  color: const Color(0xFF1F2937),
-                                                      fontSize: 14,
-                                                  fontWeight: FontWeight.w500,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                        ),
-                                            ),
-                                          ).toList(),
-                                        );
-                                      },
-                                    ),
-                              // Treatments Section
-                                    if (UserRehabilitation.instance.treatmentReferences != null && 
-                                        UserRehabilitation.instance.treatmentReferences!.isNotEmpty) ...[
-                                const SizedBox(height: 20),
-                                Text(
-                                  'Recommended Treatments',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF1F2937),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                      FutureBuilder<List<dynamic>?>(
-                                        future: UserRehabilitation.instance.getTreatments(),
-                                        builder: (context, snapshot) {
-                                          if (snapshot.connectionState == ConnectionState.waiting) {
-                                            return const Center(child: CircularProgressIndicator());
-                                          }
-                                          if (snapshot.hasError) {
-                                            return Text('Error loading treatments: ${snapshot.error}');
-                                          }
-                                          final treatments = snapshot.data ?? [];
-                                          return Column(
-                                            children: treatments.map(
-                                              (treatment) {
-                                                final treatmentObj = treatment as Treatment?;
-                                          return Container(
-                                            margin: const EdgeInsets.only(bottom: 8),
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFF0FDF4),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: const Color(0xFF10B981).withOpacity(0.2),
-                                                width: 1,
-                                              ),
-                                            ),
-                                            child: Row(
-                                                  children: [
-                                                Container(
-                                                  padding: const EdgeInsets.all(6),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFF10B981).withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(6),
-                                                  ),
-                                                  child: const Icon(
-                                                      Icons.medical_services,
-                                                    size: 16,
-                                                    color: Color(0xFF10B981),
-                                                    ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Text(
-                                                        treatmentObj?.treatmentName ?? 'Unknown Treatment',
-                                                    style: GoogleFonts.poppins(
-                                                      color: const Color(0xFF1F2937),
-                                                          fontSize: 14,
-                                                      fontWeight: FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                            ),
-                                                );
-                                              },
-                                            ).toList(),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                            ],
-                          ),
-                        );
-                      }).toList(),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-      },
-    );
-  }
 }

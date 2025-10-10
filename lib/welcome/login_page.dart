@@ -10,7 +10,6 @@ import 'email_verification_page.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
 import '../main.dart';
-
 /// Login page with progressive loading and streamlined flow
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -21,14 +20,21 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
   
   final SimpleAuthService _authService = SimpleAuthService.instance;
   final GuestModeService _guestModeService = GuestModeService.instance;
   
   bool _isLoading = false;
   String? _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
 
   @override
   void dispose() {

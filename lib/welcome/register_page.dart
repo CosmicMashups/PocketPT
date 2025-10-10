@@ -6,7 +6,6 @@ import '../widgets/progressive_loading_widget.dart';
 import 'email_verification_page.dart';
 import 'login_page.dart';
 import '../assessment/preliminary.dart';
-
 /// Registration page with proper password validation
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -17,17 +16,27 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  late final TextEditingController _firstNameController;
+  late final TextEditingController _lastNameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
+  late final TextEditingController _confirmPasswordController;
   
   final SimpleAuthService _authService = SimpleAuthService.instance;
   
   bool _isLoading = false;
   String? _errorMessage = '';
   bool _agreedToTerms = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _firstNameController = TextEditingController();
+    _lastNameController = TextEditingController();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
+  }
 
   @override
   void dispose() {

@@ -1,23 +1,46 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'widgets/rehab_plan_expansion_panel.dart';
 import 'widgets/exercise_calendar_grid.dart';
 import 'widgets/export_pdf_button.dart';
-
-class ReportPage extends ConsumerWidget {
+import '../data/user_data_notifier.dart';
+// removed data wrapper: using direct globals like a_goal1.dart
+class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
+
+  @override
+  State<ReportPage> createState() => _ReportPageState();
+}
+
+class _ReportPageState extends State<ReportPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Listen for rehabilitation plan changes
+    UserDataNotifier.instance.addListener(_onRehabilitationPlanChanged);
+  }
+  
+  @override
+  void dispose() {
+    UserDataNotifier.instance.removeListener(_onRehabilitationPlanChanged);
+    super.dispose();
+  }
+  
+  void _onRehabilitationPlanChanged() {
+    if (mounted) {
+      setState(() {
+        // Trigger rebuild when rehabilitation plans change
+      });
+    }
+  }
 
   // Professional healthcare color scheme
   static const mainColor = Color(0xFF8B2E2E); // Muscular maroon
   static const subColor = Color(0xFFC24A4A); // Lighter maroon
   static const detailColor = Color(0xFF6B7280); // Gray
   static const backgroundColor = Color(0xFFF8FAFC); // Light background
-  static const successColor = Color(0xFF10B981); // Green
-  static const warningColor = Color(0xFFF59E0B); // Orange
-  static const errorColor = Color(0xFFEF4444); // Red
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,

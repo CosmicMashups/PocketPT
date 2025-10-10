@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:csv/csv.dart';
 import '../data/treatment.dart';
-
 Future<List<Treatment>> loadTreatmentsFromCSV() async {
   final csvData = await rootBundle.loadString('assets/data/treatment.csv');
   final List<List<dynamic>> csvTable = const CsvToListConverter().convert(csvData);

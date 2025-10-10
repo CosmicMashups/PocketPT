@@ -1,11 +1,9 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../data/globals.dart';
 import 'b_focus1.dart';
 import 'c_video.dart';
-
 class AssessJoints extends StatefulWidget {
   const AssessJoints({super.key});
 
@@ -15,6 +13,15 @@ class AssessJoints extends StatefulWidget {
 
 class _AssessJointsState extends State<AssessJoints> {
   String specificMuscle = UserAssess.specificMuscle;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize specificMuscle from global variables
+    if (UserAssess.specificMuscle.isNotEmpty) {
+      specificMuscle = UserAssess.specificMuscle;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

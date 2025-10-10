@@ -89,7 +89,7 @@ class FastLoadingService {
           UserDetails.hasCompletedAssessment = storedHasCompleted;
         }
         
-        debugPrint('FastLoadingService: User details loaded - firstName: "${UserDetails.firstName}", lastName: "${UserDetails.lastName}", email: "${UserDetails.email}", isGuest: ${UserDetails.isGuest}');
+        debugPrint('FastLoadingService: User details loaded - firstName: "${UserDetails.firstName}", lastName: "${UserDetails.lastName}", email: "${UserDetails.email}", isGuest: ${UserDetails.isGuest}, hasCompletedAssessment: ${UserDetails.hasCompletedAssessment}');
         
         // Notify UI of data changes
         UserDataNotifier.instance.updateUserData(

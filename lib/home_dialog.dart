@@ -10,7 +10,7 @@ class HomePageWithDialog extends StatefulWidget {
 }
 
 class _HomePageWithDialogState extends State<HomePageWithDialog> with SingleTickerProviderStateMixin {
-  late AnimationController _scaleController;
+  late final AnimationController _scaleController;
 
   @override
   void initState() {

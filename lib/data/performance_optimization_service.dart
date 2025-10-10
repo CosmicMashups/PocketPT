@@ -121,11 +121,12 @@ class _OptimizedListView<T> extends StatefulWidget {
 
 class _OptimizedListViewState<T> extends State<_OptimizedListView<T>> {
   int _visibleItemCount = 0;
-  final ScrollController _scrollController = ScrollController();
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _visibleItemCount = widget.initialItemCount;
     _scrollController.addListener(_onScroll);
   }
@@ -203,8 +204,8 @@ class _OptimizedImageState extends State<_OptimizedImage> {
 
   Future<void> _loadImage() async {
     try {
-      // Simulate image loading with caching
-      await Future.delayed(const Duration(milliseconds: 100));
+      // Pre-cache the image for better performance
+      await precacheImage(AssetImage(widget.imagePath), context);
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -247,6 +248,8 @@ class _OptimizedImageState extends State<_OptimizedImage> {
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
+      cacheWidth: widget.width?.toInt(),
+      cacheHeight: widget.height?.toInt(),
       errorBuilder: (context, error, stackTrace) {
         return widget.errorWidget ?? 
                Container(

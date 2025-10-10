@@ -26,6 +26,16 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
   static const warningColor = Color(0xFFF59E0B); // Orange
   static const errorColor = Color(0xFFEF4444); // Red
 
+  @override
+  void initState() {
+    super.initState();
+    // Initialize painLevel and painScale from global variables
+    if (UserAssess.painLevel.isNotEmpty) {
+      painLevel = UserAssess.painLevel;
+    }
+    painScale = UserAssess.painScale;
+  }
+
   String getPainEmoji(int value) {
     if (value <= 3) return "🙂";
     if (value <= 7) return "😟";
@@ -47,6 +57,11 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
   @override
   Widget build(BuildContext context) {
     int sliderValue = UserAssess.painScale;
+    
+    return _buildContent(context, sliderValue);
+  }
+  
+  Widget _buildContent(BuildContext context, int sliderValue) {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(

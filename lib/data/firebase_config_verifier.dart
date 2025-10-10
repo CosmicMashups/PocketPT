@@ -43,7 +43,6 @@ class FirebaseConfigVerifier {
   static Future<Map<String, dynamic>> _testCoreInitialization() async {
     try {
       final app = Firebase.app();
-      final isInitialized = true; // Firebase.app() throws if not initialized
       
       print('Firebase Core Test: PASSED');
       print('  App name: ${app.name}');

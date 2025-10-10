@@ -4,7 +4,8 @@ import 'package:camera/camera.dart';
 import '../data/rehabilitation_plan.dart';
 import 'record_exercise.dart';
 import 'stopwatch_service.dart';
-
+import '../widgets/data_loading_wrapper.dart';
+import '../widgets/loading_indicator.dart';
 class PreRecordPage extends StatefulWidget {
   const PreRecordPage({super.key});
 
@@ -16,7 +17,7 @@ class _PreRecordPageState extends State<PreRecordPage> {
   CameraController? _controller;
   bool _isCameraInitialized = false;
   bool _isInitializingCamera = false;
-  List<CameraDescription>? cameras;
+  List<CameraDescription>? _cameras;
 
   @override
   void initState() {
@@ -37,9 +38,9 @@ class _PreRecordPageState extends State<PreRecordPage> {
     });
 
     try {
-      cameras = await availableCameras();
-      if (cameras!.isNotEmpty) {
-        _controller = CameraController(cameras![0], ResolutionPreset.medium); // Use medium instead of high
+      _cameras = await availableCameras();
+      if (_cameras!.isNotEmpty) {
+        _controller = CameraController(_cameras![0], ResolutionPreset.medium); // Use medium instead of high
         await _controller!.initialize();
         if (mounted) {
           setState(() {
@@ -71,7 +72,8 @@ class _PreRecordPageState extends State<PreRecordPage> {
     final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
+    return RehabDataLoadingWrapper(
+      child: Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -136,7 +138,12 @@ class _PreRecordPageState extends State<PreRecordPage> {
                       ),
                     )
                   : _isInitializingCamera
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: LoadingIndicator(
+                            message: 'Initializing camera...',
+                            size: 40,
+                          ),
+                        )
                       : Container(
                           height: screenHeight * 0.38,
                           decoration: BoxDecoration(
@@ -293,6 +300,7 @@ class _PreRecordPageState extends State<PreRecordPage> {
           ),
         ),
       ),
+    ),
     );
   }
 

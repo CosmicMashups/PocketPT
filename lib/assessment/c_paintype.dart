@@ -1,12 +1,9 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../data/globals.dart';
 import 'c_painlevel.dart';
-
 import 'c_painduration.dart';
-
 class AssessPainType extends StatefulWidget {
   const AssessPainType({super.key});
 
@@ -24,6 +21,15 @@ class _AssessPainTypeState extends State<AssessPainType> {
   static const backgroundColor = Color(0xFFF8FAFC); // Light background
   static const warningColor = Color(0xFFF59E0B); // Orange
   static const errorColor = Color(0xFFEF4444); // Red
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize painType from global variables
+    if (UserAssess.painType.isNotEmpty) {
+      painType = UserAssess.painType;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

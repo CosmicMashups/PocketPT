@@ -97,19 +97,12 @@ class GuestModeService {
   Future<void> _initializeGuestUserData() async {
     try {
       // Set up guest user details
-      if (UserDetails.firstName.isEmpty) {
-        UserDetails.firstName = 'Guest';
-        UserDetails.lastName = 'User';
-        UserDetails.email = 'guest@local.app';
-        UserDetails.isGuest = true;
-        UserDetails.guestSessionId = _guestSessionId;
-      }
-      
-      // Initialize rehabilitation data
-      if (UserRehabilitation.instance.rehabPlans.isEmpty) {
-        // Create a default guest rehabilitation plan
-        await _createDefaultGuestPlan();
-      }
+      UserDetails.firstName = 'Guest';
+      UserDetails.lastName = 'User';
+      UserDetails.email = 'guest@local.app';
+      UserDetails.isGuest = true;
+      UserDetails.guestSessionId = _guestSessionId;
+      UserDetails.hasCompletedAssessment = false; // Allow guests to take assessment
       
       // Save initial data to Hive
       await _saveGuestData();
@@ -119,28 +112,6 @@ class GuestModeService {
     }
   }
   
-  /// Create default guest rehabilitation plan
-  Future<void> _createDefaultGuestPlan() async {
-    try {
-      final defaultPlan = RehabilitationPlan(
-        weekNumber: 1,
-        exerciseReferences: [],
-        id: 'guest_default_plan',
-        name: 'Guest Exercise Plan',
-        description: 'A basic exercise plan for guest users',
-        createdAt: DateTime.now(),
-        isActive: true,
-        isGuestPlan: true,
-      );
-      
-      UserRehabilitation.instance.rehabPlans.add(defaultPlan);
-      UserRehabilitation.instance.activePlan = defaultPlan;
-      
-      print('GuestModeService: Created default guest plan');
-    } catch (e) {
-      print('GuestModeService: Error creating default guest plan: $e');
-    }
-  }
   
   /// Load guest data from Hive
   Future<void> _loadGuestData() async {
@@ -187,6 +158,36 @@ class GuestModeService {
     } catch (e) {
       print('GuestModeService: Error saving guest data: $e');
       return {'success': false, 'error': 'Failed to save guest data: ${e.toString()}'};
+    }
+  }
+
+  /// Force save all guest data (useful after assessment completion)
+  Future<Map<String, dynamic>> forceSaveAllData() async {
+    try {
+      if (!_isGuestMode) {
+        return {'success': false, 'error': 'Not in guest mode'};
+      }
+      
+      print('GuestModeService: Force saving all guest data...');
+      
+      // Update user details in memory
+      UserDetails.isGuest = true;
+      UserDetails.guestSessionId = _guestSessionId;
+      
+      // Save all data to Hive
+      await _saveGuestData();
+      
+      // Also save assessment completion flag if set
+      if (UserDetails.hasCompletedAssessment) {
+        final box = Hive.box('rehabBox');
+        await box.put('hasCompletedAssessment', true);
+      }
+      
+      return {'success': true, 'message': 'All guest data force saved'};
+      
+    } catch (e) {
+      print('GuestModeService: Error force saving guest data: $e');
+      return {'success': false, 'error': 'Failed to force save guest data: ${e.toString()}'};
     }
   }
   

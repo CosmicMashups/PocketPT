@@ -1,16 +1,13 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../data/globals.dart';
 import 'a_goal1.dart';
-
 import 'b_upperbody.dart';
 import 'b_lowerbody.dart';
 import 'b_core.dart';
 import 'b_neck.dart';
 import 'b_joints.dart';
-
 class AssessFocus1 extends StatefulWidget {
   const AssessFocus1({super.key});
 
@@ -27,6 +24,15 @@ class _AssessFocus1State extends State<AssessFocus1> {
   static const detailColor = Color(0xFF6B7280); // Gray
   static const backgroundColor = Color(0xFFF8FAFC); // Light background
   static const successColor = Color(0xFF10B981); // Green
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize generalMuscle from global variables
+    if (UserAssess.generalMuscle.isNotEmpty) {
+      generalMuscle = UserAssess.generalMuscle;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

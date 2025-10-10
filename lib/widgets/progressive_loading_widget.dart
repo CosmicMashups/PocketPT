@@ -22,9 +22,9 @@ class ProgressiveLoadingWidget extends StatefulWidget {
 
 class _ProgressiveLoadingWidgetState extends State<ProgressiveLoadingWidget>
     with TickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+  late final AnimationController _animationController;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<double> _scaleAnimation;
   
   int _currentStep = 0;
   bool _isComplete = false;

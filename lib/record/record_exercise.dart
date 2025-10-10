@@ -7,7 +7,6 @@ import '../data/rehabilitation_plan.dart';
 import 'pre_record_page.dart';
 import 'confirm_save_page.dart';
 import 'stopwatch_service.dart';
-
 class RecordExercisePage extends StatefulWidget {
   final Exercise exercise;
 

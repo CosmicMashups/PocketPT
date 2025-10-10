@@ -4,7 +4,6 @@ import 'dart:async';
 import '../data/forgot_password_service.dart';
 import '../widgets/progressive_loading_widget.dart';
 import 'new_password_page.dart';
-
 /// Verification code input page
 class VerificationCodePage extends StatefulWidget {
   final String email;

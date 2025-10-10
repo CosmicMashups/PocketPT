@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'providers/report_providers.dart';
-
 class ExpandedReportPage extends ConsumerWidget {
   final String planTitle;
   final String icdCode;

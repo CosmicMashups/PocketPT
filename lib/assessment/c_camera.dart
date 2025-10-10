@@ -6,7 +6,6 @@ import 'package:camera/camera.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:math' as math;
-
 import '../data/globals.dart';
 import '../main.dart';
 import '../data/pose_detection_service.dart';
@@ -14,7 +13,6 @@ import '../widgets/enhanced_pose_skeleton_painter.dart';
 import 'c_video.dart';
 import 'c_upload.dart';
 import 'c_videopreview.dart';
-
 class AssessPainCamera extends StatefulWidget {
   const AssessPainCamera({super.key});
 

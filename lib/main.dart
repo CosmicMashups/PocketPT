@@ -22,18 +22,20 @@ import 'data/data_persistence_service.dart';
 import 'data/auth_persistence_service.dart';
 import 'data/data_sync_service.dart';
 import 'data/fast_loading_service.dart';
+import 'data/page_specific_data_service.dart';
+import 'data/auto_save_service.dart';
 import 'data/asset_loading_service.dart';
 import 'data/theme_controller.dart';
 import 'data/navigation_service.dart';
-import 'data/performance_optimization_service.dart';
 import 'data/user_data_notifier.dart';
 import 'data/local_notifications_service.dart';
+import 'data/guest_mode_service.dart';
+import 'data/comprehensive_data_loader.dart';
 import 'welcome/login_page.dart';
 import 'dashboard/dashboard_page.dart';
 import 'assessment/preliminary.dart';
 import 'exercise/edit_plan.dart';
 import 'record/pre_record_page.dart';
-// import 'progress_report.dart';
 import 'profile/profile_page.dart';
 import 'reports/report_page.dart';
 import 'test_persistence_page.dart';
@@ -63,18 +65,22 @@ void main() async {
 
     // Initialize Firebase and Hive in parallel
     try {
+      debugPrint('Main: Starting Firebase and Hive initialization...');
       if (kIsWeb) {
         // On web, only initialize Firebase
         await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+        debugPrint('Main: Firebase initialized successfully on web');
       } else {
         // On mobile/desktop, initialize both Firebase and Hive
         await Future.wait([
           Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
           Hive.initFlutter(),
         ]);
+        debugPrint('Main: Firebase and Hive initialized successfully');
       }
     } catch (e) {
       debugPrint('Main: Initialization failure (Firebase/Hive): $e');
+      // Continue anyway to prevent app from crashing
     }
     
     // Register all Hive adapters (ignore if already registered) - skip on web
@@ -107,12 +113,14 @@ void main() async {
     
     // Initialize services in parallel - skip Hive-dependent services on web
     try {
+      debugPrint('Main: Starting service initialization...');
       if (kIsWeb) {
         // On web, only initialize Firebase-dependent services
         await Future.wait([
           DataSyncService.instance.initialize(),
           AuthPersistenceService.instance.initialize(),
         ]);
+        debugPrint('Main: Web services initialized successfully');
       } else {
         // On mobile/desktop, initialize all services
         await Future.wait([
@@ -120,12 +128,15 @@ void main() async {
           AuthPersistenceService.instance.initialize(),
           FastLoadingService.instance.initialize(),
           AssetLoadingService.instance.initialize(),
+          ComprehensiveDataLoader.instance.initialize(),
         ]);
         // Initialize local notifications (after Hive so we can use its box)
         await LocalNotificationsService.instance.initialize();
+        debugPrint('Main: All services initialized successfully');
       }
     } catch (e) {
       debugPrint('Main: Service initialization problem: $e');
+      // Continue anyway to prevent app from crashing
     }
 
     // Load saved theme - skip on web
@@ -148,6 +159,13 @@ void main() async {
         DataPersistenceService.instance.initialize();
       } catch (e) {
         debugPrint('Main: DataPersistence init failed: $e');
+      }
+      
+      // Initialize the auto-save service
+      try {
+        AutoSaveService.instance.initialize();
+      } catch (e) {
+        debugPrint('Main: AutoSaveService init failed: $e');
       }
     }
     
@@ -181,6 +199,15 @@ void _loadBackgroundDataAndSync() async {
       
       // Load background data
       await FastLoadingService.instance.loadBackgroundData();
+      
+      // Preload page-specific data for better performance
+      try {
+        await PageSpecificDataService.instance.preloadData('dashboard');
+        await PageSpecificDataService.instance.preloadData('profile');
+        debugPrint('Main: Page-specific data preloaded successfully');
+      } catch (e) {
+        debugPrint('Main: Page-specific data preload failed: $e');
+      }
       
       // Sync data if user is authenticated
       if (AuthPersistenceService.instance.isAuthenticated) {
@@ -370,13 +397,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.instance.themeMode,
       builder: (context, mode, _) {
-        return OptimizedPageWrapper(
-          pageKey: 'main_app',
-          enableLifecycleTracking: true,
-          onPageInit: () {
-            PerformanceOptimizationService().clearAll();
-          },
-          child: MaterialApp(
+        return MaterialApp(
             navigatorKey: NavigationService.navigatorKey,
             debugShowCheckedModeBanner: false,
             scrollBehavior: const AppScrollBehavior(),
@@ -503,9 +524,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           return const LoginPage();
         },
       ),
-
-          ),
-        );
+          );
       },
     );
   }
@@ -596,6 +615,86 @@ class _LoadingScaffold extends StatelessWidget {
   }
 }
 
+class _FallbackScaffold extends StatelessWidget {
+  const _FallbackScaffold();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? Theme.of(context).colorScheme.surface : Colors.white;
+    final titleColor = isDark ? Colors.white : kTextHeading;
+    final bodyColor = isDark ? Colors.white70 : kTextNormal;
+
+    return Scaffold(
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : kBackgroundColor,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: kWarningColor,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Welcome to PocketPT',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: titleColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Initializing your rehabilitation experience...',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: bodyColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Try to restart the initialization
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (context) => const MyApp()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kMainColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Continue'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // AuthWrapper to check assessment completion
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -615,32 +714,103 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkAssessmentStatus() async {
     try {
-      if (kIsWeb) {
-        // On web, skip FastLoadingService and use Firebase data directly
-        debugPrint('AuthWrapper: Using Firebase data for assessment check on web');
-        // Load user data from Firebase
-        await UserDetails.loadFromFirebase();
-      } else {
-        // Wait for critical data to be loaded by FastLoadingService
-        await FastLoadingService.instance.waitForCriticalData();
-        
-        // Check assessment status from local data (already loaded by FastLoadingService)
-        debugPrint('AuthWrapper: Using cached user data for assessment check');
-      }
+      debugPrint('AuthWrapper: Starting assessment status check...');
       
-      // Initialize the user data notifier with current data
-      UserDataNotifier.instance.initialize();
+      // Set a timeout to prevent infinite loading
+      await Future.any([
+        _loadAssessmentData(),
+        Future.delayed(const Duration(seconds: 10)),
+      ]);
+      
+      debugPrint('AuthWrapper: Assessment status check completed');
       
       if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error checking assessment status: $e');
+      debugPrint('AuthWrapper: Error checking assessment status: $e');
       if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+  
+  Future<void> _loadAssessmentData() async {
+    try {
+      // Check if we're in guest mode first
+      if (UserDetails.isGuest) {
+        debugPrint('AuthWrapper: Guest mode detected, initializing guest data');
+        await GuestModeService.instance.initialize();
+        await GuestModeService.instance.loadData();
+        
+        // Initialize the user data notifier with current data
+        UserDataNotifier.instance.initialize();
+        
+        // Force a refresh of the notifier to ensure UI updates
+        UserDataNotifier.instance.refresh();
+        return;
+      }
+
+      if (kIsWeb) {
+        // On web, skip FastLoadingService and use Firebase data directly
+        debugPrint('AuthWrapper: Using Firebase data for assessment check on web');
+        // Load user data from Firebase
+        await UserDetails.loadFromFirebase();
+      } else {
+        // Use comprehensive data loader to ensure all data is loaded
+        debugPrint('AuthWrapper: Using comprehensive data loader for assessment check');
+        await ComprehensiveDataLoader.instance.initialize();
+        
+        // Ensure all critical data is loaded
+        await Future.wait([
+          ComprehensiveDataLoader.instance.ensureDataLoaded('userData'),
+          ComprehensiveDataLoader.instance.ensureDataLoaded('userAssessment'),
+          ComprehensiveDataLoader.instance.ensureDataLoaded('rehabilitationPlans'),
+        ]);
+      }
+      
+      // Initialize the user data notifier with current data
+      UserDataNotifier.instance.initialize();
+      
+      // If user data is still empty, try to load it manually
+      if (UserDataNotifier.instance.isEmpty) {
+        debugPrint('AuthWrapper: User data is empty, attempting to load manually');
+        try {
+          await UserDetails.loadFromHive();
+          UserDataNotifier.instance.refresh();
+          
+          // If still empty, try Firebase
+          if (UserDataNotifier.instance.isEmpty) {
+            await UserDetails.loadFromFirebase();
+            UserDataNotifier.instance.refresh();
+          }
+        } catch (e) {
+          debugPrint('AuthWrapper: Error loading user data manually: $e');
+        }
+      }
+      
+      // Ensure we have some basic data even if loading failed
+      if (UserDataNotifier.instance.isEmpty) {
+        debugPrint('AuthWrapper: Still no user data, using defaults');
+        UserDataNotifier.instance.updateUserData(
+          firstName: 'User',
+          lastName: '',
+          email: 'user@example.com',
+          hasCompletedAssessment: false,
+        );
+      }
+      
+    } catch (e) {
+      debugPrint('AuthWrapper: Error in _loadAssessmentData: $e');
+      // Set default values to prevent blank screen
+      UserDataNotifier.instance.updateUserData(
+        firstName: 'User',
+        lastName: '',
+        email: 'user@example.com',
+        hasCompletedAssessment: false,
+      );
     }
   }
 
@@ -653,7 +823,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
       );
     }
 
-    // If user hasn't completed assessment, show assessment
+    // Ensure we have some basic data to prevent blank screen
+    if (UserDataNotifier.instance.isEmpty) {
+      debugPrint('AuthWrapper: No user data available, using fallback');
+      return const _FallbackScaffold();
+    }
+
+    // If user hasn't completed assessment, show assessment (including guests)
     if (!UserDetails.hasCompletedAssessment) {
       return const AssessPrelim();
     }
@@ -673,15 +849,14 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
-  int count = 0;
 
   @override
   void initState() {
     super.initState();
   }
 
-  // List: Pages (for Navigation)
-  final List<Widget> _pages = const [
+  // List: Pages (for Navigation) - const for better performance
+  static const List<Widget> _pages = [
     DashboardPage(),
     ExerciseManagerPage(),
     PreRecordPage(),
@@ -780,80 +955,8 @@ class _HomePageState extends State<HomePage> {
         children: _pages,
       ),
 
-      floatingActionButton: kDebugMode ? Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: kMainColor.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const TestPersistencePage(),
-              ),
-            );
-          },
-          backgroundColor: kMainColor,
-          child: const Icon(Icons.bug_report, color: Colors.white),
-          tooltip: 'Test Persistence',
-        ),
-      ) : null,
+      floatingActionButton: kDebugMode ? _buildDebugFab(context) : null,
 
-      // floatingActionButton: FloatingActionButton.extended(
-      //   onPressed: () {
-      //     Navigator.push(
-      //       context,
-      //       MaterialPageRoute(
-      //         builder: (context) => const PoseDetectionDemo(),
-      //       ),
-      //     );
-      //   },
-      //   backgroundColor: const Color(0xFF800020),
-      //   icon: const Icon(Icons.camera_alt, color: Colors.white),
-      //   label: Text(
-      //     'Pose Demo',
-      //     style: GoogleFonts.poppins(
-      //       color: Colors.white,
-      //       fontWeight: FontWeight.w600,
-      //     ),
-      //   ),
-      // ),
-
-      // floatingActionButton: FloatingActionButton.extended(
-      //   onPressed: () {
-      //     Navigator.push(
-      //       context,
-      //       MaterialPageRoute(
-      //         builder: (context) => const PoseDetectionDemo(),
-      //       ),
-      //     );
-      //   },
-      //   backgroundColor: const Color(0xFF800020),
-      //   icon: const Icon(Icons.camera_alt, color: Colors.white),
-      //   label: Text(
-      //     'Pose Demo',
-      //     style: GoogleFonts.poppins(
-      //       color: Colors.white,
-      //       fontWeight: FontWeight.w600,
-      //     ),
-      //   ),
-      // ),
-
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () {
-      //     setState(() {
-      //       count++;
-      //     });
-      //   },
-      //   child: const Icon(Icons.add),
-      // ),
 
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
@@ -888,104 +991,66 @@ class _HomePageState extends State<HomePage> {
         buttonBackgroundColor: kMainColor,
         animationCurve: Curves.easeInOut,
         animationDuration: const Duration(milliseconds: 300),
-        items: [
-          // Dashboard
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.dashboard, color: Colors.white, size: 24),
-                const SizedBox(height: 4),
-                Text(
-                  "Home", 
-                  style: GoogleFonts.ptSans(
-                    color: Colors.white, 
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        items: _buildNavigationItems(),
+      ),
+    );
+  }
 
-          // Exercise
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.fitness_center, color: Colors.white, size: 24),
-                const SizedBox(height: 4),
-                Text(
-                  "Exercise", 
-                  style: GoogleFonts.ptSans(
-                    color: Colors.white, 
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+  /// Builds the debug floating action button for testing
+  Widget _buildDebugFab(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: kMainColor.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
-
-          // Record (Center Button)
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.radio_button_checked, color: Colors.white, size: 32),
-                const SizedBox(height: 4),
-                Text(
-                  "Record", 
-                  style: GoogleFonts.ptSans(
-                    color: Colors.white, 
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+        ],
+      ),
+      child: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const TestPersistencePage(),
             ),
-          ),
+          );
+        },
+        backgroundColor: kMainColor,
+        child: const Icon(Icons.bug_report, color: Colors.white),
+        tooltip: 'Test Persistence',
+      ),
+    );
+  }
 
-          // Reports
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.analytics, color: Colors.white, size: 24),
-                const SizedBox(height: 4),
-                Text(
-                  "Report", 
-                  style: GoogleFonts.ptSans(
-                    color: Colors.white, 
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
+  /// Builds navigation items for the curved navigation bar
+  List<Widget> _buildNavigationItems() {
+    return [
+      _buildNavItem(Icons.dashboard, "Home", 24, FontWeight.w500),
+      _buildNavItem(Icons.fitness_center, "Exercise", 24, FontWeight.w500),
+      _buildNavItem(Icons.radio_button_checked, "Record", 32, FontWeight.w600),
+      _buildNavItem(Icons.analytics, "Report", 24, FontWeight.w500),
+      _buildNavItem(Icons.person, "Profile", 24, FontWeight.w500),
+    ];
+  }
 
-          // Profile
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.person, color: Colors.white, size: 24),
-                const SizedBox(height: 4),
-                Text(
-                  "Profile", 
-                  style: GoogleFonts.ptSans(
-                    color: Colors.white, 
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+  /// Builds individual navigation item widget
+  Widget _buildNavItem(IconData icon, String label, double iconSize, FontWeight fontWeight) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: iconSize),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.ptSans(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: fontWeight,
             ),
           ),
         ],

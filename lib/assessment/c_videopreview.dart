@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../data/functions.dart';
 import 'c_camera.dart';
 import 'c_painlevel.dart';
-
 class AssessPainVideoPreview extends StatelessWidget {
   final String videoPath;
 

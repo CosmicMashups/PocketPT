@@ -4,11 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-
 import '../data/globals.dart';
 import 'c_camera.dart';
 import 'c_videopreview.dart';
-
 class AssessPainUpload extends StatefulWidget {
   const AssessPainUpload({super.key});
 
@@ -20,6 +18,17 @@ class _AssessPainUploadState extends State<AssessPainUpload> {
   String painLevel = UserAssess.painLevel;
   int painScale = UserAssess.painScale;
   File? _selectedVideoFile = UserAssess.painVideo;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize painLevel and painScale from global variables
+    if (UserAssess.painLevel.isNotEmpty) {
+      painLevel = UserAssess.painLevel;
+    }
+    painScale = UserAssess.painScale;
+    _selectedVideoFile = UserAssess.painVideo;
+  }
 
   Future<bool> uploadVideoFile() async {
     await Future.delayed(Duration(seconds: 2)); // Simulate upload delay

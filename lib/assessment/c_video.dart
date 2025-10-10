@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import '../data/globals.dart';
 import '../data/functions.dart';
-
 import 'b_focus1.dart';
 import 'c_camera.dart';
 import 'c_painlevel.dart';
-
 import 'b_upperbody.dart';
 import 'b_lowerbody.dart';
 import 'b_core.dart';
 import 'b_neck.dart';
 import 'b_joints.dart';
-
 class AssessPainVideo extends StatefulWidget {
   const AssessPainVideo({super.key});
 
@@ -24,6 +20,16 @@ class AssessPainVideo extends StatefulWidget {
 class _AssessPainVideoState extends State<AssessPainVideo> {
   String painLevel = UserAssess.painLevel;
   int painScale = UserAssess.painScale;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize painLevel and painScale from global variables
+    if (UserAssess.painLevel.isNotEmpty) {
+      painLevel = UserAssess.painLevel;
+    }
+    painScale = UserAssess.painScale;
+  }
 
   @override
   Widget build(BuildContext context) {

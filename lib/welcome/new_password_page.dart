@@ -4,7 +4,6 @@ import 'dart:async';
 import '../data/forgot_password_service.dart';
 import '../widgets/progressive_loading_widget.dart';
 import '../main.dart';
-
 /// New password reset page
 class NewPasswordPage extends StatefulWidget {
   final String email;
