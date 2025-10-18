@@ -1,10 +1,65 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firebase_auth_diagnostics.dart';
 
 /// Helper class to manage Firebase collections and ensure they exist
 class FirebaseHelper {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// Ensure user is properly authenticated before Firestore operations
+  static Future<User?> ensureAuthenticatedUser() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        print('FirebaseHelper: No authenticated user found');
+        return null;
+      }
+
+      // Try to reload user, but don't fail if it doesn't work
+      try {
+        await currentUser.reload();
+      } catch (reloadError) {
+        print('FirebaseHelper: User reload failed, but continuing: $reloadError');
+      }
+      
+      final freshUser = _auth.currentUser;
+      if (freshUser == null) {
+        print('FirebaseHelper: User authentication lost after reload');
+        return null;
+      }
+
+      // Try to get token without forcing refresh first
+      try {
+        await freshUser.getIdToken(false);
+        print('FirebaseHelper: User authentication verified with existing token');
+        return freshUser;
+      } catch (tokenError) {
+        print('FirebaseHelper: Existing token failed, trying refresh: $tokenError');
+        // Only try refresh if existing token fails
+        try {
+          await freshUser.getIdToken(true);
+          print('FirebaseHelper: User authentication verified with refreshed token');
+          return freshUser;
+        } catch (refreshError) {
+          print('FirebaseHelper: Token refresh also failed: $refreshError');
+          // Even if token refresh fails, if we have a user, let's try to proceed
+          // This handles cases where the user is authenticated but token operations fail
+          print('FirebaseHelper: Proceeding with user despite token issues');
+          return freshUser;
+        }
+      }
+    } catch (e) {
+      print('FirebaseHelper: Error ensuring authenticated user: $e');
+      // Return the current user if available, even if there were errors
+      final fallbackUser = _auth.currentUser;
+      if (fallbackUser != null) {
+        print('FirebaseHelper: Using fallback user despite errors');
+        return fallbackUser;
+      }
+      return null;
+    }
+  }
 
   /// Ensure user document exists in Firebase
   static Future<void> ensureUserDocument() async {

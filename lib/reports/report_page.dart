@@ -3,6 +3,7 @@ import 'widgets/rehab_plan_expansion_panel.dart';
 import 'widgets/exercise_calendar_grid.dart';
 import 'widgets/export_pdf_button.dart';
 import '../data/user_data_notifier.dart';
+import '../data/data_persistence_service.dart';
 // removed data wrapper: using direct globals like a_goal1.dart
 class ReportPage extends StatefulWidget {
   const ReportPage({super.key});
@@ -12,11 +13,15 @@ class ReportPage extends StatefulWidget {
 }
 
 class _ReportPageState extends State<ReportPage> {
+  bool _isLoadingData = true;
+  String? _loadError;
+
   @override
   void initState() {
     super.initState();
     // Listen for rehabilitation plan changes
     UserDataNotifier.instance.addListener(_onRehabilitationPlanChanged);
+    _loadData();
   }
   
   @override
@@ -33,6 +38,29 @@ class _ReportPageState extends State<ReportPage> {
     }
   }
 
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoadingData = true;
+      _loadError = null;
+    });
+    try {
+      await DataPersistenceService.instance.loadUserDataIfNeeded();
+      // Initialize notifier once data is available
+      UserDataNotifier.instance.initialize();
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoadingData = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingData = false;
+        _loadError = 'Failed to load report data. Please try again.';
+      });
+    }
+  }
+
   // Professional healthcare color scheme
   static const mainColor = Color(0xFF8B2E2E); // Muscular maroon
   static const subColor = Color(0xFFC24A4A); // Lighter maroon
@@ -41,6 +69,66 @@ class _ReportPageState extends State<ReportPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingData) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          title: const Text(
+            'Clinical Reports',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              fontSize: 20,
+              letterSpacing: 0.5,
+            ),
+          ),
+          automaticallyImplyLeading: false,
+          centerTitle: true,
+          backgroundColor: mainColor,
+          elevation: 0,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    if (_loadError != null) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          title: const Text(
+            'Clinical Reports',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              fontSize: 20,
+              letterSpacing: 0.5,
+            ),
+          ),
+          automaticallyImplyLeading: false,
+          centerTitle: true,
+          backgroundColor: mainColor,
+          elevation: 0,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 40),
+              const SizedBox(height: 12),
+              Text(_loadError!, textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _loadData,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,

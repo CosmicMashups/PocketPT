@@ -5,8 +5,6 @@ import '../data/globals.dart';
 import 'b_upperbody.dart';
 import 'b_lowerbody.dart';
 import 'b_core.dart';
-import 'b_neck.dart';
-import 'b_joints.dart';
 
 class AssessFocus1 extends StatefulWidget {
   const AssessFocus1({super.key});
@@ -211,36 +209,6 @@ class _AssessFocus1State extends State<AssessFocus1> {
                         );
                         print('AssessFocus1: Core option built successfully');
                         return core;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Builder(
-                      builder: (context) {
-                        print('AssessFocus1: About to build Neck & Upper Back option');
-                        final neck = _buildMuscleRegionOption(
-                          'Neck & Upper Back',
-                          'Cervical and thoracic spine',
-                          'assets/images/muscle_region/neck.png',
-                          Icons.healing,
-                          const Color(0xFF8B5CF6),
-                        );
-                        print('AssessFocus1: Neck & Upper Back option built successfully');
-                        return neck;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Builder(
-                      builder: (context) {
-                        print('AssessFocus1: About to build Joints option');
-                        final joints = _buildMuscleRegionOption(
-                          'Joints',
-                          'Knees, elbows, and other joints',
-                          'assets/images/muscle_region/joints.png',
-                          Icons.settings,
-                          const Color(0xFFF59E0B),
-                        );
-                        print('AssessFocus1: Joints option built successfully');
-                        return joints;
                       },
                     ),
 
@@ -499,14 +467,6 @@ class _AssessFocus1State extends State<AssessFocus1> {
               print('AssessFocus1: Navigating to AssessCore');
               Navigator.push(context, MaterialPageRoute(builder: (_) => const AssessCore()));
               break;
-            case 'Neck & Upper Back':
-              print('AssessFocus1: Navigating to AssessNeck');
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const AssessNeck()));
-              break;
-            case 'Joints':
-              print('AssessFocus1: Navigating to AssessJoints');
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const AssessJoints()));
-              break;
           }
           print('AssessFocus1: Navigation completed successfully');
         },
@@ -520,18 +480,14 @@ class _AssessFocus1State extends State<AssessFocus1> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-              // Icon
+              // Image
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isSelected ? color : color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? Colors.white : color,
-                  size: 24,
-                ),
+                child: _buildMuscleRegionImage(title, isSelected ? Colors.white : color),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -596,5 +552,99 @@ class _AssessFocus1State extends State<AssessFocus1> {
         child: Text('Error building muscle region option "$title": $e', style: const TextStyle(color: Colors.red)),
       );
     }
+  }
+
+  Widget _buildMuscleRegionImage(String title, Color fallbackTint) {
+    final Map<String, String> titleToAsset = {
+      'Upper Body': 'assets/images/muscle_region/upper_body.png',
+      'Lower Body': 'assets/images/muscle_region/lower_body.png',
+      'Core': 'assets/images/muscle_region/core_area.png',
+    };
+    final path = titleToAsset[title];
+    if (path == null) {
+      return Icon(Icons.image_not_supported, color: fallbackTint, size: 24);
+    }
+    return GestureDetector(
+      onTap: () => _showImageDialog(title, path),
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: Image.asset(path, fit: BoxFit.contain),
+      ),
+    );
+  }
+
+  void _showImageDialog(String title, String imagePath) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF8B2E2E),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                // Image
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                    ),
+                  ),
+                ),
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Tap anywhere to close',
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

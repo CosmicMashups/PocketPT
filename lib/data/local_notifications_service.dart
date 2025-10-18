@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'navigation_service.dart';
+import 'globals.dart';
 
 class LocalNotificationsService {
   LocalNotificationsService._();
@@ -94,7 +95,7 @@ class LocalNotificationsService {
 
     final String todayKey = _makeTodayKey(actionType);
     try {
-      final box = Hive.isBoxOpen('rehabBox') ? Hive.box('rehabBox') : await Hive.openBox('rehabBox');
+      final box = Hive.isBoxOpen('rehabBox') ? Hive.box('rehabBox') : await openRehabBox();
       final alreadyNotified = box.get(todayKey, defaultValue: false) as bool;
       if (alreadyNotified) return;
 

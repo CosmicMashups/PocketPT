@@ -14,6 +14,7 @@ class ExerciseCalendarGrid extends ConsumerWidget {
     final exerciseRecords = ExerciseHistory.entries.map((entry) => ExerciseRecord(
       date: entry.date,
       icdCode: 'REHAB',
+      exerciseId: entry.exerciseId, // Include exercise ID for loading actual exercise data
       exerciseName: entry.exerciseName,
       sets: entry.sets,
       reps: entry.reps,

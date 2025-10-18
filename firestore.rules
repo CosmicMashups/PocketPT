@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for data validation
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidUserId(userId) {
+      return userId is string && userId.size() > 0 && userId == request.auth.uid;
+    }
+    
+    function hasValidTimestamp(field) {
+      return field is timestamp || field == null;
+    }
+    
+    function hasValidString(field) {
+      return field is string || field == null;
+    }
+    
+    function hasValidNumber(field) {
+      return field is number || field == null;
+    }
+    
+    function hasValidBoolean(field) {
+      return field is bool || field == null;
+    }
+    
+    function hasValidArray(field) {
+      return field is list || field == null;
+    }
+    
+    function hasValidMap(field) {
+      return field is map || field == null;
+    }
+    
+    // Users collection - Basic user profile data
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow update: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Rehabilitation collection - User rehabilitation plans and treatments
+    match /rehabilitation/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow update: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Progress collection - User progress tracking data
+    match /progress/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow update: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Assessment collection - User assessment data
+    match /assessment/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow update: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Settings collection - User preferences and settings
+    match /settings/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow update: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Pain History collection - User pain tracking data
+    match /painHistory/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow update: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Exercise History collection - User exercise tracking data
+    match /exerciseHistory/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow update: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow delete: if isOwner(userId);
+    }
+    
+    // Legacy nested collections - Maintain backward compatibility
+    match /users/{userId}/rehabilitationPlans/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    match /users/{userId}/treatments/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Password reset codes collection - Temporary access for password reset
+    match /password_reset_codes/{codeId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Test collections - For development and testing
+    match /_test/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Backup collections - For data backup operations
+    match /_backups/{backupId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'providers/report_providers.dart';
+import '../../data/rehabilitation_plan.dart';
 class ExpandedReportPage extends ConsumerWidget {
   final String planTitle;
   final String icdCode;
@@ -314,13 +315,22 @@ class ExpandedReportPage extends ConsumerWidget {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: Text(
-                                  record.exerciseName,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: mainColor,
-                                  ),
+                                child: FutureBuilder<Exercise?>(
+                                  future: ExerciseDataService.getExerciseById(record.exerciseId),
+                                  builder: (context, snapshot) {
+                                    final exerciseName = snapshot.hasData && snapshot.data != null
+                                        ? snapshot.data!.exerciseName
+                                        : record.exerciseName; // Fallback to placeholder name
+                                    
+                                    return Text(
+                                      exerciseName,
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: mainColor,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               Container(

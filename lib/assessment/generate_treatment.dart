@@ -1,57 +1,120 @@
 import 'package:flutter/services.dart';
 import 'package:csv/csv.dart';
 import '../data/treatment.dart';
-Future<List<Treatment>> loadTreatmentsFromCSV() async {
-  final csvData = await rootBundle.loadString('assets/data/treatment.csv');
-  final List<List<dynamic>> csvTable = const CsvToListConverter().convert(csvData);
+import '../data/rehabilitation_plan.dart';
 
-  // Skip header row and map to Treatment objects
-  return csvTable.skip(1).map((row) {
-    return Treatment(
-      treatmentId: row[0].toString(),
-      treatmentName: row[1].toString(),
-      description: row[2].toString(),
-      musclesInvolved: row[3].toString(),
-      painLevel: row[4].toString(),
-      painDuration: row[5].toString(),
-    );
-  }).toList();
+/// Load treatments from CSV with comprehensive error handling and logging
+Future<List<Treatment>> loadTreatmentsFromCSV() async {
+  try {
+    print('GenerateTreatment: Loading treatments from CSV...');
+    final csvData = await rootBundle.loadString('assets/data/treatment.csv');
+    final List<List<dynamic>> csvTable = const CsvToListConverter().convert(csvData);
+
+    if (csvTable.isEmpty) {
+      print('GenerateTreatment: CSV file is empty');
+      return [];
+    }
+
+    // Skip header row and map to Treatment objects
+    final treatments = csvTable.skip(1).map((row) {
+      if (row.length < 6) {
+        print('GenerateTreatment: Warning - row has insufficient columns: ${row.length}');
+        return null;
+      }
+      
+      return Treatment(
+        treatmentId: row[0].toString(),
+        treatmentName: row[1].toString(),
+        description: row[2].toString(),
+        musclesInvolved: row[3].toString(),
+        painLevel: row[4].toString(),
+        painDuration: row[5].toString(),
+      );
+    }).where((treatment) => treatment != null).cast<Treatment>().toList();
+
+    print('GenerateTreatment: Successfully loaded ${treatments.length} treatments from CSV');
+    return treatments;
+  } catch (e, stackTrace) {
+    print('GenerateTreatment: ERROR loading treatments from CSV - $e');
+    print('GenerateTreatment: Stack trace: $stackTrace');
+    return [];
+  }
 }
 
+/// Filter treatments based on target criteria with comprehensive logging
 List<Treatment> filterTreatments({
   required List<Treatment> allTreatments,
   required String targetMuscles,  // Now expects a single muscle
   required String targetPainLevel,
   required String targetPainDuration,
 }) {
-  return allTreatments.where((treatment) {
-    // Check if treatment includes the target muscle
-    final treatmentMuscles = treatment.musclesInvolved.split(', ');
-    final muscleMatch = treatmentMuscles.contains(targetMuscles);
+  try {
+    print('GenerateTreatment: Filtering treatments...');
+    print('GenerateTreatment: Target muscle: "$targetMuscles"');
+    print('GenerateTreatment: Target pain level: "$targetPainLevel"');
+    print('GenerateTreatment: Target pain duration: "$targetPainDuration"');
+    print('GenerateTreatment: Total treatments to filter: ${allTreatments.length}');
 
-    // Check pain level (treatment can have multiple levels separated by comma)
-    final treatmentPainLevels = treatment.painLevel.split(', ');
-    final painLevelMatch = treatmentPainLevels.contains(targetPainLevel) || 
-                         treatmentPainLevels.contains('$targetPainLevel,') ||
-                         treatment.painLevel.contains(targetPainLevel);
+    final filteredTreatments = allTreatments.where((treatment) {
+      // Check if treatment includes the target muscle
+      final treatmentMuscles = treatment.musclesInvolved.split(', ');
+      final muscleMatch = treatmentMuscles.contains(targetMuscles);
 
-    // Check pain duration (treatment can have multiple durations separated by comma)
-    final treatmentPainDurations = treatment.painDuration.split(', ');
-    final painDurationMatch = treatmentPainDurations.contains(targetPainDuration) || 
-                            treatmentPainDurations.contains('$targetPainDuration,') ||
-                            treatment.painDuration.contains(targetPainDuration);
+      // Check pain level (treatment can have multiple levels separated by comma)
+      final treatmentPainLevels = treatment.painLevel.split(', ');
+      final painLevelMatch = treatmentPainLevels.contains(targetPainLevel) || 
+                           treatmentPainLevels.contains('$targetPainLevel,') ||
+                           treatment.painLevel.contains(targetPainLevel);
 
-    return muscleMatch && painLevelMatch && painDurationMatch;
-  }).toList();
+      // Check pain duration (treatment can have multiple durations separated by comma)
+      final treatmentPainDurations = treatment.painDuration.split(', ');
+      final painDurationMatch = treatmentPainDurations.contains(targetPainDuration) || 
+                              treatmentPainDurations.contains('$targetPainDuration,') ||
+                              treatment.painDuration.contains(targetPainDuration);
+
+      final matches = muscleMatch && painLevelMatch && painDurationMatch;
+      
+      if (matches) {
+        print('GenerateTreatment: Match found - ${treatment.treatmentName} (${treatment.treatmentId})');
+      }
+
+      return matches;
+    }).toList();
+
+    print('GenerateTreatment: Filtering completed - ${filteredTreatments.length} treatments match criteria');
+    return filteredTreatments;
+  } catch (e, stackTrace) {
+    print('GenerateTreatment: ERROR filtering treatments - $e');
+    print('GenerateTreatment: Stack trace: $stackTrace');
+    return [];
+  }
 }
 
+/// Generate treatment plan with comprehensive error handling and logging
 Future<List<TreatmentReference>?> generateTreatmentPlan({
   required String specificMuscle,
   required String painLevel,
   required String painDuration,
 }) async {
+  print('=== GenerateTreatment: generateTreatmentPlan() START ===');
+  print('GenerateTreatment: specificMuscle = "$specificMuscle"');
+  print('GenerateTreatment: painLevel = "$painLevel"');
+  print('GenerateTreatment: painDuration = "$painDuration"');
+  
   try {
+    // Load all treatments from CSV
+    print('GenerateTreatment: Loading treatments from CSV...');
     final allTreatments = await loadTreatmentsFromCSV();
+    
+    if (allTreatments.isEmpty) {
+      print('GenerateTreatment: No treatments loaded from CSV');
+      return null;
+    }
+    
+    print('GenerateTreatment: Loaded ${allTreatments.length} treatments from CSV');
+    
+    // Filter treatments based on criteria
+    print('GenerateTreatment: Filtering treatments based on criteria...');
     final matchedTreatments = filterTreatments(
       allTreatments: allTreatments,
       targetMuscles: specificMuscle,
@@ -60,10 +123,14 @@ Future<List<TreatmentReference>?> generateTreatmentPlan({
     );
 
     if (matchedTreatments.isEmpty) {
+      print('GenerateTreatment: No treatments match the specified criteria');
       return null;
     }
+    
+    print('GenerateTreatment: Found ${matchedTreatments.length} matching treatments');
 
     // Remove duplicate treatments based on treatmentId to ensure uniqueness
+    print('GenerateTreatment: Removing duplicates...');
     final uniqueTreatments = <String, Treatment>{};
     for (final treatment in matchedTreatments) {
       if (!uniqueTreatments.containsKey(treatment.treatmentId)) {
@@ -72,18 +139,101 @@ Future<List<TreatmentReference>?> generateTreatmentPlan({
     }
     
     final deduplicatedTreatments = uniqueTreatments.values.toList();
-    print('Unique treatments after deduplication: ${deduplicatedTreatments.length} treatments found');
+    print('GenerateTreatment: Unique treatments after deduplication: ${deduplicatedTreatments.length} treatments found');
 
     if (deduplicatedTreatments.isEmpty) {
-      print('No unique treatments found after deduplication');
+      print('GenerateTreatment: No unique treatments found after deduplication');
       return null;
     }
 
-    return deduplicatedTreatments.take(3).map((treatment) => 
+    // Create treatment references (limit to 3)
+    final treatmentReferences = deduplicatedTreatments.take(3).map((treatment) => 
       TreatmentReference(treatmentId: treatment.treatmentId)
     ).toList();
-  } catch (e) {
-    print('Error generating treatment plan: $e');
+    
+    print('GenerateTreatment: Generated ${treatmentReferences.length} treatment references');
+    print('GenerateTreatment: Treatment IDs: ${treatmentReferences.map((ref) => ref.treatmentId).join(", ")}');
+    print('=== GenerateTreatment: generateTreatmentPlan() COMPLETED successfully ===');
+    
+    return treatmentReferences;
+  } catch (e, stackTrace) {
+    print('GenerateTreatment: ERROR in generateTreatmentPlan() - $e');
+    print('GenerateTreatment: Stack trace: $stackTrace');
+    print('=== GenerateTreatment: generateTreatmentPlan() FAILED ===');
+    return null;
+  }
+}
+
+/// Generate treatment plan using ExerciseDataService for consistency with generate_plan.dart
+Future<List<TreatmentReference>?> generateTreatmentPlanFromService({
+  required String specificMuscle,
+  required String painLevel,
+  required String painDuration,
+}) async {
+  print('=== GenerateTreatment: generateTreatmentPlanFromService() START ===');
+  print('GenerateTreatment: specificMuscle = "$specificMuscle"');
+  print('GenerateTreatment: painLevel = "$painLevel"');
+  print('GenerateTreatment: painDuration = "$painDuration"');
+  
+  try {
+    // Use ExerciseDataService for consistency with generate_plan.dart
+    print('GenerateTreatment: Loading treatments using ExerciseDataService...');
+    final allTreatments = await ExerciseDataService.loadAllTreatments();
+    
+    if (allTreatments.isEmpty) {
+      print('GenerateTreatment: No treatments loaded from ExerciseDataService');
+      return null;
+    }
+    
+    print('GenerateTreatment: Loaded ${allTreatments.length} treatments from ExerciseDataService');
+    
+    // Filter treatments based on criteria
+    print('GenerateTreatment: Filtering treatments based on criteria...');
+    final matchedTreatments = filterTreatments(
+      allTreatments: allTreatments,
+      targetMuscles: specificMuscle,
+      targetPainLevel: painLevel,
+      targetPainDuration: painDuration,
+    );
+
+    if (matchedTreatments.isEmpty) {
+      print('GenerateTreatment: No treatments match the specified criteria');
+      return null;
+    }
+    
+    print('GenerateTreatment: Found ${matchedTreatments.length} matching treatments');
+
+    // Remove duplicate treatments based on treatmentId to ensure uniqueness
+    print('GenerateTreatment: Removing duplicates...');
+    final uniqueTreatments = <String, Treatment>{};
+    for (final treatment in matchedTreatments) {
+      if (!uniqueTreatments.containsKey(treatment.treatmentId)) {
+        uniqueTreatments[treatment.treatmentId] = treatment;
+      }
+    }
+    
+    final deduplicatedTreatments = uniqueTreatments.values.toList();
+    print('GenerateTreatment: Unique treatments after deduplication: ${deduplicatedTreatments.length} treatments found');
+
+    if (deduplicatedTreatments.isEmpty) {
+      print('GenerateTreatment: No unique treatments found after deduplication');
+      return null;
+    }
+
+    // Create treatment references (limit to 3)
+    final treatmentReferences = deduplicatedTreatments.take(3).map((treatment) => 
+      TreatmentReference(treatmentId: treatment.treatmentId)
+    ).toList();
+    
+    print('GenerateTreatment: Generated ${treatmentReferences.length} treatment references');
+    print('GenerateTreatment: Treatment IDs: ${treatmentReferences.map((ref) => ref.treatmentId).join(", ")}');
+    print('=== GenerateTreatment: generateTreatmentPlanFromService() COMPLETED successfully ===');
+    
+    return treatmentReferences;
+  } catch (e, stackTrace) {
+    print('GenerateTreatment: ERROR in generateTreatmentPlanFromService() - $e');
+    print('GenerateTreatment: Stack trace: $stackTrace');
+    print('=== GenerateTreatment: generateTreatmentPlanFromService() FAILED ===');
     return null;
   }
 }

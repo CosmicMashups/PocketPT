@@ -130,31 +130,24 @@ class _AssessGoal1State extends State<AssessGoal1> {
 
                     // Goal Options
                     _buildGoalOption(
-                      "Pain Relief",
+                      "Alleviate Pain",
                       "Reduce or eliminate pain and discomfort",
                       Icons.healing,
                       successColor,
                     ),
                     const SizedBox(height: 16),
                     _buildGoalOption(
-                      "Improved Mobility",
+                      "Improve Mobility",
                       "Increase range of motion and flexibility",
                       Icons.accessibility,
                       subColor,
                     ),
                     const SizedBox(height: 16),
                     _buildGoalOption(
-                      "Strength Building",
+                      "Strengthen Muscle",
                       "Build muscle strength and endurance",
                       Icons.fitness_center,
                       mainColor,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildGoalOption(
-                      "Functional Recovery",
-                      "Restore daily living activities",
-                      Icons.home_work,
-                      const Color(0xFF8B5CF6),
                     ),
                   ],
                 ),

@@ -4,12 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
 import 'dart:async';
-import 'dart:math' as math;
 import '../data/globals.dart';
 import '../main.dart';
 import '../data/pose_detection_service.dart';
 import '../widgets/enhanced_pose_skeleton_painter.dart';
 import 'assessment_data.dart';
+import 'arom/assessment_service.dart';
+import 'arom/assessment_result.dart';
 import 'c_video.dart';
 import 'c_upload.dart';
 import 'c_videopreview.dart';
@@ -21,12 +22,7 @@ class AssessPainCamera extends StatefulWidget {
 }
 
 class _AssessPainCameraState extends State<AssessPainCamera> {
-  // Constants matching Jupyter Python code
-  static const double calfSevereThreshold = 0.15;  // Normalized displacement < 0.15 -> Severe
-  static const double calfModerateThreshold = 0.30;  // 0.15 <= displacement < 0.30 -> Moderate
-  static const double hamstringSevereThreshold = 60.0;  // Angle < 60° -> Severe
-  static const double hamstringModerateThreshold = 80.0;  // 60° <= Angle < 80° -> Moderate
-  static const double pelvicCompensationThresholdNorm = 0.05; // Vertical difference > 5% of body height proxy -> Warning
+  // Assessment logic moved to modular services
 
   int painScale = 0;
   late CameraController _controller;
@@ -42,27 +38,10 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   bool _isStreaming = false;
   bool _processingFrame = false;
   Timer? _throttleTimer;
-  double? _lastComputedAngle;
   int? _lastProcessedTime; // ms timestamp for throttling
   
-  // ROM Assessment Results
-  Map<String, dynamic>? _romResults;
-  Map<String, dynamic>? _compensations;
-  String? _currentROMLabel;
-  Color? _currentROMColor;
-  int _overallPainScore = 0;
-
-  // New: Calf dorsiflexion analysis state
-  String _calfROMLevel = "Calf: Not visible";
-  Color _calfDisplayColor = Colors.white;
-  String _calfAlignment = "Alignment: N/A";
-  double? _calfNormDisplacement;
-
-  // New: Hamstring ROM analysis state
-  String _hamstringROMLevel = "Hamstring: Not visible";
-  Color _hamstringDisplayColor = Colors.white;
-  String _hamstringCompensation = "Compensation: N/A";
-  double _hamstringAngle = 0.0;
+  // Current assessment result from modular services
+  AssessmentResult? _currentAssessmentResult;
 
   // New: Skeleton visualization state
   bool _showSkeleton = false;
@@ -202,62 +181,26 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
             if (mounted) setState(() {});
           }
           
-          // Perform ROM assessment based on selected mode (continues during recording)
-          if (_mode == 'Triceps' || _mode == 'Shoulders') {
-            // Use existing comprehensive ROM assessment for upper body
-            try {
-              final assessment = _poseService.performComprehensiveROMAssessment(landmarks);
-              
-              if (mounted && assessment.isNotEmpty) {
-                setState(() {
-                  _romResults = assessment;
-                  _compensations = assessment['compensations'];
-                  _overallPainScore = assessment['overallPainScore'] ?? 0;
-                  
-                  // Update current ROM display based on mode
-                  _updateCurrentROMDisplay();
-                  
-                  // Update UserAssess for integration (persists during recording)
-                  UserAssess.painScale = _overallPainScore;
-                  UserAssess.painLevel = _overallPainScore.toString();
-                  
-                  // Add clinical context for better user understanding
-                  if (assessment.containsKey('painDescription')) {
-                    UserAssess.painLevel = assessment['painDescription'];
-                  }
-                  
-                  PainHistory.recordTodayAndSave(
-                    painScale: UserAssess.painScale,
-                    painLevel: UserAssess.painLevel,
-                  );
-                });
-              }
-            } catch (e) {
-              debugPrint('Comprehensive assessment failed: $e');
-              // Fallback to basic angle calculation if comprehensive assessment fails
-              final angle = _computeRelevantAngle(landmarks);
-              if (angle != null) {
-                _lastComputedAngle = angle;
-                final score = _mapAngleToScore(angle);
-                if (score != UserAssess.painScale) {
-                  UserAssess.painScale = score;
-                  UserAssess.painLevel = score.toString();
-                  PainHistory.recordTodayAndSave(
-                    painScale: UserAssess.painScale,
-                    painLevel: UserAssess.painLevel,
-                  );
-                  if (mounted) setState(() {});
-                }
-              }
+          // Perform ROM assessment using modular services
+          try {
+            final assessmentResult = AssessmentService.assess(_mode, landmarks, _selectedSide);
+            
+            if (mounted) {
+              setState(() {
+                _currentAssessmentResult = assessmentResult;
+                
+                // Update UserAssess for integration (persists during recording)
+                UserAssess.painScale = assessmentResult.painScore;
+                UserAssess.painLevel = assessmentResult.clinicalContext;
+                
+                PainHistory.recordTodayAndSave(
+                  painScale: UserAssess.painScale,
+                  painLevel: UserAssess.painLevel,
+                );
+              });
             }
-          } else if (_mode == 'Calf') {
-            // Use new calf analysis (continues during recording)
-            _analyzeCalfDorsiflexion(landmarks);
-            if (mounted) setState(() {});
-          } else if (_mode == 'Hamstrings') {
-            // Use new hamstring analysis (continues during recording)
-            _analyzeHamstringROM(landmarks);
-            if (mounted) setState(() {});
+          } catch (e) {
+            debugPrint('Assessment failed: $e');
           }
         }
       } catch (e) {
@@ -295,33 +238,26 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                     _currentLandmarks = landmarks;
                     if (mounted) setState(() {});
                   }
-                  if (_mode == 'Triceps' || _mode == 'Shoulders') {
-                    try {
-                      final assessment = _poseService.performComprehensiveROMAssessment(landmarks);
-                      if (mounted && assessment.isNotEmpty) {
-                        setState(() {
-                          _romResults = assessment;
-                          _compensations = assessment['compensations'];
-                          _overallPainScore = assessment['overallPainScore'] ?? 0;
-                          _updateCurrentROMDisplay();
-                          UserAssess.painScale = _overallPainScore;
-                          UserAssess.painLevel = _overallPainScore.toString();
-                          if (assessment.containsKey('painDescription')) {
-                            UserAssess.painLevel = assessment['painDescription'];
-                          }
-                          PainHistory.recordTodayAndSave(
-                            painScale: UserAssess.painScale,
-                            painLevel: UserAssess.painLevel,
-                          );
-                        });
-                      }
-                    } catch (_) {}
-                  } else if (_mode == 'Calf') {
-                    _analyzeCalfDorsiflexion(landmarks);
-                    if (mounted) setState(() {});
-                  } else if (_mode == 'Hamstrings') {
-                    _analyzeHamstringROM(landmarks);
-                    if (mounted) setState(() {});
+                  // Perform ROM assessment using modular services
+                  try {
+                    final assessmentResult = AssessmentService.assess(_mode, landmarks, _selectedSide);
+                    
+                    if (mounted) {
+                      setState(() {
+                        _currentAssessmentResult = assessmentResult;
+                        
+                        // Update UserAssess for integration (persists during recording)
+                        UserAssess.painScale = assessmentResult.painScore;
+                        UserAssess.painLevel = assessmentResult.clinicalContext;
+                        
+                        PainHistory.recordTodayAndSave(
+                          painScale: UserAssess.painScale,
+                          painLevel: UserAssess.painLevel,
+                        );
+                      });
+                    }
+                  } catch (e) {
+                    debugPrint('Assessment failed: $e');
                   }
                 }
               } finally {
@@ -339,221 +275,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   
 
-  double? _computeRelevantAngle(Map<String, Offset> lm) {
-    final side = _selectedSide.toLowerCase();
-    
-    if (_mode == 'Triceps') {
-      if (side == 'left' && lm.containsKey('leftShoulder') && lm.containsKey('leftElbow') && lm.containsKey('leftWrist')) {
-        return _poseService.calculateAngle(lm['leftShoulder']!, lm['leftElbow']!, lm['leftWrist']!);
-      } else if (side == 'right' && lm.containsKey('rightShoulder') && lm.containsKey('rightElbow') && lm.containsKey('rightWrist')) {
-        return _poseService.calculateAngle(lm['rightShoulder']!, lm['rightElbow']!, lm['rightWrist']!);
-      }
-    } else if (_mode == 'Shoulders') {
-      if (side == 'left' && lm.containsKey('leftHip') && lm.containsKey('leftShoulder') && lm.containsKey('leftElbow')) {
-        return _poseService.calculateAngle(lm['leftHip']!, lm['leftShoulder']!, lm['leftElbow']!);
-      } else if (side == 'right' && lm.containsKey('rightHip') && lm.containsKey('rightShoulder') && lm.containsKey('rightElbow')) {
-        return _poseService.calculateAngle(lm['rightHip']!, lm['rightShoulder']!, lm['rightElbow']!);
-      }
-    }
-    return null;
-  }
+  // Assessment logic moved to modular services
 
-  // Standardized angle to pain score mapping (aligned with clinical standards)
-  int _mapAngleToScore(double angle) {
-    if (_mode == 'Triceps') {
-      // Triceps: 0° (flexed) -> 180° (extended)
-      // Using standardized clinical pain scale
-      if (angle < 90) return 9; // Severe limitation (8-10 range)
-      if (angle < 135) return 6; // Moderate limitation (5-7 range)
-      return 1; // Good ROM (0-1 range)
-    } else if (_mode == 'Shoulders') {
-      // Shoulders: 180° (arm down) -> 90° (T-pose) -> <90° (overhead)
-      // Using standardized clinical pain scale
-      if (angle < 90) return 9; // Severe pain (8-10 range)
-      if (angle <= 110) return 6; // Moderate pain (5-7 range)
-      if (angle <= 150) return 3; // Low pain (2-4 range)
-      return 1; // Good mobility (0-1 range)
-    }
-    return 5; // Default moderate when mode is unknown
-  }
-
-  // New: Calf dorsiflexion analysis based on Jupyter code
-  void _analyzeCalfDorsiflexion(Map<String, Offset> landmarks) {
-    try {
-      // Get relevant landmarks based on selected side
-      final side = _selectedSide.toLowerCase();
-      final hip = landmarks['${side}Hip'];
-      final knee = landmarks['${side}Knee'];
-      final ankle = landmarks['${side}Ankle'];
-      final heel = landmarks['${side}Heel'];
-
-      if (hip == null || knee == null || ankle == null || heel == null) {
-        _calfROMLevel = "Calf: Not visible";
-        _calfDisplayColor = Colors.white;
-        _calfAlignment = "Alignment: N/A";
-        _calfNormDisplacement = null;
-        return;
-      }
-
-      // Calculate horizontal displacement between knee and ankle
-      final horizontalDisplacement = knee.dx - ankle.dx;
-      
-      // Calculate vertical distance between hip and ankle as body height proxy
-      final bodySegmentHeight = (hip.dy - ankle.dy).abs();
-      
-      if (bodySegmentHeight < 10) {
-        _calfROMLevel = "Calf: Adjust position";
-        _calfDisplayColor = Colors.yellow;
-        _calfNormDisplacement = null;
-        _calfAlignment = "Alignment: N/A";
-        return;
-      }
-
-      // Normalize horizontal displacement by body segment height
-      _calfNormDisplacement = horizontalDisplacement / bodySegmentHeight;
-      final absNormDisplacement = _calfNormDisplacement?.abs() ?? 0.0;
-
-      // ROM Classification based on normalized displacement
-      // Using exact thresholds from Jupyter code
-      if (absNormDisplacement < calfSevereThreshold) {
-        _calfROMLevel = "Calf ROM: Severe (< ${calfSevereThreshold.toStringAsFixed(2)})";
-        _calfDisplayColor = Colors.red;
-      } else if (absNormDisplacement < calfModerateThreshold) {
-        _calfROMLevel = "Calf ROM: Moderate (${calfSevereThreshold.toStringAsFixed(2)}-${calfModerateThreshold.toStringAsFixed(2)})";
-        _calfDisplayColor = Colors.orange;
-      } else { // absNormDisplacement >= calfModerateThreshold
-        _calfROMLevel = "Calf ROM: Good (> ${calfModerateThreshold.toStringAsFixed(2)})";
-        _calfDisplayColor = Colors.green;
-      }
-
-      // Check knee-over-ankle alignment
-      if (knee.dx > ankle.dx) {
-        _calfAlignment = "Alignment: Knee Forward";
-      } else {
-        _calfAlignment = "Alignment: Knee Behind/Inline";
-      }
-
-      // Update pain score based on ROM level (using standardized clinical scale)
-      if (absNormDisplacement < calfSevereThreshold) {
-        UserAssess.painScale = 9; // Severe (8-10 range)
-      } else if (absNormDisplacement < calfModerateThreshold) {
-        UserAssess.painScale = 6; // Moderate (5-7 range)
-      } else { // absNormDisplacement >= calfModerateThreshold
-        UserAssess.painScale = 1; // Good (0-1 range)
-      }
-      UserAssess.painLevel = UserAssess.painScale.toString();
-      PainHistory.recordTodayAndSave(
-        painScale: UserAssess.painScale,
-        painLevel: UserAssess.painLevel,
-      );
-
-    } catch (e) {
-      debugPrint('Calf analysis error: $e');
-      _calfROMLevel = "Calf: Error";
-      _calfDisplayColor = Colors.red;
-      _calfAlignment = "Alignment: Error";
-      _calfNormDisplacement = null;
-    }
-  }
-
-  // New: Hamstring ROM analysis based on Jupyter code
-  void _analyzeHamstringROM(Map<String, Offset> landmarks) {
-    try {
-      // Get relevant landmarks based on selected side
-      final side = _selectedSide.toLowerCase();
-      final hip = landmarks['${side}Hip'];
-      final knee = landmarks['${side}Knee'];
-      final ankle = landmarks['${side}Ankle'];
-      final hipL = landmarks['leftHip'];
-      final hipR = landmarks['rightHip'];
-      final shoulderR = landmarks['rightShoulder'];
-      final shoulderL = landmarks['leftShoulder'];
-
-      if (hip == null || knee == null || ankle == null || 
-          hipL == null || hipR == null || shoulderR == null || shoulderL == null) {
-        _hamstringROMLevel = "Hamstring: Not visible";
-        _hamstringDisplayColor = Colors.white;
-        _hamstringCompensation = "Compensation: N/A";
-        return;
-      }
-
-      // Calculate hamstring angle (angle between hip-ankle and vertical axis)
-      _hamstringAngle = _calculateVerticalAngle(hip, ankle);
-
-      // ROM Classification based on angle (using standardized clinical scale)
-      if (_hamstringAngle < hamstringSevereThreshold) {
-        _hamstringROMLevel = "Hamstring ROM: Severe (< ${hamstringSevereThreshold.toInt()}°)";
-        _hamstringDisplayColor = Colors.red;
-        UserAssess.painScale = 9; // Severe (8-10 range)
-      } else if (_hamstringAngle < hamstringModerateThreshold) {
-        _hamstringROMLevel = "Hamstring ROM: Moderate (${hamstringSevereThreshold.toInt()}-${hamstringModerateThreshold.toInt()}°)";
-        _hamstringDisplayColor = Colors.orange;
-        UserAssess.painScale = 6; // Moderate (5-7 range)
-      } else { // _hamstringAngle >= hamstringModerateThreshold
-        _hamstringROMLevel = "Hamstring ROM: Good (> ${hamstringModerateThreshold.toInt()}°)";
-        _hamstringDisplayColor = Colors.green;
-        UserAssess.painScale = 1; // Good (0-1 range)
-      }
-      UserAssess.painLevel = UserAssess.painScale.toString();
-      PainHistory.recordTodayAndSave(
-        painScale: UserAssess.painScale,
-        painLevel: UserAssess.painLevel,
-      );
-
-      // Check for pelvic compensation
-      final verticalHipDifference = (hipR.dy - hipL.dy).abs();
-      final avgShoulderY = (shoulderR.dy + shoulderL.dy) / 2;
-      final avgHipY = (hipR.dy + hipL.dy) / 2;
-      final torsoHeightProxy = (avgShoulderY - avgHipY).abs();
-
-      if (torsoHeightProxy > 5) {
-        final normVerticalHipDifference = verticalHipDifference / torsoHeightProxy;
-        
-        if (normVerticalHipDifference > pelvicCompensationThresholdNorm) { // 5% threshold from Jupyter code
-          _hamstringCompensation = "Compensation: Pelvic Tilt (${normVerticalHipDifference.toStringAsFixed(2)})";
-        } else {
-          _hamstringCompensation = "Compensation: Stable";
-        }
-      } else {
-        _hamstringCompensation = "Compensation: Cannot assess (Torso too flat)";
-      }
-
-    } catch (e) {
-      debugPrint('Hamstring analysis error: $e');
-      _hamstringROMLevel = "Hamstring: Error";
-      _hamstringDisplayColor = Colors.red;
-      _hamstringCompensation = "Compensation: Error";
-      _hamstringAngle = 0.0;
-    }
-  }
-
-  // Helper method to calculate vertical angle
-  double _calculateVerticalAngle(Offset point1, Offset point2) {
-    // Vector from point1 to point2
-    final vector = point2 - point1;
-    
-    // Vertical vector pointing upwards (negative Y in Flutter)
-    final verticalVector = const Offset(0, -1);
-    
-    final normVector = vector.distance;
-    final normVertical = verticalVector.distance;
-    
-    if (normVector == 0 || normVertical == 0) {
-      return 0.0;
-    }
-    
-    // Calculate cosine of the angle
-    final cosineAngle = (vector.dx * verticalVector.dx + vector.dy * verticalVector.dy) / (normVector * normVertical);
-    
-    // Clamp to prevent floating point errors
-    final clampedCosine = cosineAngle.clamp(-1.0, 1.0);
-    
-    // Calculate angle in radians and convert to degrees
-    final angleRadians = math.acos(clampedCosine);
-    final angleDegrees = (angleRadians * 180) / math.pi;
-    
-    return angleDegrees;
-  }
+  // Assessment logic moved to modular services
 
   // Color coding for pain scores
   Color _getScoreColor(int score) {
@@ -683,6 +407,8 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                 DropdownMenuItem(value: 'Shoulders', child: Text('Shoulders')),
                 DropdownMenuItem(value: 'Hamstrings', child: Text('Hamstrings')),
                 DropdownMenuItem(value: 'Calf', child: Text('Calf')),
+                DropdownMenuItem(value: 'Chest', child: Text('Chest')),
+                DropdownMenuItem(value: 'Biceps', child: Text('Biceps')),
               ],
               onChanged: (val) {
                 if (val == null) return;
@@ -1200,84 +926,62 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        // Display results based on mode
-                        if (_mode == 'Triceps' || _mode == 'Shoulders') ...[
-                          if (_currentROMLabel != null) ...[
-                            Text(
-                              _currentROMLabel!,
-                              style: GoogleFonts.ptSans(
-                                fontSize: 11,
-                                color: _currentROMColor ?? const Color(0xFF1F2937),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                          ],
+                        // Display assessment results using modular services
+                        if (_currentAssessmentResult != null) ...[
                           Text(
-                            'Angle: ${_lastComputedAngle?.toStringAsFixed(1) ?? '--'}°',
+                            _currentAssessmentResult!.displayLabel,
                             style: GoogleFonts.ptSans(
-                              fontSize: 10,
-                              color: const Color(0xFF6B7280),
+                              fontSize: 11,
+                              color: _currentAssessmentResult!.displayColor,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if (_compensations != null) ...[
-                            const SizedBox(height: 2),
+                          const SizedBox(height: 4),
+                          if (_currentAssessmentResult!.additionalData['angle'] != null) ...[
                             Text(
-                              'Comp: ${_compensations.toString().length > 20 ? _compensations.toString().substring(0, 20) + '...' : _compensations.toString()}',
+                              'Angle: ${_currentAssessmentResult!.additionalData['angle'].toStringAsFixed(1)}°',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 10,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                          ],
+                          if (_currentAssessmentResult!.additionalData['absNormalizedDisplacement'] != null) ...[
+                            Text(
+                              'Disp: ${_currentAssessmentResult!.additionalData['absNormalizedDisplacement'].toStringAsFixed(2)}',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 10,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                          ],
+                          if (_currentAssessmentResult!.alignment != null) ...[
+                            Text(
+                              _currentAssessmentResult!.alignment!,
                               style: GoogleFonts.ptSans(
                                 fontSize: 9,
                                 color: const Color(0xFF6B7280),
                               ),
                             ),
                           ],
-                        ] else if (_mode == 'Calf') ...[
+                          if (_currentAssessmentResult!.compensation != null) ...[
+                            Text(
+                              _currentAssessmentResult!.compensation!,
+                              style: GoogleFonts.ptSans(
+                                fontSize: 9,
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ] else ...[
                           Text(
-                            _calfROMLevel,
+                            '${_mode}: Not assessed',
                             style: GoogleFonts.ptSans(
                               fontSize: 11,
-                              color: _calfDisplayColor,
+                              color: Colors.grey,
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Disp: ${_calfNormDisplacement?.toStringAsFixed(2) ?? 'N/A'}',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 10,
-                              color: const Color(0xFF6B7280),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _calfAlignment,
-                            style: GoogleFonts.ptSans(
-                              fontSize: 9,
-                              color: const Color(0xFF6B7280),
-                            ),
-                          ),
-                        ] else if (_mode == 'Hamstrings') ...[
-                          Text(
-                            _hamstringROMLevel,
-                            style: GoogleFonts.ptSans(
-                              fontSize: 11,
-                              color: _hamstringDisplayColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Angle: ${_hamstringAngle.toStringAsFixed(1)}°',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 10,
-                              color: const Color(0xFF6B7280),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _hamstringCompensation,
-                            style: GoogleFonts.ptSans(
-                              fontSize: 9,
-                              color: const Color(0xFF6B7280),
                             ),
                           ),
                         ],
@@ -1443,62 +1147,10 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     }
   }
 
-  // ROM Display Update Methods
-  void _updateCurrentROMDisplay() {
-    if (_romResults == null) return;
-    
-    switch (_mode) {
-      case 'Triceps':
-        final leftTriceps = _romResults!['triceps']['leftTricepsLabel'];
-        final rightTriceps = _romResults!['triceps']['rightTricepsLabel'];
-        _currentROMLabel = 'Left: $leftTriceps\nRight: $rightTriceps';
-        _currentROMColor = _getROMColor(_romResults!['triceps']['leftTricepsROM'] ?? 'good');
-        break;
-      case 'Shoulders':
-        final leftShoulder = _romResults!['shoulders']['leftShoulderLabel'];
-        final rightShoulder = _romResults!['shoulders']['rightShoulderLabel'];
-        _currentROMLabel = 'Left: $leftShoulder\nRight: $rightShoulder';
-        _currentROMColor = _getROMColor(_romResults!['shoulders']['leftShoulderROM'] ?? 'good');
-        break;
-      case 'Calf':
-        _currentROMLabel = _calfROMLevel;
-        _currentROMColor = _calfDisplayColor;
-        break;
-      case 'Hamstrings':
-        _currentROMLabel = _hamstringROMLevel;
-        _currentROMColor = _hamstringDisplayColor;
-        break;
-    }
-  }
-
-  Color _getROMColor(String romLevel) {
-    switch (romLevel) {
-      case 'severe':
-        return Colors.red; // Red for severe
-      case 'moderate':
-        return Colors.orange; // Orange for moderate
-      case 'low':
-        return Colors.yellow; // Yellow for low pain
-      case 'good':
-        return Colors.green; // Green for good
-      default:
-        return Colors.grey;
-    }
-  }
+  // ROM Display Update Methods - moved to modular services
 
   String _getModeInstructions() {
-    switch (_mode) {
-      case 'Triceps':
-        return "Extend your ${_selectedSide.toLowerCase()} arm fully (elbow straight) for triceps assessment";
-      case 'Shoulders':
-        return "Raise your ${_selectedSide.toLowerCase()} arm overhead or to T-pose for shoulder assessment";
-      case 'Calf':
-        return "Stand side-on to camera, perform knee-to-wall motion with your ${_selectedSide.toLowerCase()} leg for calf assessment";
-      case 'Hamstrings':
-        return "Lie on back, side-on to camera, raise your ${_selectedSide.toLowerCase()} leg straight for hamstring assessment";
-      default:
-        return "Follow the on-screen instructions";
-    }
+    return AssessmentService.getInstructions(_mode, _selectedSide);
   }
 
   void _showSkeletonConfigDialog(BuildContext context) {

@@ -17,7 +17,7 @@ class AssessPainLevel extends StatefulWidget {
 class _AssessPainLevelState extends State<AssessPainLevel> {
   // Professional healthcare color scheme
   static const mainColor = Color(0xFF8B2E2E);
-  static const subColor = Color(0xFFC24A4A);
+  // static const subColor = Color(0xFFC24A4A); // Removed as not used in categorical version
   static const detailColor = Color(0xFF6B7280);
   static const backgroundColor = Color(0xFFF8FAFC);
   static const successColor = Color(0xFF10B981);
@@ -331,13 +331,13 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
   Widget _buildPainScale() {
     return Container(
       padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
+        border: Border.all(
           color: const Color(0xFFE5E7EB),
-                        width: 1,
-                      ),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -345,13 +345,13 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
             offset: const Offset(0, 4),
           ),
         ],
-                    ),
-                    child: Column(
-                      children: [
+      ),
+      child: Column(
+        children: [
           // Pain scale header
-                        Text(
+          Text(
             "Select your pain level:",
-                          style: GoogleFonts.poppins(
+            style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: mainColor,
@@ -359,7 +359,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
           ),
           const SizedBox(height: 20),
           
-          // Pain scale numbers
+          // Pain scale numbers (0-10)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(11, (index) {
@@ -371,18 +371,19 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                   print('AssessPainLevel: Before setState - UserAssess.painScale = "${UserAssess.painScale}"');
                   
                   setState(() {
-                    print('AssessPainLevel: Inside setState - setting AssessmentData.painScale to: $index');
-                    AssessmentData.painScale = index;
-                    print('AssessPainLevel: Inside setState - AssessmentData.painScale is now: "${AssessmentData.painScale}"');
-                    
                     selectedPainLevel = index;
                     UserAssess.painScale = index;
-                    UserAssess.painLevel = _getPainDescription(index);
+                    AssessmentData.painScale = index;
+                    
+                    // Set categorical pain level for filtering
+                    UserAssess.painLevel = _getCategoricalPainLevel(index);
                   });
                   
                   print('AssessPainLevel: Selected pain level: $index');
+                  print('AssessPainLevel: Categorical pain level: ${_getCategoricalPainLevel(index)}');
                   print('AssessPainLevel: Final AssessmentData.painScale = "${AssessmentData.painScale}"');
                   print('AssessPainLevel: Final UserAssess.painScale = "${UserAssess.painScale}"');
+                  print('AssessPainLevel: Final UserAssess.painLevel = "${UserAssess.painLevel}"');
                 },
                 child: Container(
                   width: 40,
@@ -406,40 +407,77 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                     child: Text(
                       '$index',
                       style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                         color: isSelected ? Colors.white : detailColor,
-                        ),
+                      ),
                     ),
                   ),
                 ),
               );
             }),
-                  ),
+          ),
 
           const SizedBox(height: 16),
 
           // Pain scale labels
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "No Pain",
-                        style: GoogleFonts.ptSans(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "No Pain",
+                style: GoogleFonts.ptSans(
                   fontSize: 12,
-                          color: detailColor,
-                        ),
-                      ),
-                      Text(
-                        "Severe Pain",
-                        style: GoogleFonts.ptSans(
+                  color: detailColor,
+                ),
+              ),
+              Text(
+                "Severe Pain",
+                style: GoogleFonts.ptSans(
                   fontSize: 12,
-                          color: detailColor,
-                        ),
-                      ),
-                    ],
-                  ),
+                  color: detailColor,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Categorical indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildCategoryIndicator("Low", 0, 3),
+              _buildCategoryIndicator("Moderate", 4, 6),
+              _buildCategoryIndicator("Severe", 7, 10),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryIndicator(String category, int startRange, int endRange) {
+    final isInRange = selectedPainLevel >= startRange && selectedPainLevel <= endRange;
+    final color = _getPainColorFromLevel(_getCategoricalPainLevel(selectedPainLevel));
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isInRange ? color.withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isInRange ? color : Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Text(
+        category,
+        style: GoogleFonts.ptSans(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: isInRange ? color : Colors.grey.shade600,
+        ),
       ),
     );
   }
@@ -447,6 +485,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
   Widget _buildPainDescription() {
     final description = _getPainDescription(selectedPainLevel);
     final color = _getPainColor(selectedPainLevel);
+    final categoricalLevel = _getCategoricalPainLevel(selectedPainLevel);
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -458,28 +497,48 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
           width: 1,
         ),
       ),
-      child: Row(
+      child: Column(
         children: [
-                  Container(
-            padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-              color: color,
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _getPainIcon(selectedPainLevel),
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  description,
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              _getPainIcon(selectedPainLevel),
-                          color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
             child: Text(
-              description,
+              "Category: $categoricalLevel (for exercise filtering)",
               style: GoogleFonts.ptSans(
-                fontSize: 14,
+                fontSize: 12,
                 color: color,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -491,7 +550,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
   Color _getPainColor(int level) {
     if (level <= 2) return successColor;
     if (level <= 4) return const Color(0xFFF59E0B);
-    if (level <= 6) return subColor;
+    if (level <= 6) return const Color(0xFFC24A4A);
     if (level <= 8) return mainColor;
     return const Color(0xFFEF4444);
   }
@@ -511,5 +570,26 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
     if (level <= 6) return Icons.sentiment_dissatisfied;
     if (level <= 8) return Icons.sentiment_very_dissatisfied;
     return Icons.sick;
+  }
+
+  // Convert numerical pain scale (0-10) to categorical for filtering
+  String _getCategoricalPainLevel(int level) {
+    if (level <= 3) return "Low";
+    if (level <= 6) return "Moderate";
+    return "Severe";
+  }
+
+  // Helper method to get color from categorical level
+  Color _getPainColorFromLevel(String level) {
+    switch (level) {
+      case "Low":
+        return successColor;
+      case "Moderate":
+        return const Color(0xFFF59E0B);
+      case "Severe":
+        return const Color(0xFFEF4444);
+      default:
+        return detailColor;
+    }
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:math' as math;
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
@@ -59,6 +60,55 @@ class PoseDetectionService {
     } catch (e) {
       debugPrint('Pose detection error: $e');
       return <Pose>[];
+    }
+  }
+
+  // Detect poses from a static image file
+  Future<List<Pose>> detectFromImageFile(File imageFile) async {
+    try {
+      final bytes = await imageFile.readAsBytes();
+      final inputImage = InputImage.fromBytes(
+        bytes: bytes,
+        metadata: InputImageMetadata(
+          size: Size(0, 0), // Will be determined from image
+          rotation: InputImageRotation.rotation0deg,
+          format: InputImageFormat.nv21,
+          bytesPerRow: 0,
+        ),
+      );
+      final poses = await _poseDetector.processImage(inputImage);
+      return poses;
+    } catch (e) {
+      debugPrint('Pose detection from file error: $e');
+      return <Pose>[];
+    }
+  }
+
+  // Process static image and return comprehensive assessment
+  Future<Map<String, dynamic>> processStaticImage(File imageFile) async {
+    try {
+      final poses = await detectFromImageFile(imageFile);
+      if (poses.isEmpty) {
+        return {
+          'error': 'No poses detected in image',
+          'overallPainScore': 5,
+          'painDescription': 'No pose detected',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        };
+      }
+
+      final landmarks = getPoseLandmarks(poses.first);
+      final assessment = performComprehensiveROMAssessment(landmarks);
+      
+      return assessment;
+    } catch (e) {
+      debugPrint('Error processing static image: $e');
+      return {
+        'error': e.toString(),
+        'overallPainScore': 5,
+        'painDescription': 'Processing error',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
     }
   }
 

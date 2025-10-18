@@ -509,7 +509,7 @@ class UserRehabilitation {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         print('UserRehabilitation.savePlansToHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       
@@ -577,7 +577,7 @@ class UserRehabilitation {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         print('UserRehabilitation.loadPlansFromHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       

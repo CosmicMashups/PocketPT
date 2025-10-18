@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'assessment_data.dart';
 // Sync removed for assessment (local-only)
-import 'c_painlevel.dart';
+import 'd_history.dart';
 // removed unused import
 
 class AssessPainDuration extends StatefulWidget {
@@ -180,7 +180,7 @@ class _AssessPainDurationState extends State<AssessPainDuration> {
                           Navigator.push(
                             context,
                             PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainLevel(),
+                              pageBuilder: (context, animation, secondaryAnimation) => const AssessHistory(),
                               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                 const begin = Offset(1.0, 0.0);
                                 const end = Offset.zero;

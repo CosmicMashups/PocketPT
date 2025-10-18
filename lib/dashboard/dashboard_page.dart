@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../record/pre_record_page.dart';
 import '../data/globals.dart';
 import '../data/rehabilitation_plan.dart';
+import '../data/treatment.dart';
 import '../assessment/preliminary.dart';
 import '../dailyAssessment/instructionVideo.dart';
 import '../assessment/generate_plan.dart';
 import '../data/user_data_notifier.dart';
 import '../data/data_persistence_service.dart';
 import '../data/local_notifications_service.dart';
-// removed loader: using direct global data like a_goal1.dart
+// import '../demo/cnn_poseDemo.dart'; // Commented out until file exists
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -97,7 +99,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
       return _buildAssessmentRequiredState(context);
     }
 
-    return _buildDashboardContent(context, data);
+    return _buildNewDashboardContent(context, data);
   }
 
   Future<void> _loadData() async {
@@ -155,58 +157,361 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
 
   // Removed legacy loading/error UI from previous loader-based approach
 
-  Widget _buildAssessmentRequiredState(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        backgroundColor: const Color(0xFF8B2E2E),
-        automaticallyImplyLeading: false,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.assessment, size: 80, color: Color(0xFF8B2E2E)),
-            const SizedBox(height: 24),
-            const Text(
-              'Assessment Required',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF8B2E2E),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Please complete your assessment to access the dashboard.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AssessPrelim()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8B2E2E),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              ),
-              child: const Text(
-                'Start Assessment',
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
+  void _showNotificationsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFFF1F1F1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.notifications, color: Color(0xFF557A95)),
+              const SizedBox(width: 8),
+              Text('Notifications', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+            ],
+          ),
+          content: (_computedNotifications.isEmpty && notifications.isEmpty)
+              ? Text('No new notifications', style: GoogleFonts.poppins())
+              : SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Dynamic notifications (clickable)
+                      ..._computedNotifications.map((notification) => _buildNotificationCard(
+                        notification: notification,
+                        context: context,
+                      )),
+                      // Static notifications (non-clickable)
+                      ...notifications.map((notification) => Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                )
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.campaign, color: Color(0xFF557A95)),
+                                const SizedBox(width: 10),
+                                Expanded(child: Text(notification, style: GoogleFonts.poppins(fontSize: 15))),
+                              ],
+                            ),
+                          )),
+                    ],
+                  ),
+                ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close', style: GoogleFonts.poppins()),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationCard({
+    required NotificationItem notification,
+    required BuildContext context,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: notification.isClickable ? () => _handleNotificationAction(notification.actionType, context) : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: notification.isClickable 
+                ? Border.all(color: const Color(0xFF557A95).withOpacity(0.3), width: 1)
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                notification.isClickable ? Icons.touch_app : Icons.campaign,
+                color: notification.isClickable ? const Color(0xFF557A95) : const Color(0xFF557A95),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  notification.text,
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    color: notification.isClickable ? const Color(0xFF557A95) : Colors.black87,
+                    fontWeight: notification.isClickable ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ),
+              if (notification.isClickable)
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Color(0xFF557A95),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDashboardContent(BuildContext context, Map<String, dynamic> data) {
+  void _handleNotificationAction(String actionType, BuildContext context) {
+    // Close the notification dialog first
+    Navigator.of(context).pop();
+    
+    switch (actionType) {
+      case 'daily_assessment':
+        _showDailyAssessmentDialog(context);
+        break;
+      case 'start_exercise':
+        _navigateToExercise(context);
+        break;
+      case 'resume_exercise':
+        _navigateToExercise(context);
+        break;
+      case 'regenerate_plan':
+        _showRegeneratePlanDialog(context);
+        break;
+      default:
+        // No action for 'none' or unknown types
+        break;
+    }
+  }
+
+  void _navigateToExercise(BuildContext context) {
+    final rehabPlans = UserRehabilitation.instance.rehabPlans;
+    if (rehabPlans.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No rehabilitation plan available. Please complete assessment first.')),
+      );
+      return;
+    }
+
+    final currentExercise = ExerciseHistory.getCurrentExercise();
+    if (currentExercise != null) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => PreRecordPage(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOut;
+
+            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            var offsetAnimation = animation.drive(tween);
+
+            return SlideTransition(position: offsetAnimation, child: child);
+          },
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All exercises completed for today!')),
+      );
+    }
+  }
+
+  Widget _buildAssessmentRequiredState(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F6F4),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Profile Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF557A95).withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 32,
+                        backgroundImage: AssetImage('assets/images/pfp/${UserDataNotifier.instance.profilePicture}'),
+                        backgroundColor: Colors.grey[200],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome back,',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: const Color(0xFF7A7A7A),
+                            ),
+                          ),
+                          Text(
+                            '${UserDataNotifier.instance.firstName} ${UserDataNotifier.instance.lastName}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF2E2E2E),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => _showNotificationsDialog(context),
+                      icon: const Badge(
+                        smallSize: 8,
+                        backgroundColor: Color(0xFFC1574F),
+                        child: Icon(Icons.notifications_active, 
+                          color: Color(0xFF557A95)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // Assessment Required Card
+              Container(
+                margin: const EdgeInsets.only(bottom: 18),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF800020).withOpacity(0.9),
+                      const Color(0xFFB22222),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.assignment,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Assessment Required',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Please complete the assessment to generate your personalized rehabilitation plan.',
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 15,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AssessPrelim(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF800020),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 3,
+                        ),
+                        child: Text(
+                          'Take Assessment Now',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewDashboardContent(BuildContext context, Map<String, dynamic> data) {
     // Initialize the notifier with current data
     UserDataNotifier.instance.initialize();
     
@@ -219,310 +524,725 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           }
         });
     
-    return _buildMainDashboard(context, data);
-  }
+    final currentExerciseRef = ExerciseHistory.getCurrentExercise();
+    double progress = ExerciseHistory.calculateTodaysProgressPercentage();
 
-  Widget _buildMainDashboard(BuildContext context, Map<String, dynamic> data) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
     return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : Colors.grey.shade100,
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        backgroundColor: const Color(0xFF8B2E2E),
-        automaticallyImplyLeading: false,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome Section
-            _buildWelcomeSection(data),
-            const SizedBox(height: 24),
-            
-            // Progress Section
-            _buildProgressSection(data),
-            const SizedBox(height: 24),
-            
-            // Notifications Section
-            _buildNotificationsSection(),
-            const SizedBox(height: 24),
-            
-            // Treatment Plans Section
-            _buildTreatmentPlansSection(data),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWelcomeSection(Map<String, dynamic> data) {
-    final userDetails = data['userDetails'] ?? {};
-    final firstName = userDetails['firstName'] ?? '';
-    final profilePicture = userDetails['profilePicture'] ?? '01.jpg';
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundImage: AssetImage('assets/images/pfp/$profilePicture'),
-            backgroundColor: Colors.white,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back, ${firstName.isNotEmpty ? firstName : 'User'}!',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Ready for your rehabilitation journey?',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressSection(Map<String, dynamic> data) {
-    final userProgress = data['userProgress'] ?? {};
-    final streak = userProgress['streak'] ?? 0;
-    final totalExercises = userProgress['totalExercises'] ?? 0;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Your Progress',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF8B2E2E),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
+      backgroundColor: const Color(0xFFF8F6F4),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _buildProgressCard(
-                  'Streak',
-                  '$streak days',
-                  Icons.local_fire_department,
-                  const Color(0xFFF59E0B),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildProgressCard(
-                  'Exercises',
-                  '$totalExercises completed',
-                  Icons.fitness_center,
-                  const Color(0xFF10B981),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressCard(String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationsSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-          Row(
-            children: [
-              const Icon(Icons.notifications, color: Color(0xFF8B2E2E)),
-              const SizedBox(width: 8),
-              Text(
-                  'Notifications',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF8B2E2E),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_computedNotifications.isEmpty)
-            const Text('No notifications at this time.')
-          else
-            ..._computedNotifications.take(3).map((notification) => 
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  notification.text,
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTreatmentPlansSection(Map<String, dynamic> data) {
-    final rehabilitationPlans = data['rehabilitationPlans'] ?? [];
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-          Row(
-            children: [
-              const Icon(Icons.medical_services, color: Color(0xFF8B2E2E)),
-              const SizedBox(width: 8),
-              Text(
-                'Treatment Plans',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF8B2E2E),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (rehabilitationPlans.isEmpty)
-            const Text('No treatment plans available. Complete your assessment to generate a plan.')
-          else
-            ...rehabilitationPlans.map((plan) => 
+              // Profile Header
               Container(
-                margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      'Week ${plan.weekNumber ?? 1} Plan',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF8B2E2E),
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF557A95).withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 32,
+                        backgroundImage: AssetImage('assets/images/pfp/${UserDataNotifier.instance.profilePicture}'),
+                        backgroundColor: Colors.grey[200],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${plan.exerciseReferences?.length ?? 0} exercises',
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome back,',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: const Color(0xFF7A7A7A),
+                            ),
+                          ),
+                          Text(
+                            '${UserDataNotifier.instance.firstName} ${UserDataNotifier.instance.lastName}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF2E2E2E),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF557A95).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.local_fire_department, 
+                                          color: Colors.orange, size: 18),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          UserProgress.title,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            color: const Color(0xFF557A95),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 12),
+                              
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
+                    IconButton(
+                      onPressed: () => _showNotificationsDialog(context),
+                      icon: const Badge(
+                        smallSize: 8,
+                        backgroundColor: Color(0xFFC1574F),
+                        child: Icon(Icons.notifications_active, 
+                          color: Color(0xFF557A95)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              
+              // Progress Card
+              Container(
+                height: 220,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  image: const DecorationImage(
+                    image: AssetImage('assets/images/exercise/exercise.jpg'),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.black.withOpacity(0.6),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'PROGRESS',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                          letterSpacing: 1.2,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Use FutureBuilder to load actual exercise data
+                                FutureBuilder<Exercise?>(
+                                  future: currentExerciseRef != null 
+                                      ? ExerciseDataService.getExerciseById(currentExerciseRef.exerciseId)
+                                      : Future.value(null),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return Text(
+                                        'Loading...',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 22,
+                                          color: Colors.white,
+                                        ),
+                                      );
+                                    }
+                                    
+                                    final exercise = snapshot.data ?? currentExerciseRef;
+                                    return Text(
+                                      exercise?.exerciseName ?? 'No Exercise',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 22,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  UserAssess.specificMuscle.isNotEmpty
+                                      ? UserAssess.specificMuscle
+                                      : 'No target muscle',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 14,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                ),
+                                Text(
+                                  currentExerciseRef != null
+                                      ? '${currentExerciseRef.sets} sets: ${currentExerciseRef.repetitions} reps'
+                                      : 'No set info',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Container(
+                                      height: 60,
+                                      width: 60,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.withOpacity(0.2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.2),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6.0),
+                                        child: CircularProgressIndicator(
+                                          value: progress,
+                                          strokeWidth: 6,
+                                          backgroundColor: Colors.white.withOpacity(0.3),
+                                          valueColor: const AlwaysStoppedAnimation(Colors.white),
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(progress * 100).toInt()}%',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                InkWell(
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      PageRouteBuilder(
+                                        pageBuilder: (context, animation, secondaryAnimation) =>
+                                            PreRecordPage(),
+                                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                          const begin = Offset(1.0, 0.0);
+                                          const end = Offset.zero;
+                                          const curve = Curves.easeInOut;
+
+                                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                          var offsetAnimation = animation.drive(tween);
+
+                                          return SlideTransition(position: offsetAnimation, child: child);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(30),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF709255),
+                                      borderRadius: BorderRadius.circular(30),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF709255).withOpacity(0.3),
+                                          offset: const Offset(0, 4),
+                                          blurRadius: 10,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Text(
+                                      progress == 0 ? 'Start >' : 'Resume >',
+                                      style: GoogleFonts.ptSans(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
-            ),
-          ],
+              ),
+
+              // Stats Cards
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildInfoCard(
+                    title: 'Streak',
+                    value: '${UserProgress.streak} day(s)',
+                    icon: Icons.local_fire_department,
+                    backgroundColor: const Color(0xFFFFF3E0),
+                    iconColor: Colors.deepOrange,
+                  ),
+                  _buildInfoCard(
+                    title: 'Exercises',
+                    value: '${UserProgress.totalExercises}',
+                    icon: Icons.fitness_center,
+                    backgroundColor: const Color(0xFFE3F2FD),
+                    iconColor: Colors.blueAccent,
+                  ),
+                  _buildInfoCard(
+                    title: 'Time Spent',
+                    value: '${UserProgress.totalMinutes} min(s)',
+                    icon: Icons.timer,
+                    backgroundColor: const Color(0xFFE8F5E9),
+                    iconColor: Colors.green,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // CNN Demo Section
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.blue.withOpacity(0.9),
+                      Colors.blueAccent,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.psychology,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'CNN Pose Demo',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Try the new CNN-based pose estimation for pain assessment.',
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 15,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // TODO: Uncomment when CNNCameraPosePage is available
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //     builder: (context) => const CNNCameraPosePage(),
+                          //   ),
+                          // );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('CNN Demo coming soon!')),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Try CNN Demo',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Your Plan Section
+              Text(
+                'Your Plan',
+                style: GoogleFonts.poppins(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF2E2E2E),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Column(
+                children: UserRehabilitation.instance.rehabPlans.isEmpty
+                    ? [
+                        // Assessment Required Card
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 18),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                const Color(0xFF800020).withOpacity(0.9),
+                                const Color(0xFFB22222),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.assignment,
+                                      size: 30,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Assessment Required',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Please complete the assessment to generate your personalized rehabilitation plan.',
+                                          style: GoogleFonts.ptSans(
+                                            fontSize: 15,
+                                            color: Colors.white.withOpacity(0.9),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const AssessPrelim(),
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: const Color(0xFF800020),
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 3,
+                                  ),
+                                  child: Text(
+                                    'Take Assessment Now',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ]
+                    : UserRehabilitation.instance.rehabPlans.map((plan) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 18),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.grey.shade300),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: SizedBox(
+                                  height: 80,
+                                  width: 80,
+                                  child: Image.asset(
+                                    'assets/images/exercise/exercise.jpg',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Week ${plan.weekNumber.toString().padLeft(2, '0')}',
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 18,
+                                        color: const Color(0xFF333333),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ...plan.exerciseReferences.map(
+                                      (exerciseRef) => FutureBuilder<Exercise?>(
+                                        future: ExerciseDataService.getExerciseById(exerciseRef.exerciseId),
+                                        builder: (context, snapshot) {
+                                          final exerciseName = snapshot.hasData && snapshot.data != null
+                                              ? snapshot.data!.exerciseName
+                                              : 'Exercise ${exerciseRef.exerciseId}';
+                                          
+                                          return Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Icon(
+                                                Icons.fitness_center,
+                                                size: 18,
+                                                color: const Color(0xFF8B2E2E),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  exerciseName,
+                                                  style: GoogleFonts.ptSans(
+                                                    color: const Color(0xFF7A7A7A),
+                                                    fontSize: 14,
+                                                  ),
+                                                  softWrap: true,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    // Add treatments if available
+                                    if (UserRehabilitation.instance.treatmentReferences != null && 
+                                        UserRehabilitation.instance.treatmentReferences!.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      ...UserRehabilitation.instance.treatmentReferences!.map(
+                                        (treatmentRef) => FutureBuilder<Treatment?>(
+                                          future: ExerciseDataService.getTreatmentById(treatmentRef.treatmentId),
+                                          builder: (context, snapshot) {
+                                            final treatmentName = snapshot.hasData && snapshot.data != null
+                                                ? snapshot.data!.treatmentName
+                                                : 'Treatment ${treatmentRef.treatmentId}';
+                                            
+                                            return Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.medical_services,
+                                                  size: 18,
+                                                  color: const Color(0xFF8B2E2E),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    treatmentName,
+                                                    style: GoogleFonts.ptSans(
+                                                      color: const Color(0xFF7A7A7A),
+                                                      fontSize: 14,
+                                                    ),
+                                                    softWrap: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
+  Widget _buildInfoCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color backgroundColor,
+    required Color iconColor,
+  }) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _refreshNotifications() {
     final List<NotificationItem> dynamicNotes = [];
@@ -650,60 +1370,55 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
 
 
 
+  void _showDailyAssessmentDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFFF8F6F4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.assignment, color: Color(0xFF800020)),
+              const SizedBox(width: 8),
+              Text('Daily Re-Assessment Required', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Text(
+              'Please complete today\'s quick pain re-assessment.',
+              style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('Later', style: GoogleFonts.poppins(color: Colors.grey[700])),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const InstructionVideoPage()),
+                );
+              },
+              child: Text('Start', style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _maybeShowDailyAssessmentDialog(BuildContext context) {
     if (!UserSettings.isDailyReminder) return;
 
     // Check if user has taken daily re-assessment today
     if (PainHistory.todaysEntry() == null) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) {
-          return AlertDialog(
-            scrollable: true,
-            backgroundColor: Theme.of(ctx).colorScheme.surface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                const Icon(Icons.assignment, color: Color(0xFF800020)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Daily Re-Assessment Required',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: true,
-                  ),
-                ),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Text(
-                'Please complete today\'s quick pain re-assessment.',
-                style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
-                softWrap: true,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text('Later', style: GoogleFonts.poppins(color: Colors.grey[700])),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const InstructionVideoPage()),
-                  );
-                },
-                child: Text('Start', style: GoogleFonts.poppins(color: Colors.white)),
-              ),
-            ],
-          );
-        },
-      );
+      _showDailyAssessmentDialog(context);
     }
   }
 
@@ -725,27 +1440,18 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         barrierDismissible: false,
         builder: (ctx) {
           return AlertDialog(
-            scrollable: true,
-            backgroundColor: Theme.of(ctx).colorScheme.surface,
+            backgroundColor: const Color(0xFFF8F6F4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 const Icon(Icons.health_and_safety, color: Color(0xFF800020)),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Daily Pain Check',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: true,
-                  ),
-                ),
+                Text('Daily Pain Check', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
               ],
             ),
             content: Text(
               'Your pain level seems different today. Would you like to retake the quick pain assessment now?',
               style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
-              softWrap: true,
             ),
             actions: [
               TextButton(
@@ -778,6 +1484,54 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     }
   }
 
+  void _showRegeneratePlanDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFFF8F6F4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.autorenew, color: Color(0xFF800020)),
+              const SizedBox(width: 8),
+              Text('Regenerate Plan?', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
+            ],
+          ),
+          content: Text(
+            'Your pain level has been unchanged for 7 days. Would you like to regenerate a new rehabilitation plan and treatments?',
+            style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[600]),
+              onPressed: () {
+                PainHistory.markPromptedToday();
+                Navigator.of(ctx).pop();
+              },
+              child: Text('Not Now', style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                _archiveCurrentProgram();
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const GeneratePlanPage()),
+                  );
+                }
+              },
+              child: Text('Regenerate', style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _maybeShowRegeneratePlanDialog(BuildContext context) {
     // Need an active plan to consider regeneration
     if (UserRehabilitation.instance.rehabPlans.isEmpty) return;
@@ -792,27 +1546,18 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         barrierDismissible: false, // Make it persistent
         builder: (ctx) {
           return AlertDialog(
-            scrollable: true,
-            backgroundColor: Theme.of(ctx).colorScheme.surface,
+            backgroundColor: const Color(0xFFF8F6F4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 const Icon(Icons.autorenew, color: Color(0xFF800020)),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Regenerate Plan?',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: true,
-                  ),
-                ),
+                Text('Regenerate Plan?', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
               ],
             ),
             content: Text(
               'Your pain level has been unchanged for 7 days. Would you like to regenerate a new rehabilitation plan and treatments?',
               style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
-              softWrap: true,
             ),
             actions: [
               ElevatedButton(

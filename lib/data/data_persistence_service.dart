@@ -140,7 +140,7 @@ class DataPersistenceService {
       // Verify Hive box is open
       if (!Hive.isBoxOpen('rehabBox')) {
         print('DataPersistenceService: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       final box = Hive.box('rehabBox');
@@ -182,7 +182,7 @@ class DataPersistenceService {
       // Verify Hive box is open
       if (!Hive.isBoxOpen('rehabBox')) {
         print('DataPersistenceService: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       final box = Hive.box('rehabBox');

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/globals.dart';
 import '../welcome/login_page.dart';
+import '../data/functions.dart';
 import '../data/data_management_widget.dart';
 import '../data/data_persistence_service.dart';
 import '../data/auth_persistence_service.dart';
@@ -80,6 +81,18 @@ class _ProfilePageState extends State<ProfilePage> {
                 
                 // Account Actions Section
                 _buildAccountActionsSection(isGuest),
+                const SizedBox(height: 24),
+                
+                // Data & Export Section
+                _buildDataExportSection(),
+                const SizedBox(height: 24),
+                
+                // Security Section
+                _buildSecuritySection(),
+                const SizedBox(height: 24),
+                
+                // Legal Section
+                _buildLegalSection(),
               ],
             ),
           ),
@@ -207,6 +220,37 @@ class _ProfilePageState extends State<ProfilePage> {
                           ],
                         ),
                       ),
+                      IconButton(
+                        icon: Icon(Icons.edit, color: mainColor),
+                        onPressed: () {
+                          showCustomInputDialog(
+                            context: context,
+                            title: 'Edit Profile',
+                            fieldLabels: ['First Name', 'Last Name', 'Email'],
+                            initialValues: [
+                              UserDataNotifier.instance.firstName,
+                              UserDataNotifier.instance.lastName,
+                              UserDataNotifier.instance.email,
+                            ],
+                            onSave: (values) async {
+                              setState(() {
+                                UserDataNotifier.instance.updateUserData(
+                                  firstName: values[0],
+                                  lastName: values[1],
+                                  email: values[2],
+                                );
+                              });
+
+                              // Save to Hive
+                              await UserDetails.saveToHive();
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('User details updated successfully')),
+                              );
+                            },
+                          );
+                        },
+                      ),
             ],
                       ),
                     ],
@@ -238,7 +282,7 @@ class _ProfilePageState extends State<ProfilePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
               children: [
           const Text(
-            'Settings',
+            'Notification Settings',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -272,8 +316,46 @@ class _ProfilePageState extends State<ProfilePage> {
               // Update setting and save
               UserSettings.isExerciseReminder = value;
               UserSettings.saveToHive();
-                  },
-                ),
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Exercise Reminder Time
+          _buildTimeSettingItem(
+            'Exercise Reminder Time',
+            'Set the time for exercise reminders',
+            Icons.access_time,
+            UserSettings.exerciseReminderTime,
+            () async {
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: UserSettings.exerciseReminderTime,
+              );
+              if (picked != null) {
+                setState(() {
+                  UserSettings.exerciseReminderTime = picked;
+                });
+                // Save to Hive
+                await UserSettings.saveToHive();
+              }
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Streak Alert Toggle
+          _buildSettingItem(
+            'Streak Alert Notifications',
+            'Get notified about your exercise streaks',
+            Icons.local_fire_department,
+            UserSettings.isStreakAlert,
+            (value) {
+              // Update setting and save
+              UserSettings.isStreakAlert = value;
+              UserSettings.saveToHive();
+            },
+          ),
               ],
             ),
     );
@@ -319,6 +401,65 @@ class _ProfilePageState extends State<ProfilePage> {
           activeColor: mainColor,
         ),
       ],
+    );
+  }
+
+  Widget _buildTimeSettingItem(String title, String subtitle, IconData icon, TimeOfDay time, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: mainColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: mainColor, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              time.format(context),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: mainColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.edit,
+              color: mainColor,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -644,10 +785,227 @@ class _ProfilePageState extends State<ProfilePage> {
             SnackBar(
               content: Text('Failed to sync profile picture: ${e.toString()}'),
               backgroundColor: errorColor,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildDataExportSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Data & Export',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          _buildActionItem(
+            'Export Exercise History',
+            'Download your exercise data',
+            Icons.upload_file,
+            () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Export functionality coming soon'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          _buildActionItem(
+            'Download Progress Report',
+            'Get PDF/CSV reports of your progress',
+            Icons.picture_as_pdf,
+            () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Report generation coming soon'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
-}
-    }
+
+  Widget _buildSecuritySection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Security',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          _buildActionItem(
+            'Change Password',
+            'Update your account password',
+            Icons.lock,
+            () {
+              showCustomInputDialog(
+                context: context,
+                title: 'Change Password',
+                fieldLabels: ['New Password', 'Confirm Password'],
+                initialValues: ['', ''],
+                onSave: (values) async {
+                  if (values[0].isEmpty || values[1].isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please fill in both fields')),
+                    );
+                    return;
+                  }
+
+                  if (values[0] != values[1]) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Passwords do not match')),
+                    );
+                    return;
+                  }
+
+                  setState(() {
+                    UserDetails.password = values[0];
+                  });
+
+                  // Save to Hive
+                  await UserDetails.saveToHive();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Password updated successfully')),
+                  );
+                },
+              );
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          _buildActionItem(
+            'Two-Factor Authentication',
+            'Add extra security to your account',
+            Icons.security,
+            () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Two-factor authentication coming soon'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegalSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Legal',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          _buildActionItem(
+            'Terms of Service',
+            'Read our terms and conditions',
+            Icons.description,
+            () {
+              showReusableDialog(context, 'Terms of Service', [
+                'The information provided above is intended for general informational purposes only...',
+                'Please consult with a qualified healthcare provider before beginning any exercise regimen.',
+              ]);
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          _buildActionItem(
+            'Privacy Policy',
+            'Learn how we protect your data',
+            Icons.privacy_tip,
+            () {
+              showReusableDialog(context, 'Privacy Policy', [
+                'The developers are committed to upholding the highest standards of data privacy...',
+                'All data collected will be used only for academic purposes...',
+              ]);
+            },
+          ),
+        ],
+      ),
+    );
   }
 }

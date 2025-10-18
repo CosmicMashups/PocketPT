@@ -1,9 +1,7 @@
-import 'dart:typed_data';
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
-import 'package:flutter_pytorch_lite/flutter_pytorch_lite.dart';
+// import 'package:flutter_pytorch_lite/flutter_pytorch_lite.dart'; // Temporarily disabled
 
 /// Service for facial pain recognition using PyTorch model
 class FacialPainRecognitionService {
@@ -19,9 +17,10 @@ class FacialPainRecognitionService {
   
   // Model state
   bool _isModelLoaded = false;
-  double _lastPainConfidence = 0.0;
+  double _lastPainConfidence = 0;
   String _lastPainPrediction = 'Not Pained';
-  Module? _painModel;
+  // Module? _painModel; // Temporarily disabled - PyTorch type
+  dynamic _painModel; // Using dynamic to avoid compilation errors
   
   /// Initialize the facial pain recognition service
   Future<void> initialize() async {
@@ -43,9 +42,10 @@ class FacialPainRecognitionService {
   /// Load the PyTorch model
   Future<void> _loadModel() async {
     try {
-      // Load the pain recognition model
-      _painModel = await FlutterPytorchLite.load('assets/model/pain_recognition.pth');
-      debugPrint('FacialPainRecognitionService: Pain recognition model loaded successfully');
+      // Temporarily disabled - PyTorch functionality not available
+      // _painModel = await FlutterPytorchLite.load('assets/model/pain_recognition.pth');
+      debugPrint('FacialPainRecognitionService: PyTorch functionality temporarily disabled - using simulation mode');
+      _painModel = null; // Force simulation mode
     } catch (e) {
       debugPrint('FacialPainRecognitionService: Error loading model: $e');
       // Fallback to simulation if model loading fails
@@ -219,40 +219,11 @@ class FacialPainRecognitionService {
   /// Run actual PyTorch model inference
   Future<Map<String, dynamic>> _runRealPainRecognitionModel(img.Image faceImage) async {
     try {
-      // Convert image to tensor format
-      final inputTensor = _imageToTensor(faceImage);
+      // PyTorch functionality temporarily disabled
+      debugPrint('FacialPainRecognitionService: Real model inference temporarily disabled - using simulation');
       
-      // Run model inference
-      final output = await _painModel!.forward([IValue.from(inputTensor)]);
-      final outputTensor = output.toTensor();
-      final logits = outputTensor.dataAsFloat32List;
-      
-      // Apply softmax to convert logits to probabilities
-      final probabilities = _softmax(logits);
-      
-      // Get prediction probabilities (based on pain_labels.txt: 0=Pained, 1=Not Pained)
-      final painedProb = probabilities[0];    // Class 0: Pained
-      final notPainedProb = probabilities[1]; // Class 1: Not Pained
-      
-      // Determine prediction
-      final painDetected = painedProb > notPainedProb;
-      final confidence = painDetected ? painedProb : notPainedProb;
-      final prediction = painDetected ? 'Pained' : 'Not Pained';
-      
-      // Update last prediction
-      _lastPainConfidence = confidence;
-      _lastPainPrediction = prediction;
-      
-      debugPrint('Facial Pain Inference: Pained=${painedProb.toStringAsFixed(3)}, NotPained=${notPainedProb.toStringAsFixed(3)}, Prediction=$prediction');
-      
-      return {
-        'painDetected': painDetected,
-        'confidence': confidence,
-        'prediction': prediction,
-        'painedProb': painedProb,
-        'notPainedProb': notPainedProb,
-        'error': null
-      };
+      // Fallback to simulation since PyTorch is not available
+      return await _runSimulatedPainRecognitionModel(faceImage);
     } catch (e) {
       debugPrint('FacialPainRecognitionService: Error in real model inference: $e');
       // Fallback to simulation
@@ -282,54 +253,8 @@ class FacialPainRecognitionService {
     };
   }
 
-  /// Convert image to PyTorch tensor
-  Tensor _imageToTensor(img.Image image) {
-    // Ensure image is the correct size
-    final resizedImage = img.copyResize(
-      image,
-      width: _inputSize,
-      height: _inputSize,
-      interpolation: img.Interpolation.cubic,
-    );
-    
-    // Convert to normalized RGB tensor
-    final List<double> tensorData = [];
-    
-    for (int y = 0; y < _inputSize; y++) {
-      for (int x = 0; x < _inputSize; x++) {
-        final pixel = resizedImage.getPixel(x, y);
-        final r = pixel.r / 255.0;
-        final g = pixel.g / 255.0;
-        final b = pixel.b / 255.0;
-        
-        // Add RGB channels
-        tensorData.addAll([r, g, b]);
-      }
-    }
-    
-    // Note: This is a placeholder implementation
-    // In a real implementation, you would use the proper Tensor creation method
-    // from the flutter_pytorch_lite package
-    
-    // For now, return a dummy tensor to avoid compilation errors
-    // The actual tensor creation would depend on the specific API of flutter_pytorch_lite
-    throw UnimplementedError('Tensor creation needs to be implemented with proper flutter_pytorch_lite API');
-  }
-
-  /// Apply softmax to convert logits to probabilities
-  List<double> _softmax(List<double> logits) {
-    // Find maximum logit for numerical stability
-    final maxLogit = logits.reduce((a, b) => a > b ? a : b);
-    
-    // Compute exponentials
-    final expLogits = logits.map((logit) => math.exp(logit - maxLogit)).toList();
-    
-    // Compute sum of exponentials
-    final sumExp = expLogits.reduce((a, b) => a + b);
-    
-    // Normalize to get probabilities
-    return expLogits.map((exp) => exp / sumExp).toList();
-  }
+  // Note: Tensor creation and softmax methods removed as they are not currently used
+  // These will be re-implemented when PyTorch functionality is restored
   
   /// Simulate pain detection based on image characteristics
   bool _simulatePainDetection(img.Image faceImage) {

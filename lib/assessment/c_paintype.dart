@@ -5,7 +5,7 @@ import '../data/globals.dart';
 import 'assessment_data.dart';
 // Sync removed for assessment (local-only)
 // removed unused import
-import 'c_upload.dart';
+import 'c_painduration.dart';
 
 class AssessPainType extends StatefulWidget {
   const AssessPainType({super.key});
@@ -187,7 +187,7 @@ class _AssessPainTypeState extends State<AssessPainType> {
                           Navigator.push(
                             context,
                             PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) => AssessUpload(),
+                              pageBuilder: (context, animation, secondaryAnimation) => const AssessPainDuration(),
                               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                 const begin = Offset(1.0, 0.0);
                                 const end = Offset.zero;

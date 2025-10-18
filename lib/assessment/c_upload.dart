@@ -1,6 +1,12 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../data/ai_media_processing_service.dart';
+import '../data/globals.dart';
+import 'assessment_data.dart';
+import 'c_painlevel.dart';
 import 'c_video.dart';
 
 class AssessUpload extends StatefulWidget {
@@ -17,6 +23,14 @@ class _AssessUploadState extends State<AssessUpload> {
   static const detailColor = Color(0xFF6B7280);
   static const backgroundColor = Color(0xFFF8FAFC);
   static const successColor = Color(0xFF10B981);
+
+  // Media capture state
+  final ImagePicker _picker = ImagePicker();
+  final AIMediaProcessingService _aiService = AIMediaProcessingService();
+  File? _capturedImage;
+  File? _selectedVideo;
+  bool _isProcessing = false;
+  Map<String, dynamic>? _aiResults;
 
   @override
   void initState() {
@@ -92,7 +106,7 @@ class _AssessUploadState extends State<AssessUpload> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Progress Section
-                    _buildProgressSection(6, 8, "Evidence Upload"),
+                    _buildProgressSection(4, 8, "Evidence Upload"),
                     
                     const SizedBox(height: 24),
 
@@ -111,7 +125,8 @@ class _AssessUploadState extends State<AssessUpload> {
                       'Capture a photo of the affected area',
                       Icons.camera_alt,
                       mainColor,
-                      () => _takePhoto(),
+                      _isProcessing ? null : () => _takePhoto(),
+                      isLoading: _isProcessing,
                     ),
                     const SizedBox(height: 16),
                     _buildUploadOption(
@@ -127,8 +142,21 @@ class _AssessUploadState extends State<AssessUpload> {
                       'Select existing photos or videos from your device',
                       Icons.photo_library,
                       successColor,
-                      () => _selectFromGallery(),
+                      _isProcessing ? null : () => _selectFromGallery(),
+                      isLoading: _isProcessing,
                     ),
+                    const SizedBox(height: 24),
+
+                    // Media Preview Section
+                    if (_capturedImage != null || _selectedVideo != null)
+                      _buildMediaPreviewSection(),
+
+                    const SizedBox(height: 16),
+
+                    // AI Results Section
+                    if (_aiResults != null)
+                      _buildAIResultsSection(),
+
                     const SizedBox(height: 24),
 
                     // Skip Option
@@ -143,7 +171,7 @@ class _AssessUploadState extends State<AssessUpload> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -154,7 +182,7 @@ class _AssessUploadState extends State<AssessUpload> {
                         Navigator.push(
                           context,
                           PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideo(),
+                              pageBuilder: (context, animation, secondaryAnimation) => const AssessPainLevel(),
                               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                 const begin = Offset(1.0, 0.0);
                                 const end = Offset.zero;
@@ -174,7 +202,7 @@ class _AssessUploadState extends State<AssessUpload> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: detailColor.withOpacity(0.1),
+                                  color: detailColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
@@ -201,7 +229,7 @@ class _AssessUploadState extends State<AssessUpload> {
                                       "Continue without uploading evidence",
                                       style: GoogleFonts.ptSans(
                                         fontSize: 14,
-                                        color: detailColor.withOpacity(0.8),
+                                        color: detailColor.withValues(alpha: 0.8),
                                       ),
                                     ),
                                   ],
@@ -240,7 +268,7 @@ class _AssessUploadState extends State<AssessUpload> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -251,7 +279,7 @@ class _AssessUploadState extends State<AssessUpload> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: mainColor.withOpacity(0.1),
+              color: mainColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -302,7 +330,7 @@ class _AssessUploadState extends State<AssessUpload> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -316,7 +344,7 @@ class _AssessUploadState extends State<AssessUpload> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: mainColor.withOpacity(0.1),
+                  color: mainColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -351,7 +379,7 @@ class _AssessUploadState extends State<AssessUpload> {
     );
   }
 
-  Widget _buildUploadOption(String title, String description, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildUploadOption(String title, String description, IconData icon, Color color, VoidCallback? onTap, {bool isLoading = false}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -363,7 +391,7 @@ class _AssessUploadState extends State<AssessUpload> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -380,14 +408,23 @@ class _AssessUploadState extends State<AssessUpload> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 24,
-                ),
+                child: isLoading 
+                  ? SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                      ),
+                    )
+                  : Icon(
+                      icon,
+                      color: color,
+                      size: 24,
+                    ),
               ),
               const SizedBox(width: 16),
               // Content
@@ -426,36 +463,488 @@ class _AssessUploadState extends State<AssessUpload> {
     );
   }
 
-  void _takePhoto() {
-    // TODO: Implement camera functionality
-    debugPrint('AssessUpload: Take photo selected');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Camera functionality coming soon!'),
-        backgroundColor: mainColor,
-      ),
-    );
+  Future<void> _takePhoto() async {
+    if (_isProcessing) return;
+    
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (photo != null) {
+        setState(() {
+          _capturedImage = File(photo.path);
+        });
+        
+        // TODO: Trigger AI model processing for the captured photo
+        _processCapturedMedia(_capturedImage!);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Photo captured successfully!'),
+            backgroundColor: successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error taking photo: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error capturing photo: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
   }
 
   void _recordVideo() {
-    // TODO: Implement video recording functionality
     debugPrint('AssessUpload: Record video selected');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Video recording functionality coming soon!'),
-        backgroundColor: mainColor,
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const AssessPainVideo(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          var offsetAnimation = animation.drive(tween);
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
       ),
     );
   }
 
-  void _selectFromGallery() {
-    // TODO: Implement gallery selection functionality
-    debugPrint('AssessUpload: Select from gallery selected');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Gallery selection functionality coming soon!'),
-        backgroundColor: mainColor,
+  Future<void> _selectFromGallery() async {
+    if (_isProcessing) return;
+    
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      // Show dialog to choose between photo and video
+      final String? mediaType = await showDialog<String>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Select Media Type'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.photo),
+                  title: Text('Photo'),
+                  onTap: () => Navigator.of(context).pop('photo'),
+                ),
+                ListTile(
+                  leading: Icon(Icons.video_library),
+                  title: Text('Video'),
+                  onTap: () => Navigator.of(context).pop('video'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (mediaType == 'photo') {
+        final XFile? photo = await _picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1920,
+          maxHeight: 1080,
+          imageQuality: 85,
+        );
+
+        if (photo != null) {
+          setState(() {
+            _capturedImage = File(photo.path);
+          });
+          
+          // TODO: Trigger AI model processing for the selected photo
+          _processCapturedMedia(_capturedImage!);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Photo selected successfully!'),
+              backgroundColor: successColor,
+            ),
+          );
+        }
+      } else if (mediaType == 'video') {
+        final XFile? video = await _picker.pickVideo(
+          source: ImageSource.gallery,
+          maxDuration: const Duration(minutes: 5),
+        );
+
+        if (video != null) {
+          setState(() {
+            _selectedVideo = File(video.path);
+          });
+          
+          // TODO: Trigger AI model processing for the selected video
+          _processCapturedMedia(_selectedVideo!);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Video selected successfully!'),
+              backgroundColor: successColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error selecting from gallery: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error selecting media: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
+  }
+
+  // Build media preview section
+  Widget _buildMediaPreviewSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: successColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.check_circle,
+                  color: successColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                "Media Captured",
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_capturedImage != null) ...[
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  _capturedImage!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Photo: ${_capturedImage!.path.split('/').last}",
+              style: GoogleFonts.ptSans(
+                fontSize: 12,
+                color: detailColor,
+              ),
+            ),
+          ],
+          if (_selectedVideo != null) ...[
+            Container(
+              height: 200,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+                color: Colors.black12,
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.video_library,
+                      size: 48,
+                      color: detailColor,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Video Selected",
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        color: detailColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Video: ${_selectedVideo!.path.split('/').last}",
+              style: GoogleFonts.ptSans(
+                fontSize: 12,
+                color: detailColor,
+              ),
+            ),
+          ],
+        ],
       ),
     );
+  }
+
+  // Build AI results section
+  Widget _buildAIResultsSection() {
+    if (_aiResults == null) return const SizedBox.shrink();
+
+    final painScore = (_aiResults!['overallPainScore'] as num?)?.toDouble() ?? 5.0;
+    final painDesc = _aiResults!['painDescription'] as String? ?? 'Assessment completed';
+    final hasError = _aiResults!.containsKey('error');
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasError ? Colors.red.withValues(alpha: 0.3) : successColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: hasError ? Colors.red.withValues(alpha: 0.1) : successColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  hasError ? Icons.error : Icons.psychology,
+                  color: hasError ? Colors.red : successColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                hasError ? "AI Analysis Error" : "AI Analysis Results",
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (hasError) ...[
+            Text(
+              _aiResults!['error'] as String? ?? 'Unknown error',
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                color: Colors.red,
+              ),
+            ),
+          ] else ...[
+            // Pain Score
+            Row(
+              children: [
+                Text(
+                  "Pain Level: ",
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    color: detailColor,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getPainScoreColor(painScore).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    "${painScore.toStringAsFixed(1)}/10",
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _getPainScoreColor(painScore),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Pain Description
+            Text(
+              "Assessment: $painDesc",
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                color: const Color(0xFF1F2937),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Service Status
+            if (_aiResults!.containsKey('pose') || _aiResults!.containsKey('cnn'))
+              Text(
+                "Analysis includes pose detection and CNN-based pain recognition",
+                style: GoogleFonts.ptSans(
+                  fontSize: 12,
+                  color: detailColor,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Get color for pain score
+  Color _getPainScoreColor(double score) {
+    if (score <= 3) return Colors.green;
+    if (score <= 6) return Colors.orange;
+    return Colors.red;
+  }
+
+  // Save AI results to assessment data
+  Future<void> _saveAIResultsToAssessment(Map<String, dynamic> aiResults) async {
+    try {
+      // Update AssessmentData with AI results
+      AssessmentData.aiAnalysisResults = aiResults;
+      AssessmentData.hasAIAnalysis = true;
+      AssessmentData.aiAnalysisTimestamp = DateTime.now();
+      
+      // Update UserAssess with AI-derived pain scale if available
+      final painScore = aiResults['overallPainScore'] as double?;
+      if (painScore != null) {
+        // Convert 0-10 scale to 1-10 scale for consistency
+        final adjustedScore = (painScore + 1).clamp(1, 10).round();
+        UserAssess.painScale = adjustedScore;
+        
+        // Update pain level based on score
+        if (adjustedScore <= 3) {
+          UserAssess.painLevel = 'Mild';
+        } else if (adjustedScore <= 6) {
+          UserAssess.painLevel = 'Moderate';
+        } else {
+          UserAssess.painLevel = 'Severe';
+        }
+      }
+      
+      // Save to Hive
+      await UserAssess.saveToHive();
+      
+      debugPrint('AI results saved to assessment data');
+    } catch (e) {
+      debugPrint('Error saving AI results to assessment data: $e');
+    }
+  }
+
+  // Process captured media with AI models
+  Future<void> _processCapturedMedia(File mediaFile) async {
+    try {
+      debugPrint('Processing media file: ${mediaFile.path}');
+      
+      // Show processing indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Processing media with AI models...'),
+          backgroundColor: mainColor,
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      // Process with AI models
+      Map<String, dynamic> results;
+      if (mediaFile.path.toLowerCase().contains('.mp4') || 
+          mediaFile.path.toLowerCase().contains('.mov') ||
+          mediaFile.path.toLowerCase().contains('.avi')) {
+        results = await _aiService.processVideo(mediaFile);
+      } else {
+        results = await _aiService.processImage(mediaFile);
+      }
+
+      // Store results
+      setState(() {
+        _aiResults = results;
+      });
+
+      // Save AI results to assessment data
+      await _saveAIResultsToAssessment(results);
+
+      // Show success message
+      final painScore = results['overallPainScore'] as double? ?? 5.0;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('AI analysis complete! Pain level: ${painScore.toStringAsFixed(1)}/10'),
+          backgroundColor: successColor,
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      debugPrint('AI processing results: $results');
+    } catch (e) {
+      debugPrint('Error processing media: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error processing media: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

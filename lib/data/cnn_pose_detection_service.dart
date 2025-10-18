@@ -1,9 +1,9 @@
 import 'dart:typed_data';
-import 'dart:math' as math;
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
-import 'package:flutter_pytorch_lite/flutter_pytorch_lite.dart';
+// import 'package:flutter_pytorch_lite/flutter_pytorch_lite.dart'; // Temporarily disabled
 
 /// Service for CNN-based pose detection and pain assessment
 class CNNPoseDetectionService {
@@ -23,8 +23,9 @@ class CNNPoseDetectionService {
 
   // Model state
   bool _isModelLoaded = false;
-  Module? _cnnModel;
-  double _lastConfidence = 0.0;
+  // Module? _cnnModel; // Temporarily disabled - PyTorch type
+  dynamic _cnnModel; // Using dynamic to avoid compilation errors
+  double _lastConfidence = 0;
   bool _lastIsPained = false;
 
   /// Initialize the CNN pose detection service
@@ -43,9 +44,10 @@ class CNNPoseDetectionService {
   /// Load the CNN model
   Future<void> _loadModel() async {
     try {
-      // Load the CNN model
-      _cnnModel = await FlutterPytorchLite.load('assets/model/cnn_best.pt');
-      debugPrint('CNNPoseDetectionService: CNN model loaded successfully');
+      // Temporarily disabled - PyTorch functionality not available
+      // _cnnModel = await FlutterPytorchLite.load('assets/model/cnn_best.pt');
+      debugPrint('CNNPoseDetectionService: PyTorch functionality temporarily disabled - using simulation mode');
+      _cnnModel = null; // Force simulation mode
     } catch (e) {
       debugPrint('CNNPoseDetectionService: Error loading model: $e');
       // Fallback to simulation if model loading fails
@@ -86,6 +88,70 @@ class CNNPoseDetectionService {
         'compensations': <String, dynamic>{},
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
+    }
+  }
+
+  /// Process static image file for pain assessment
+  Future<Map<String, dynamic>> processStaticImage(File imageFile) async {
+    try {
+      // Read and preprocess the image file
+      final bytes = await imageFile.readAsBytes();
+      final processedImage = await _preprocessImageBytes(bytes);
+      
+      // Run CNN inference
+      final cnnResult = await _runCNNInference(processedImage);
+      
+      // Calculate overall pain score based on CNN result
+      final overallPainScore = _calculatePainScoreFromCNN(cnnResult);
+      
+      return {
+        'cnn': cnnResult,
+        'overallPainScore': overallPainScore,
+        'painDescription': _getPainDescription(overallPainScore),
+        'compensations': <String, dynamic>{}, // CNN doesn't detect compensations
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+    } catch (e) {
+      debugPrint('CNNPoseDetectionService: Error processing static image: $e');
+      return {
+        'cnn': {
+          'isPained': false,
+          'confidence': 0.0,
+          'prediction': 'Not Pained',
+          'error': e.toString()
+        },
+        'overallPainScore': 5, // Default moderate pain
+        'painDescription': 'Assessment Error',
+        'compensations': <String, dynamic>{},
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+    }
+  }
+
+  /// Preprocess image bytes for CNN inference
+  Future<Uint8List> _preprocessImageBytes(Uint8List bytes) async {
+    try {
+      // Decode image
+      final img.Image? decodedImage = img.decodeImage(bytes);
+      if (decodedImage == null) {
+        throw Exception('Failed to decode image');
+      }
+
+      // Resize to model input size
+      final resizedImage = img.copyResize(
+        decodedImage,
+        width: INPUT_SIZE,
+        height: INPUT_SIZE,
+        interpolation: img.Interpolation.linear,
+      );
+
+      // Convert to RGB format and normalize
+      final rgbBytes = _imageToNormalizedRGB(resizedImage);
+      
+      return rgbBytes;
+    } catch (e) {
+      debugPrint('Image preprocessing error: $e');
+      rethrow;
     }
   }
 
@@ -192,40 +258,11 @@ class CNNPoseDetectionService {
   /// Run actual CNN model inference
   Future<Map<String, dynamic>> _runRealCNNInference(Uint8List imageData) async {
     try {
-      // Convert image data to tensor
-      final inputTensor = _bytesToTensor(imageData);
+      // PyTorch functionality temporarily disabled
+      debugPrint('CNNPoseDetectionService: Real CNN inference temporarily disabled - using simulation');
       
-      // Run model inference
-      final output = await _cnnModel!.forward([IValue.from(inputTensor)]);
-      final outputTensor = output.toTensor();
-      final logits = outputTensor.dataAsFloat32List;
-      
-      // Apply softmax to convert logits to probabilities
-      final probabilities = _softmax(logits);
-      
-      // Get prediction probabilities (based on pain_labels.txt: 0=Pained, 1=Not Pained)
-      final painedProb = probabilities[0];    // Class 0: Pained
-      final notPainedProb = probabilities[1]; // Class 1: Not Pained
-      
-      // Determine prediction
-      final isPained = painedProb > notPainedProb;
-      final confidence = isPained ? painedProb : notPainedProb;
-      final prediction = isPained ? 'Pained' : 'Not Pained';
-      
-      // Update last prediction
-      _lastConfidence = confidence;
-      _lastIsPained = isPained;
-      
-      debugPrint('CNN Inference: Pained=${painedProb.toStringAsFixed(3)}, NotPained=${notPainedProb.toStringAsFixed(3)}, Prediction=$prediction');
-      
-      return {
-        'isPained': isPained,
-        'confidence': confidence,
-        'prediction': prediction,
-        'painedProb': painedProb,
-        'notPainedProb': notPainedProb,
-        'error': null
-      };
+      // Fallback to simulation since PyTorch is not available
+      return await _runSimulatedCNNInference(imageData);
     } catch (e) {
       debugPrint('CNNPoseDetectionService: Error in real CNN inference: $e');
       // Fallback to simulation
@@ -255,31 +292,8 @@ class CNNPoseDetectionService {
     };
   }
 
-  /// Convert bytes to PyTorch tensor
-  Tensor _bytesToTensor(Uint8List imageData) {
-    // Note: This is a placeholder implementation
-    // In a real implementation, you would use the proper Tensor creation method
-    // from the flutter_pytorch_lite package
-    
-    // For now, return a dummy tensor to avoid compilation errors
-    // The actual tensor creation would depend on the specific API of flutter_pytorch_lite
-    throw UnimplementedError('Tensor creation needs to be implemented with proper flutter_pytorch_lite API');
-  }
-
-  /// Apply softmax to convert logits to probabilities
-  List<double> _softmax(List<double> logits) {
-    // Find maximum logit for numerical stability
-    final maxLogit = logits.reduce((a, b) => a > b ? a : b);
-    
-    // Compute exponentials
-    final expLogits = logits.map((logit) => math.exp(logit - maxLogit)).toList();
-    
-    // Compute sum of exponentials
-    final sumExp = expLogits.reduce((a, b) => a + b);
-    
-    // Normalize to get probabilities
-    return expLogits.map((exp) => exp / sumExp).toList();
-  }
+  // Note: Tensor creation and softmax methods removed as they are not currently used
+  // These will be re-implemented when PyTorch functionality is restored
 
   /// Simulate pain detection based on image characteristics
   bool _simulatePainDetection(Uint8List imageData) {

@@ -9,10 +9,19 @@ import 'data_persistence_service.dart';
 import 'firebase_helper.dart';
 import 'user_data_notifier.dart';
 import '../assessment/assessment_data.dart';
+import 'hive_models.dart';
 
-// Enhanced Hive box opening with better error handling
+// Enhanced Hive box opening with better error handling and adapter registration
 Future<Box> openRehabBox() async {
   try {
+    // Ensure critical adapters are registered before opening the box
+    if (!Hive.isAdapterRegistered(11)) {
+      Hive.registerAdapter(HiveExerciseIdsAdapter());
+    }
+    if (!Hive.isAdapterRegistered(12)) {
+      Hive.registerAdapter(HiveTreatmentIdsAdapter());
+    }
+    
     if (!Hive.isBoxOpen('rehabBox')) {
       debugPrint('🔓 Opening rehabBox...');
       return await Hive.openBox('rehabBox');
@@ -256,7 +265,7 @@ class UserDetails {
   static Future<bool> verifyHiveData() async {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       final box = Hive.box('rehabBox');
@@ -364,23 +373,63 @@ class UserDetails {
   // Mark assessment as completed
   static Future<void> markAssessmentCompleted() async {
     try {
+      debugPrint('UserDetails.markAssessmentCompleted: Starting assessment completion');
       hasCompletedAssessment = true;
       
-      // Update in Firebase
-      final currentUser = _auth.currentUser;
+      // Update in Firebase with proper authentication checks
+      debugPrint('UserDetails.markAssessmentCompleted: Checking authentication');
+      final currentUser = await FirebaseHelper.ensureAuthenticatedUser();
       if (currentUser != null) {
-        await _firestore.collection('users').doc(currentUser.uid).update({
-          'hasCompletedAssessment': true,
-          'lastUpdated': FieldValue.serverTimestamp(),
-        });
+        debugPrint('UserDetails.markAssessmentCompleted: User authenticated, proceeding with Firestore update');
+        try {
+          
+          // Check if user document exists, create if it doesn't
+          final userDocRef = _firestore.collection('users').doc(currentUser.uid);
+          final userDoc = await userDocRef.get();
+          
+          if (!userDoc.exists) {
+            debugPrint('User document does not exist, creating it first');
+            await userDocRef.set({
+              'userId': currentUser.uid,
+              'firstName': firstName.isNotEmpty ? firstName : (currentUser.displayName?.split(' ').first ?? ''),
+              'lastName': lastName.isNotEmpty ? lastName : (currentUser.displayName?.split(' ').skip(1).join(' ') ?? ''),
+              'email': currentUser.email ?? '',
+              'hasCompletedAssessment': true,
+              'createdAt': FieldValue.serverTimestamp(),
+              'lastUpdated': FieldValue.serverTimestamp(),
+            });
+            debugPrint('User document created with assessment completion status');
+          } else {
+            // Update existing document
+            await userDocRef.update({
+              'hasCompletedAssessment': true,
+              'lastUpdated': FieldValue.serverTimestamp(),
+            });
+            debugPrint('User document updated with assessment completion status');
+          }
+        } catch (firestoreError) {
+          debugPrint('UserDetails.markAssessmentCompleted: Firestore error during assessment completion: $firestoreError');
+          // Don't rethrow - continue with local storage
+          // This ensures the app continues to work even if Firestore is unavailable
+        }
+      } else {
+        debugPrint('UserDetails.markAssessmentCompleted: No authenticated user found during assessment completion');
       }
       
-      // Save to Hive
+      // Save to Hive (always do this regardless of Firestore success)
       await saveToHive();
       
-      debugPrint('Assessment marked as completed');
+      debugPrint('UserDetails.markAssessmentCompleted: Assessment marked as completed locally');
     } catch (e) {
-      debugPrint('Error marking assessment as completed: $e');
+      debugPrint('UserDetails.markAssessmentCompleted: Error marking assessment as completed: $e');
+      // Ensure local state is still updated even if everything else fails
+      hasCompletedAssessment = true;
+      try {
+        await saveToHive();
+        debugPrint('UserDetails.markAssessmentCompleted: Local state saved despite error');
+      } catch (hiveError) {
+        debugPrint('UserDetails.markAssessmentCompleted: Error saving to Hive: $hiveError');
+      }
     }
   }
 
@@ -415,7 +464,7 @@ class UserDetails {
       // Check if Hive box is open
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('UserDetails.saveToHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       final box = Hive.box('rehabBox');
@@ -455,7 +504,7 @@ class UserDetails {
       // Check if Hive box is open
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('UserDetails.loadFromHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       final box = Hive.box('rehabBox');
@@ -628,7 +677,7 @@ class UserProgress {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('UserProgress.saveToHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       
@@ -663,7 +712,7 @@ class UserProgress {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('UserProgress.loadFromHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       final userProgressData = box.get('userProgress');
@@ -722,13 +771,76 @@ class UserAssess {
   // Assessment stored locally only; no Firebase/Hive persistence
   // Keep fields in-memory and mirror to AssessmentData when asked to save/load
 
-  // Firebase sync methods are no-ops by design (local-only storage)
+  // Firebase sync methods
   static Future<void> saveToFirebase() async {
-    debugPrint('UserAssess.saveToFirebase: skipped (local-only)');
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint('UserAssess.saveToFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('UserAssess.saveToFirebase: Saving assessment to Firebase');
+      
+      await FirebaseFirestore.instance.collection('assessment').doc(currentUser.uid).set({
+        'rehabGoal': rehabGoal,
+        'generalMuscle': generalMuscle,
+        'specificMuscle': specificMuscle,
+        'painScale': painScale,
+        'painLevel': painLevel,
+        'painType': painType,
+        'painDuration': painDuration,
+        'isInjured': isInjured,
+        'isAssessed': isAssessed,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'userId': currentUser.uid,
+      });
+      
+      debugPrint('UserAssess.saveToFirebase: Successfully saved assessment to Firebase');
+    } catch (e) {
+      debugPrint('UserAssess.saveToFirebase: Error saving to Firebase: $e');
+      rethrow;
+    }
   }
 
   static Future<void> loadFromFirebase() async {
-    debugPrint('UserAssess.loadFromFirebase: skipped (local-only)');
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint('UserAssess.loadFromFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('UserAssess.loadFromFirebase: Loading assessment from Firebase');
+      
+      final DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('assessment')
+          .doc(currentUser.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        rehabGoal = data['rehabGoal'] ?? '';
+        generalMuscle = data['generalMuscle'] ?? '';
+        specificMuscle = data['specificMuscle'] ?? '';
+        painScale = data['painScale'] ?? 0;
+        painLevel = data['painLevel'] ?? '';
+        painType = data['painType'] ?? '';
+        painDuration = data['painDuration'] ?? '';
+        isInjured = data['isInjured'] ?? false;
+        isAssessed = data['isAssessed'] ?? false;
+        
+        debugPrint('UserAssess.loadFromFirebase: Successfully loaded assessment from Firebase');
+        
+        // Save to Hive for offline access
+        await saveToHive();
+      } else {
+        debugPrint('UserAssess.loadFromFirebase: No assessment document found in Firebase');
+      }
+    } catch (e) {
+      debugPrint('UserAssess.loadFromFirebase: Error loading from Firebase: $e');
+      rethrow;
+    }
   }
 
   // Hive persistence methods are replaced with local variable sync
@@ -845,7 +957,7 @@ class UserSettings {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('UserSettings.saveToHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       
@@ -877,7 +989,7 @@ class UserSettings {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('UserSettings.loadFromHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       final userSettingsData = box.get('userSettings');
@@ -920,7 +1032,7 @@ class ActiveProgram {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('ActiveProgram.saveToHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       
@@ -944,7 +1056,7 @@ class ActiveProgram {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('ActiveProgram.loadFromHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       final activeProgramData = box.get('activeProgram');
@@ -1179,7 +1291,7 @@ class PainHistory {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('PainHistory.saveToHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       
@@ -1205,7 +1317,7 @@ class PainHistory {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('PainHistory.loadFromHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       final painHistoryData = box.get('painHistory', defaultValue: <Map<String, dynamic>>[]);
@@ -1386,7 +1498,7 @@ class ExerciseHistory {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('ExerciseHistory.saveToHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       
@@ -1416,7 +1528,7 @@ class ExerciseHistory {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
         debugPrint('ExerciseHistory.loadFromHive: Hive box not open, attempting to open...');
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       final box = Hive.box('rehabBox');
       final exerciseHistoryData = box.get('exerciseHistory', defaultValue: <Map<String, dynamic>>[]);
@@ -1550,9 +1662,10 @@ class ExerciseHistory {
       
       if (exerciseRecord.status != 'completed') {
         // Return a placeholder exercise with the reference data
+        // Note: The actual exercise name and details will be loaded from CSV in the UI
         return Exercise(
           exerciseId: exerciseRef.exerciseId,
-          exerciseName: 'Exercise ${exerciseRef.exerciseId}',
+          exerciseName: 'Exercise ${exerciseRef.exerciseId}', // Will be replaced with actual name in UI
           description: 'Exercise from plan',
           muscle: 'Unknown',
           painLevel: 'Unknown',
@@ -1570,7 +1683,7 @@ class ExerciseHistory {
       final lastRef = plan.exerciseReferences.last;
       return Exercise(
         exerciseId: lastRef.exerciseId,
-        exerciseName: 'Exercise ${lastRef.exerciseId}',
+        exerciseName: 'Exercise ${lastRef.exerciseId}', // Will be replaced with actual name in UI
         description: 'Exercise from plan',
         muscle: 'Unknown',
         painLevel: 'Unknown',

@@ -5,7 +5,7 @@ import '../data/globals.dart';
 import 'assessment_data.dart';
 // Sync removed for assessment (local-only)
 import 'b_focus1.dart';
-import 'c_video.dart';
+import 'c_upload.dart';
 
 class AssessUpperBody extends StatefulWidget {
   const AssessUpperBody({super.key});
@@ -131,24 +131,31 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
 
                     // Muscle Options
                     _buildMuscleOption(
-                      'Shoulder',
-                      'The joint connecting the arm to the torso, enabling arm movement and rotation.',
+                      'Deltoids',
+                      'The shoulder muscle connecting the arm to the torso, enabling arm movement and rotation.',
                       Icons.accessibility_new,
                       mainColor,
                     ),
                     const SizedBox(height: 16),
                     _buildMuscleOption(
-                      'Elbow',
-                      'Joint connecting the upper and lower arm, allowing flexion and extension.',
-                      Icons.gesture,
+                      'Biceps',
+                      'Front arm muscles that flex the elbow and rotate the forearm.',
+                      Icons.fitness_center,
                       subColor,
                     ),
                     const SizedBox(height: 16),
                     _buildMuscleOption(
-                      'Wrist',
-                      'Joint connecting the forearm and hand, enabling hand movement and flexibility.',
-                      Icons.back_hand,
+                      'Triceps',
+                      'Back arm muscles that extend the elbow and provide pushing power.',
+                      Icons.sports_gymnastics,
                       successColor,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildMuscleOption(
+                      'Cervical Muscle',
+                      'Neck muscles that support head movement and maintain cervical spine alignment.',
+                      Icons.healing,
+                      const Color(0xFF8B5CF6),
                     ),
                     const SizedBox(height: 32),
 
@@ -175,7 +182,7 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
                           Navigator.push(
                             context,
                             PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideo(),
+                              pageBuilder: (context, animation, secondaryAnimation) => const AssessUpload(),
                               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                 const begin = Offset(1.0, 0.0);
                                 const end = Offset.zero;
@@ -396,18 +403,14 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              // Icon
+              // Image
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isSelected ? color : color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? Colors.white : color,
-                  size: 24,
-                ),
+                child: _buildMuscleImage(title, isSelected ? Colors.white : color),
               ),
               const SizedBox(width: 16),
               // Content
@@ -452,6 +455,101 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildMuscleImage(String title, Color fallbackTint) {
+    final Map<String, String> titleToAsset = {
+      'Deltoids': 'assets/images/muscle/deltoids.png',
+      'Biceps': 'assets/images/muscle/biceps.png',
+      'Triceps': 'assets/images/muscle/triceps.png',
+      'Cervical Muscle': 'assets/images/muscle/neck_muscles.png',
+    };
+    final path = titleToAsset[title];
+    if (path == null) {
+      return Icon(Icons.image_not_supported, color: fallbackTint, size: 24);
+    }
+    return GestureDetector(
+      onTap: () => _showImageDialog(title, path),
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: Image.asset(path, fit: BoxFit.contain),
+      ),
+    );
+  }
+
+  void _showImageDialog(String title, String imagePath) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400, maxHeight: 600),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF8B2E2E),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                // Image
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                    ),
+                  ),
+                ),
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Tap anywhere to close',
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

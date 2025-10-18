@@ -9,6 +9,8 @@ import '../data/globals.dart';
 import '../data/data_persistence_service.dart';
 import '../data/guest_mode_service.dart';
 import '../widgets/loading_indicator.dart';
+import 'assessment_data.dart';
+
 class GeneratePlanPage extends StatefulWidget {
   const GeneratePlanPage({super.key});
 
@@ -17,7 +19,7 @@ class GeneratePlanPage extends StatefulWidget {
 }
 
 class _GeneratePlanPageState extends State<GeneratePlanPage> {
-  bool _isLoading = true;
+  bool _isLoading = false;
   RehabilitationPlan? _rehabPlan;
   List<TreatmentReference>? _treatmentReferences;
   String? _error;
@@ -25,36 +27,79 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
   @override
   void initState() {
     super.initState();
+    print('=== GeneratePlan: initState() START ===');
+    print('GeneratePlan: Widget mounted = $mounted');
+    print('GeneratePlan: Context hashCode = ${context.hashCode}');
+    print('GeneratePlan: Current AssessmentData values:');
+    AssessmentData.printData();
+    print('GeneratePlan: Current UserAssess values:');
+    print('GeneratePlan: UserAssess.rehabGoal = "${UserAssess.rehabGoal}"');
+    print('GeneratePlan: UserAssess.generalMuscle = "${UserAssess.generalMuscle}"');
+    print('GeneratePlan: UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
+    print('GeneratePlan: UserAssess.painScale = ${UserAssess.painScale}');
+    print('GeneratePlan: UserAssess.painLevel = "${UserAssess.painLevel}"');
+    print('GeneratePlan: UserAssess.painType = "${UserAssess.painType}"');
+    print('GeneratePlan: UserAssess.painDuration = "${UserAssess.painDuration}"');
+    print('GeneratePlan: UserAssess.isInjured = ${UserAssess.isInjured}');
+    print('GeneratePlan: UserAssess.isAssessed = ${UserAssess.isAssessed}');
+    
+    // Automatically start plan generation when the page loads
+    print('GeneratePlan: Starting automatic plan generation');
     _loadPlan();
+    
+    print('GeneratePlan: initState() COMPLETED ===');
   }
 
   Future<void> _loadPlan() async {
+    print('=== GeneratePlan: _loadPlan() START ===');
+    print('GeneratePlan: Widget mounted = $mounted');
+    
     try {
+      setState(() {
+        _isLoading = true;
+      });
+      
       // Set the treatment parameters based on user assessment
+      print('GeneratePlan: Setting UserRehabilitation parameters from UserAssess');
+      print('GeneratePlan: UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
+      print('GeneratePlan: UserAssess.painLevel = "${UserAssess.painLevel}"');
+      print('GeneratePlan: UserAssess.painDuration = "${UserAssess.painDuration}"');
+      
       UserRehabilitation.instance.selectedMuscle = UserAssess.specificMuscle;
       UserRehabilitation.instance.selectedPainLevel = UserAssess.painLevel;
       UserRehabilitation.instance.selectedPainDuration = UserAssess.painDuration;
 
       final selectedPainLevel = UserRehabilitation.instance.selectedPainLevel;
       final selectedPainDuration = UserRehabilitation.instance.selectedPainDuration;
+      
+      print('GeneratePlan: Selected pain level = "$selectedPainLevel"');
+      print('GeneratePlan: Selected pain duration = "$selectedPainDuration"');
 
       RehabilitationPlan? plan;
 
       // Only generate plan if condition is not met
       if (selectedPainLevel != "Severe" || selectedPainDuration != "Less than 48 hours ago") {
+        print('GeneratePlan: Generating rehabilitation plan from CSV');
         plan = await generateRehabilitationPlanFromCSV();
+        print('GeneratePlan: Plan generated: ${plan != null ? "Success" : "Failed"}');
+      } else {
+        print('GeneratePlan: Skipping plan generation due to severe pain/recent injury');
       }
       
+      print('GeneratePlan: Generating treatment plan');
       final treatmentReferences = await generateTreatmentPlan(
         specificMuscle: UserRehabilitation.instance.selectedMuscle,
         painLevel: UserRehabilitation.instance.selectedPainLevel,
         painDuration: UserRehabilitation.instance.selectedPainDuration,
       );
+      print('GeneratePlan: Treatment references generated: ${treatmentReferences?.length ?? 0} treatments');
       
       // Determine whether to show warning
       final shouldShowExerciseWarning = selectedPainLevel == "Severe" || selectedPainDuration == "Less than 48 hours ago";
+      print('GeneratePlan: Should show exercise warning = $shouldShowExerciseWarning');
 
       if (shouldShowExerciseWarning) {
+        print('GeneratePlan: Showing exercise warning state');
         setState(() {
           _treatmentReferences = treatmentReferences;
           _rehabPlan = null;
@@ -65,6 +110,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
         await UserRehabilitation.instance.savePlansToHive();
         await UserRehabilitation.instance.savePlansToFirebase();
       } else if (plan == null && (treatmentReferences == null || treatmentReferences.isEmpty)) {
+        print('GeneratePlan: Showing error state - no matching exercises/treatments');
         setState(() {
           _error = "⚠️ Not enough matching exercises or treatments found.";
           _rehabPlan = null;
@@ -73,6 +119,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
         });
         // Keep plans only in memory for now (no persistence here)
       } else {
+        print('GeneratePlan: Showing successful plan state');
         UserRehabilitation.instance.rehabPlans = plan != null ? [plan] : [];
         setState(() {
           _rehabPlan = plan;
@@ -85,7 +132,11 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
         await UserRehabilitation.instance.savePlansToHive();
         await UserRehabilitation.instance.savePlansToFirebase();
       }
-    } catch (e) {
+      
+      print('GeneratePlan: _loadPlan() COMPLETED successfully');
+    } catch (e, stackTrace) {
+      print('GeneratePlan: ERROR in _loadPlan() - $e');
+      print('GeneratePlan: Stack trace: $stackTrace');
       setState(() {
         _error = "❌ An error occurred: $e";
         _isLoading = false;
@@ -95,7 +146,16 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    print('=== GeneratePlan: build() START ===');
+    print('GeneratePlan: Widget mounted = $mounted');
+    print('GeneratePlan: Context hashCode = ${context.hashCode}');
+    print('GeneratePlan: _isLoading = $_isLoading');
+    print('GeneratePlan: _error = $_error');
+    print('GeneratePlan: _rehabPlan = ${_rehabPlan != null ? 'Present' : 'Null'}');
+    print('GeneratePlan: _treatmentReferences = ${_treatmentReferences?.length ?? 0} treatments');
+    
+    try {
+      final scaffold = Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -136,6 +196,22 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                 : _buildPlanUI(),
       ),
     );
+    
+    print('GeneratePlan: Scaffold built successfully');
+    print('GeneratePlan: build() COMPLETED ===');
+    return scaffold;
+    } catch (e, stackTrace) {
+      print('GeneratePlan: ERROR in build() - $e');
+      print('GeneratePlan: Stack trace: $stackTrace');
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: SafeArea(
+          child: Center(
+            child: Text('Error building page: $e', style: const TextStyle(color: Colors.red)),
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildLoadingState() {
@@ -217,10 +293,16 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
               ),
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    _isLoading = true;
-                    _error = null;
-                  });
+                  print('=== GeneratePlan: Try Again button TAPPED ===');
+                  print('GeneratePlan: Widget mounted = $mounted');
+                  print('GeneratePlan: Context hashCode = ${context.hashCode}');
+                  
+                  if (!mounted) {
+                    print('GeneratePlan: Widget unmounted, skipping reload');
+                    return;
+                  }
+                  
+                  print('GeneratePlan: About to reload plan');
                   _loadPlan();
                 },
                 style: ElevatedButton.styleFrom(
@@ -447,43 +529,117 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                   ),
                   child: ElevatedButton(
                     onPressed: () async {
-                      // Ensure assessment completion state is set and persisted
-                      UserDetails.hasCompletedAssessment = true;
-                      await UserDetails.markAssessmentCompleted();
-                      // Mark assessment flow as completed locally as well
-                      UserAssess.isAssessed = true;
-                      await UserAssess.saveToHive();
-                      // Persist rehab plans/treatments immediately
-                      await UserRehabilitation.instance.savePlansToHive();
-                      await UserRehabilitation.instance.savePlansToFirebase();
-                      // Ensure an active program is recorded
-                      if (ActiveProgram.startDate == null) {
-                        ActiveProgram.startDate = DateTime.now();
-                        await ActiveProgram.saveToHive();
-                      }
-                      await saveAllDataToHive();
+                      print('=== GeneratePlan: Complete Assessment button TAPPED ===');
+                      print('GeneratePlan: Widget mounted = $mounted');
+                      print('GeneratePlan: Context hashCode = ${context.hashCode}');
                       
-                      // Handle guest mode data saving
-                      if (UserDetails.isGuest) {
-                        final guestModeService = GuestModeService.instance;
-                        await guestModeService.forceSaveAllData();
-                      } else {
-                        await DataPersistenceService.instance.forceSave(reason: 'Assessment completed');
+                      if (!mounted) {
+                        print('GeneratePlan: Widget unmounted, skipping completion');
+                        return;
                       }
                       
-                      // Save flag eagerly to Hive to ensure AuthWrapper sees it on cold start
                       try {
-                        final box = Hive.box('rehabBox');
-                        await box.put('hasCompletedAssessment', true);
-                      } catch (_) {}
+                        print('GeneratePlan: Setting assessment completion state');
+                        // Ensure assessment completion state is set and persisted
+                        UserDetails.hasCompletedAssessment = true;
+                        await UserDetails.markAssessmentCompleted();
+                        // Mark assessment flow as completed locally as well
+                        UserAssess.isAssessed = true;
+                        await UserAssess.saveToHive();
+                        print('GeneratePlan: Assessment completion state set');
+                        
+                        print('GeneratePlan: Persisting rehab plans/treatments');
+                        // Persist rehab plans/treatments immediately
+                        await UserRehabilitation.instance.savePlansToHive();
+                        await UserRehabilitation.instance.savePlansToFirebase();
+                        print('GeneratePlan: Rehab plans persisted');
+                        
+                        print('GeneratePlan: Setting active program');
+                        // Ensure an active program is recorded
+                        if (ActiveProgram.startDate == null) {
+                          ActiveProgram.startDate = DateTime.now();
+                          await ActiveProgram.saveToHive();
+                        }
+                        await saveAllDataToHive();
+                        print('GeneratePlan: Active program set');
+                        
+                        print('GeneratePlan: Handling data persistence');
+                        // Handle guest mode data saving
+                        if (UserDetails.isGuest) {
+                          final guestModeService = GuestModeService.instance;
+                          await guestModeService.forceSaveAllData();
+                        } else {
+                          await DataPersistenceService.instance.forceSave(reason: 'Assessment completed');
+                        }
+                        print('GeneratePlan: Data persistence completed');
+                        
+                        print('GeneratePlan: Saving completion flag to Hive');
+                        // Save flag eagerly to Hive to ensure AuthWrapper sees it on cold start
+                        try {
+                          final box = Hive.box('rehabBox');
+                          await box.put('hasCompletedAssessment', true);
+                        } catch (_) {}
+                        print('GeneratePlan: Completion flag saved');
 
-                      if (!mounted) return;
+                        if (!mounted) {
+                          print('GeneratePlan: Widget unmounted before navigation');
+                          return;
+                        }
 
-                      // Navigate to wrapper (routes to Home or Assess depending on flags)
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => const AuthWrapper()),
-                        (Route<dynamic> route) => false,
-                      );
+                        print('GeneratePlan: Navigating to AuthWrapper');
+                        // Navigate to wrapper (routes to Home or Assess depending on flags)
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => const AuthWrapper()),
+                          (Route<dynamic> route) => false,
+                        );
+                        print('GeneratePlan: Navigation completed');
+                      } catch (e, stackTrace) {
+                        print('GeneratePlan: ERROR in completion handler - $e');
+                        print('GeneratePlan: Stack trace: $stackTrace');
+                        
+                        if (!mounted) return;
+                        
+                        // Provide more specific error messages
+                        String errorMessage = 'Assessment completed locally. Some data may not sync.';
+                        if (e.toString().contains('permission-denied')) {
+                          errorMessage = 'Assessment completed locally. Data will sync when connection improves.';
+                        } else if (e.toString().contains('network')) {
+                          errorMessage = 'Network error. Assessment saved locally.';
+                        } else if (e.toString().contains('timeout')) {
+                          errorMessage = 'Request timed out. Assessment saved locally.';
+                        } else if (e.toString().contains('authentication') || e.toString().contains('auth')) {
+                          errorMessage = 'Assessment completed locally. Data will sync when connection improves.';
+                        }
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errorMessage),
+                            backgroundColor: Colors.orange,
+                            duration: const Duration(seconds: 4),
+                            action: SnackBarAction(
+                              label: 'Continue',
+                              textColor: Colors.white,
+                              onPressed: () {
+                                // Navigate anyway since local data is saved
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (context) => const AuthWrapper()),
+                                  (Route<dynamic> route) => false,
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                        
+                        // Auto-navigate after a delay if user doesn't interact
+                        Future.delayed(const Duration(seconds: 5), () {
+                          if (mounted) {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (context) => const AuthWrapper()),
+                              (Route<dynamic> route) => false,
+                            );
+                          }
+                        });
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,

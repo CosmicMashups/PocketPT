@@ -26,7 +26,7 @@ class SimpleDataSyncService {
       
       // Initialize Hive if not already done
       if (!Hive.isBoxOpen('rehabBox')) {
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       _isInitialized = true;

@@ -14,6 +14,11 @@ class AssessmentData {
   static String painDuration = '';
   static bool isInjured = false;
   static bool isAssessed = false;
+  
+  // AI Analysis fields
+  static Map<String, dynamic>? aiAnalysisResults;
+  static bool hasAIAnalysis = false;
+  static DateTime? aiAnalysisTimestamp;
 
   /// Reset all assessment data to default values
   static void reset() {
@@ -27,6 +32,11 @@ class AssessmentData {
     painDuration = '';
     isInjured = false;
     isAssessed = false;
+    
+    // Reset AI analysis fields
+    aiAnalysisResults = null;
+    hasAIAnalysis = false;
+    aiAnalysisTimestamp = null;
   }
 
   /// Check if assessment is complete

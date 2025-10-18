@@ -24,7 +24,7 @@ class GuestModeService {
       
       // Initialize Hive if not already done
       if (!Hive.isBoxOpen('rehabBox')) {
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       // Check if there's an existing guest session

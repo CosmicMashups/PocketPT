@@ -3,14 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'assessment_data.dart';
 import '../data/functions.dart';
-import 'b_focus1.dart';
 import 'c_camera.dart';
 import 'c_painlevel.dart';
-import 'b_upperbody.dart';
-import 'b_lowerbody.dart';
-import 'b_core.dart';
-import 'b_neck.dart';
-import 'b_joints.dart';
+import 'c_upload.dart';
 
 class AssessPainVideo extends StatefulWidget {
   const AssessPainVideo({super.key});
@@ -103,31 +98,10 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
           IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
             onPressed: () {
-              Widget nextPage;
-              switch (UserAssess.generalMuscle) {
-                case "Upper Body":
-                  nextPage = AssessUpperBody();
-                  break;
-                case "Lower Body":
-                  nextPage = AssessLowerBody();
-                  break;
-                case "Core Area":
-                  nextPage = AssessCore();
-                  break;
-                case "Neck & Upper Back":
-                  nextPage = AssessNeck();
-                  break;
-                case "Joints":
-                  nextPage = AssessJoints();
-                  break;
-                default:
-                  nextPage = AssessFocus1();
-              }
-
               Navigator.push(
                 context,
                 PageRouteBuilder(
-                  pageBuilder: (_, __, ___) => nextPage,
+                  pageBuilder: (_, __, ___) => const AssessUpload(),
                   transitionsBuilder: (_, animation, __, child) {
                     const begin = Offset(1.0, 0.0);
                     const end = Offset.zero;

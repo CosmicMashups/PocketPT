@@ -6,6 +6,8 @@ import 'firebase_helper.dart';
 import 'firebase_integration_test.dart';
 import 'login_test_service.dart';
 import 'data_sync_service.dart';
+import '../test_firebase_collections_access.dart';
+import '../test_firebase_write_operations.dart';
 
 /// Widget to display data management information and controls
 class DataManagementWidget extends StatefulWidget {
@@ -232,6 +234,64 @@ class _DataManagementWidgetState extends State<DataManagementWidget> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Data sync test error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _testFirebaseCollections() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final results = await FirebaseCollectionsAccessTest.testAllCollectionsAccess();
+      
+      if (mounted) {
+        _showFirebaseCollectionsResultsDialog(results);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Firebase collections test error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _testFirebaseWriteOperations() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final results = await FirebaseWriteOperationsTest.testAllWriteOperations();
+      
+      if (mounted) {
+        _showFirebaseWriteResultsDialog(results);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Firebase write operations test error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -566,6 +626,50 @@ class _DataManagementWidgetState extends State<DataManagementWidget> {
             
             const SizedBox(height: 8),
             
+            // Firebase Collections Test Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _testFirebaseCollections,
+                icon: _isLoading 
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.storage),
+                label: const Text('Test Firebase Collections'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Firebase Write Operations Test Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _testFirebaseWriteOperations,
+                icon: _isLoading 
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.edit),
+                label: const Text('Test Firebase Write Operations'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
             // Data Sync Test Button
             SizedBox(
               width: double.infinity,
@@ -686,5 +790,334 @@ class _DataManagementWidgetState extends State<DataManagementWidget> {
     } catch (e) {
       return 'Invalid timestamp';
     }
+  }
+
+  void _showFirebaseCollectionsResultsDialog(Map<String, dynamic> results) {
+    final success = results['success'] as bool? ?? false;
+    final summary = results['summary'] as Map<String, dynamic>?;
+    final collections = results['collections'] as Map<String, dynamic>?;
+    final errors = results['errors'] as List<String>? ?? [];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              success ? Icons.check_circle : Icons.error,
+              color: success ? Colors.green : Colors.red,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Firebase Collections Test Results'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (summary != null) ...[
+                Text(
+                  'Summary',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: success ? Colors.green : Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildSummaryRow('Total Collections', summary['totalCollections']?.toString() ?? '0'),
+                _buildSummaryRow('Successful', summary['successfulCollections']?.toString() ?? '0'),
+                _buildSummaryRow('Failed', summary['failedCollections']?.toString() ?? '0'),
+                _buildSummaryRow('With Data', summary['collectionsWithData']?.toString() ?? '0'),
+                _buildSummaryRow('Without Data', summary['collectionsWithoutData']?.toString() ?? '0'),
+                const SizedBox(height: 16),
+              ],
+              
+              if (collections != null) ...[
+                Text(
+                  'Collection Details',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...collections.entries.map((entry) => _buildCollectionResult(entry.key, entry.value)),
+              ],
+              
+              if (errors.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Errors',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...errors.map((error) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '• $error',
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                  ),
+                )),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCollectionResult(String collectionName, dynamic data) {
+    if (data is! Map<String, dynamic>) return const SizedBox();
+
+    final success = data['success'] as bool? ?? false;
+    final canRead = data['canRead'] as bool? ?? false;
+    final canWrite = data['canWrite'] as bool? ?? false;
+    final documentExists = data['documentExists'] as bool? ?? false;
+    final error = data['error'] as String?;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: success ? Colors.green.shade50 : Colors.red.shade50,
+        border: Border.all(
+          color: success ? Colors.green.shade200 : Colors.red.shade200,
+        ),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: success ? Colors.green : Colors.red,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                collectionName,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: success ? Colors.green.shade700 : Colors.red.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          _buildStatusRow('Read', canRead),
+          _buildStatusRow('Write', canWrite),
+          _buildStatusRow('Document Exists', documentExists),
+          if (error != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Error: $error',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.red.shade700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusRow(String label, bool status) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        children: [
+          Icon(
+            status ? Icons.check : Icons.close,
+            color: status ? Colors.green : Colors.red,
+            size: 12,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFirebaseWriteResultsDialog(Map<String, dynamic> results) {
+    final success = results['success'] as bool? ?? false;
+    final summary = results['summary'] as Map<String, dynamic>?;
+    final collections = results['collections'] as Map<String, dynamic>?;
+    final errors = results['errors'] as List<String>? ?? [];
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              success ? Icons.check_circle : Icons.error,
+              color: success ? Colors.green : Colors.red,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Firebase Write Operations Test Results'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (summary != null) ...[
+                Text(
+                  'Summary',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: success ? Colors.green : Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _buildSummaryRow('Total Collections', summary['totalCollections']?.toString() ?? '0'),
+                _buildSummaryRow('Successful', summary['successfulCollections']?.toString() ?? '0'),
+                _buildSummaryRow('Failed', summary['failedCollections']?.toString() ?? '0'),
+                _buildSummaryRow('Write Access', summary['collectionsWithWriteAccess']?.toString() ?? '0'),
+                _buildSummaryRow('Read Access', summary['collectionsWithReadAccess']?.toString() ?? '0'),
+                _buildSummaryRow('Data Integrity', summary['collectionsWithDataIntegrity']?.toString() ?? '0'),
+                const SizedBox(height: 16),
+              ],
+              
+              if (collections != null) ...[
+                Text(
+                  'Collection Write/Read Details',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...collections.entries.map((entry) => _buildWriteResult(entry.key, entry.value)),
+              ],
+              
+              if (errors.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Errors',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...errors.map((error) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    '• $error',
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                  ),
+                )),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWriteResult(String collectionName, dynamic data) {
+    if (data is! Map<String, dynamic>) return const SizedBox();
+
+    final success = data['success'] as bool? ?? false;
+    final canWrite = data['canWrite'] as bool? ?? false;
+    final canRead = data['canRead'] as bool? ?? false;
+    final dataMatches = data['dataMatches'] as bool? ?? false;
+    final error = data['error'] as String?;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: success ? Colors.green.shade50 : Colors.red.shade50,
+        border: Border.all(
+          color: success ? Colors.green.shade200 : Colors.red.shade200,
+        ),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: success ? Colors.green : Colors.red,
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                collectionName,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: success ? Colors.green.shade700 : Colors.red.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          _buildStatusRow('Write', canWrite),
+          _buildStatusRow('Read', canRead),
+          _buildStatusRow('Data Integrity', dataMatches),
+          if (error != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Error: $error',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.red.shade700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

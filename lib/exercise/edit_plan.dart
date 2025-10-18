@@ -6,6 +6,7 @@ import '../assessment/generate_treatment.dart';
 import 'exercise_list.dart' as exList;
 import '../data/globals.dart';
 import '../data/user_data_notifier.dart';
+import '../data/data_persistence_service.dart';
 // removed data wrappers: using direct globals like a_goal1.dart
 import '../widgets/loading_indicator.dart';
 class ExerciseManagerPage extends StatefulWidget {
@@ -18,17 +19,14 @@ class ExerciseManagerPage extends StatefulWidget {
 class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
   late final TextEditingController _notesController;
   final Random _random = Random();
-  List<TreatmentReference>? _treatmentReferences;
-  bool _isLoadingTreatments = false;
-  List<ExerciseReference> _exerciseReferences = [];
-  bool _isLoadingExercises = false;
+  bool _isLoadingData = true;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
     _notesController = TextEditingController(text: UserProgress.notes ?? '');
-    _loadExerciseReferences();
-    _loadTreatments();
+    _loadData();
   }
 
   @override
@@ -37,90 +35,38 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     super.dispose();
   }
 
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoadingData = true;
+      _loadError = null;
+    });
+    try {
+      await DataPersistenceService.instance.loadUserDataIfNeeded();
+      // Initialize notifier once data is available
+      UserDataNotifier.instance.initialize();
+      if (!mounted) return;
+      
+      setState(() {
+        _isLoadingData = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingData = false;
+        _loadError = 'Failed to load rehabilitation data. Please try again.';
+      });
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh exercise references when the page is resumed
-    _loadExerciseReferences();
+    // No need to reload data - it's accessed directly like the dashboard
   }
 
-  Future<void> _loadExerciseReferences() async {
-    try {
-      setState(() {
-        _isLoadingExercises = true;
-      });
-
-      // Load exercise references from the rehabilitation plan
-      if (UserRehabilitation.instance.rehabPlans.isNotEmpty) {
-        final plan = UserRehabilitation.instance.rehabPlans.first;
-        setState(() {
-          _exerciseReferences = List.from(plan.exerciseReferences);
-          _isLoadingExercises = false;
-        });
-      } else {
-        setState(() {
-          _exerciseReferences = [];
-          _isLoadingExercises = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading exercise references: $e');
-      setState(() {
-        _exerciseReferences = [];
-        _isLoadingExercises = false;
-      });
-    }
-  }
-
-  Future<void> _loadTreatments() async {
-    try {
-      // Check if treatment references are already loaded
-      if (UserRehabilitation.instance.treatmentReferences != null) {
-        setState(() {
-          _treatmentReferences = UserRehabilitation.instance.treatmentReferences;
-        });
-        return;
-      }
-
-      setState(() {
-        _isLoadingTreatments = true;
-      });
-
-      final treatmentReferences = await generateTreatmentPlan(
-        specificMuscle: UserRehabilitation.instance.selectedMuscle,
-        painLevel: UserRehabilitation.instance.selectedPainLevel,
-        painDuration: UserRehabilitation.instance.selectedPainDuration,
-      );
-      
-      if (mounted) {
-        setState(() {
-          _treatmentReferences = treatmentReferences;
-          UserRehabilitation.instance.treatmentReferences = treatmentReferences;
-          _isLoadingTreatments = false;
-        });
-        await UserRehabilitation.instance.savePlansToHive();
-        
-        // Notify all listeners that treatment references have changed
-        UserDataNotifier.instance.notifyRehabilitationPlanChanged(
-          reason: 'Treatment references updated'
-        );
-      }
-    } catch (e) {
-      debugPrint('Error loading treatment references: $e');
-      if (mounted) {
-        setState(() {
-          _isLoadingTreatments = false;
-        });
-      }
-    }
-  }
 
   Future<void> _refreshTreatments() async {
     try {
-      setState(() {
-        _isLoadingTreatments = true;
-      });
-      
       // Clear existing treatment references to force reload
       UserRehabilitation.instance.treatmentReferences = null;
       
@@ -131,25 +77,19 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
       );
       
       if (mounted) {
-        setState(() {
-          _treatmentReferences = treatmentReferences;
-          UserRehabilitation.instance.treatmentReferences = treatmentReferences;
-          _isLoadingTreatments = false;
-        });
+        UserRehabilitation.instance.treatmentReferences = treatmentReferences;
         await UserRehabilitation.instance.savePlansToHive();
         
         // Notify all listeners that treatment references have been refreshed
         UserDataNotifier.instance.notifyRehabilitationPlanChanged(
           reason: 'Treatment references refreshed'
         );
+        
+        // Trigger rebuild
+        setState(() {});
       }
     } catch (e) {
       debugPrint('Error refreshing treatment references: $e');
-      if (mounted) {
-        setState(() {
-          _isLoadingTreatments = false;
-        });
-      }
     }
   }
   
@@ -171,7 +111,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     UserProgress.saveToHive();
   }
 
-  Future<void> _updateRehabilitationPlan() async {
+  Future<void> _updateRehabilitationPlan(List<ExerciseReference> exerciseReferences) async {
     try {
       // Create a new plan with updated exercise references
       final weekNumber = UserRehabilitation.instance.rehabPlans.isNotEmpty 
@@ -181,7 +121,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
       UserRehabilitation.instance.rehabPlans = [
         RehabilitationPlan(
           weekNumber: weekNumber,
-          exerciseReferences: List.from(_exerciseReferences),
+          exerciseReferences: List.from(exerciseReferences),
           daily: UserRehabilitation.instance.rehabPlans.isNotEmpty 
               ? UserRehabilitation.instance.rehabPlans.first.daily 
               : [],
@@ -195,13 +135,16 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
       UserDataNotifier.instance.notifyRehabilitationPlanChanged(
         reason: 'Exercise references updated'
       );
+      
+      // Trigger rebuild
+      setState(() {});
     } catch (e) {
       debugPrint('Error updating rehabilitation plan: $e');
     }
   }
 
-  Future<void> _replaceExercise(int index) async {
-    final currentExerciseRef = _exerciseReferences[index];
+  Future<void> _replaceExercise(int index, List<ExerciseReference> exerciseReferences) async {
+    final currentExerciseRef = exerciseReferences[index];
     
     // Get full exercise data to show in confirmation dialog
     final currentExercise = await ExerciseDataService.getExerciseById(currentExerciseRef.exerciseId);
@@ -244,15 +187,13 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
       );
 
       if (newExercise != null) {
-        setState(() {
-          final replacementExerciseRef = ExerciseReference(
-            exerciseId: newExercise.exerciseId,
-            sets: currentExerciseRef.sets,
-            repetitions: currentExerciseRef.repetitions,
-          );
-          _exerciseReferences[index] = replacementExerciseRef;
-        });
-        await _updateRehabilitationPlan();
+        final replacementExerciseRef = ExerciseReference(
+          exerciseId: newExercise.exerciseId,
+          sets: currentExerciseRef.sets,
+          repetitions: currentExerciseRef.repetitions,
+        );
+        exerciseReferences[index] = replacementExerciseRef;
+        await _updateRehabilitationPlan(exerciseReferences);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -305,15 +246,22 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
         repetitions: newExercise.rep,
       );
 
-      setState(() {
-        _exerciseReferences.add(convertedExerciseRef);
-      });
-      await _updateRehabilitationPlan();
+      // Get current exercise references and add the new one
+      final rehabilitationPlans = UserDataNotifier.instance.rehabPlans.isNotEmpty 
+          ? UserDataNotifier.instance.rehabPlans 
+          : UserRehabilitation.instance.rehabPlans;
+      
+      final exerciseReferences = rehabilitationPlans.isNotEmpty 
+          ? List<ExerciseReference>.from(rehabilitationPlans.first.exerciseReferences)
+          : <ExerciseReference>[];
+      
+      exerciseReferences.add(convertedExerciseRef);
+      await _updateRehabilitationPlan(exerciseReferences);
     }
   }
 
-  Future<void> _confirmDeleteExercise(int index) async {
-    final exerciseRef = _exerciseReferences[index];
+  Future<void> _confirmDeleteExercise(int index, List<ExerciseReference> exerciseReferences) async {
+    final exerciseRef = exerciseReferences[index];
     
     // Get full exercise data to show in confirmation dialog
     final exercise = await ExerciseDataService.getExerciseById(exerciseRef.exerciseId);
@@ -343,10 +291,8 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     );
 
     if (confirm == true) {
-      setState(() {
-        _exerciseReferences.removeAt(index);
-      });
-      await _updateRehabilitationPlan();
+      exerciseReferences.removeAt(index);
+      await _updateRehabilitationPlan(exerciseReferences);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -363,24 +309,59 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
 
   @override
   Widget build(BuildContext context) {
-    return _buildContent();
-  }
-  
-  Widget _buildContent() {
-    if (_isLoadingExercises) {
+    if (_isLoadingData) {
       return Scaffold(
         backgroundColor: backgroundColor,
         appBar: _buildAppBar("Exercise Manager"),
         body: const Center(
           child: LoadingIndicator(
-            message: 'Loading exercise data...',
+            message: 'Loading rehabilitation data...',
             size: 40,
           ),
         ),
       );
     }
-
-    if (_exerciseReferences.isEmpty) {
+    
+    if (_loadError != null) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: _buildAppBar("Exercise Manager"),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 40),
+              const SizedBox(height: 12),
+              Text(_loadError!, textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: _loadData,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return _buildContent();
+  }
+  
+  Widget _buildContent() {
+    // Access rehabilitation plans directly like the dashboard does
+    final rehabilitationPlans = UserDataNotifier.instance.rehabPlans.isNotEmpty 
+        ? UserDataNotifier.instance.rehabPlans 
+        : UserRehabilitation.instance.rehabPlans;
+    
+    final exerciseReferences = rehabilitationPlans.isNotEmpty 
+        ? rehabilitationPlans.first.exerciseReferences 
+        : <ExerciseReference>[];
+    
+    final treatmentReferences = UserRehabilitation.instance.treatmentReferences;
+    
+    debugPrint('Building content - rehabPlans count: ${rehabilitationPlans.length}, exerciseReferences count: ${exerciseReferences.length}');
+    
+    if (exerciseReferences.isEmpty) {
       return Scaffold(
         backgroundColor: backgroundColor,
         appBar: _buildAppBar("Exercise Manager"),
@@ -425,7 +406,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildPlanStats(),
+              _buildPlanStats(exerciseReferences),
             const SizedBox(height: 24),
 
             // Exercise Management Section
@@ -489,9 +470,9 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
                     ],
                   ),
                   const SizedBox(height: 20),
-              _exerciseReferences.isEmpty
+              exerciseReferences.isEmpty
                   ? _buildEmptyState()
-                  : _buildExerciseList(),
+                  : _buildExerciseList(exerciseReferences),
                   const SizedBox(height: 16),
               _buildAddExerciseButton(),
                 ],
@@ -500,11 +481,9 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
               const SizedBox(height: 24),
 
               // Treatments Section
-              if (_isLoadingTreatments)
-                _buildTreatmentLoadingState()
-              else if (_treatmentReferences != null && _treatmentReferences!.isNotEmpty)
-                _buildTreatmentSection()
-              else if (_treatmentReferences != null && _treatmentReferences!.isEmpty)
+              if (treatmentReferences != null && treatmentReferences.isNotEmpty)
+                _buildTreatmentSection(treatmentReferences)
+              else if (treatmentReferences != null && treatmentReferences.isEmpty)
                 _buildNoTreatmentsMessage(),
               const SizedBox(height: 24),
 
@@ -556,7 +535,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     );
   }
 
-  Widget _buildPlanStats() {
+  Widget _buildPlanStats(List<ExerciseReference> exerciseReferences) {
     final weekNumber = UserRehabilitation.instance.rehabPlans.isNotEmpty 
         ? UserRehabilitation.instance.rehabPlans.first.weekNumber 
         : 1;
@@ -627,7 +606,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
                 child: _buildStatItem(
                   Icons.fitness_center, 
                   'Exercises', 
-                  _exerciseReferences.length.toString(),
+                  exerciseReferences.length.toString(),
                   'Prescribed',
                 ),
               ),
@@ -645,7 +624,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
                 child: _buildStatItem(
               Icons.timer,
                   'Total Reps',
-                  '${_exerciseReferences.fold(0, (sum, e) => sum + e.sets * e.repetitions)}',
+                  '${exerciseReferences.fold(0, (sum, e) => sum + e.sets * e.repetitions)}',
                   'Per Session',
                 ),
             ),
@@ -707,10 +686,10 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     );
   }
 
-  Widget _buildExerciseList() {
+  Widget _buildExerciseList(List<ExerciseReference> exerciseReferences) {
     return FutureBuilder<List<Exercise>>(
       future: ExerciseDataService.getExercisesByIds(
-        _exerciseReferences.map((ref) => ref.exerciseId).toList(),
+        exerciseReferences.map((ref) => ref.exerciseId).toList(),
       ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -720,12 +699,24 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
           return Text('Error loading exercises: ${snapshot.error}');
         }
         final exercises = snapshot.data ?? [];
+        
+        // Create a map for quick lookup of exercises by ID
+        final exerciseMap = {for (var exercise in exercises) exercise.exerciseId: exercise};
+        
         return ListView.builder(
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
-          itemCount: exercises.length,
+          itemCount: exerciseReferences.length,
           itemBuilder: (context, index) {
-            return _buildExerciseCard(exercises[index], index);
+            final exerciseRef = exerciseReferences[index];
+            final exercise = exerciseMap[exerciseRef.exerciseId];
+            
+            // If exercise not found, show placeholder
+            if (exercise == null) {
+              return _buildExerciseCardPlaceholder(exerciseRef, index, exerciseReferences);
+            }
+            
+            return _buildExerciseCard(exercise, index, exerciseReferences);
           },
         );
       },
@@ -764,8 +755,182 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     );
   }
 
-  Widget _buildExerciseCard(Exercise exercise, int index) {
-    final exerciseRef = _exerciseReferences[index];
+  Widget _buildExerciseCardPlaceholder(ExerciseReference exerciseRef, int index, List<ExerciseReference> exerciseReferences) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with exercise info
+            Row(
+              children: [
+                // Exercise Icon
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    color: mainColor.withOpacity(0.1),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.fitness_center,
+                      size: 28,
+                      color: mainColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                
+                // Exercise Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Exercise ${exerciseRef.exerciseId}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: mainColor,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Exercise details not found',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Exercise Parameters
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: mainColor.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildParameterItem(
+                      Icons.repeat,
+                      'Repetitions',
+                      '${exerciseRef.repetitions}',
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 30,
+                    color: mainColor.withOpacity(0.2),
+                  ),
+                  Expanded(
+                    child: _buildParameterItem(
+                      Icons.format_list_numbered,
+                      'Sets',
+                      '${exerciseRef.sets}',
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 30,
+                    color: mainColor.withOpacity(0.2),
+                  ),
+                  Expanded(
+                    child: _buildParameterItem(
+                      Icons.timer,
+                      'Total',
+                      '${exerciseRef.sets * exerciseRef.repetitions}',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: warningColor,
+                      side: BorderSide(color: warningColor),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => _replaceExercise(index, exerciseReferences),
+                    icon: const Icon(Icons.autorenew, size: 18),
+                    label: const Text('Replace'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: errorColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => _confirmDeleteExercise(index, exerciseReferences),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Remove'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExerciseCard(Exercise exercise, int index, List<ExerciseReference> exerciseReferences) {
+    final exerciseRef = exerciseReferences[index];
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -943,7 +1108,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
                       ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    onPressed: () => _replaceExercise(index),
+                    onPressed: () => _replaceExercise(index, exerciseReferences),
                       icon: const Icon(Icons.autorenew, size: 18),
                     label: const Text('Replace'),
                     ),
@@ -960,7 +1125,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
                       ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    onPressed: () => _confirmDeleteExercise(index),
+                    onPressed: () => _confirmDeleteExercise(index, exerciseReferences),
                       icon: const Icon(Icons.delete_outline, size: 18),
                       label: const Text('Remove'),
                     ),
@@ -998,7 +1163,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     );
   }
 
-  Widget _buildTreatmentSection() {
+  Widget _buildTreatmentSection(List<TreatmentReference> treatmentReferences) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -1062,21 +1227,12 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: TextButton.icon(
-              onPressed: _isLoadingTreatments ? null : _refreshTreatments,
-              icon: _isLoadingTreatments 
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(subColor),
-                    ),
-                  )
-                    : Icon(Icons.refresh, size: 16, color: subColor),
+              onPressed: _refreshTreatments,
+              icon: Icon(Icons.refresh, size: 16, color: subColor),
               label: Text(
-                _isLoadingTreatments ? 'Loading...' : 'Refresh',
+                'Refresh',
                 style: TextStyle(
-                  color: _isLoadingTreatments ? subColor.withOpacity(0.6) : subColor, 
+                  color: subColor, 
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                 ),
@@ -1093,7 +1249,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
         // Load treatments from CSV and display them
         FutureBuilder<List<Treatment>>(
           future: ExerciseDataService.getTreatmentsByIds(
-            _treatmentReferences!.map((ref) => ref.treatmentId).toList(),
+            treatmentReferences.map((ref) => ref.treatmentId).toList(),
           ),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1103,11 +1259,25 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
               return Text('Error loading treatments: ${snapshot.error}');
             }
             final treatments = snapshot.data ?? [];
+            
+            // Create a map for quick lookup of treatments by ID
+            final treatmentMap = {for (var treatment in treatments) treatment.treatmentId: treatment};
+            
             return ListView.builder(
               shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-              itemCount: treatments.length,
-              itemBuilder: (context, index) => _buildTreatmentCard(treatments[index]),
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: treatmentReferences.length,
+              itemBuilder: (context, index) {
+                final treatmentRef = treatmentReferences[index];
+                final treatment = treatmentMap[treatmentRef.treatmentId];
+                
+                // If treatment not found, show placeholder
+                if (treatment == null) {
+                  return _buildTreatmentCardPlaceholder(treatmentRef, index, treatmentReferences);
+                }
+                
+                return _buildTreatmentCard(treatment, index, treatmentReferences);
+              },
             );
           },
         ),
@@ -1116,7 +1286,7 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     );
   }
 
-  Widget _buildTreatmentCard(Treatment treatment) {
+  Widget _buildTreatmentCard(Treatment treatment, int index, List<TreatmentReference> treatmentReferences) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -1244,6 +1414,219 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
               ],
             ),
           ),
+          
+          const SizedBox(height: 16),
+          
+          // Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: successColor,
+                    side: BorderSide(color: successColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => _replaceTreatment(index, treatmentReferences),
+                  icon: const Icon(Icons.autorenew, size: 18),
+                  label: const Text('Replace'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: errorColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => _confirmDeleteTreatment(index, treatmentReferences),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Remove'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTreatmentCardPlaceholder(TreatmentReference treatmentRef, int index, List<TreatmentReference> treatmentReferences) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.orange.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with icon and title
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.medical_services,
+                  size: 20,
+                  color: Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Treatment ${treatmentRef.treatmentId}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: mainColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Description
+          Text(
+            'Treatment details not found in database',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.orange.shade700,
+              height: 1.4,
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Treatment details placeholder
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.orange.withOpacity(0.1),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTreatmentDetailItem(
+                        Icons.accessibility_new,
+                        'Muscles',
+                        'Unknown',
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 20,
+                      color: Colors.orange.withOpacity(0.2),
+                    ),
+                    Expanded(
+                      child: _buildTreatmentDetailItem(
+                        Icons.health_and_safety,
+                        'Pain Level',
+                        'Unknown',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTreatmentDetailItem(
+                        Icons.timer,
+                        'Duration',
+                        'Unknown',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Data Missing',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange,
+                    side: BorderSide(color: Colors.orange),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => _replaceTreatment(index, treatmentReferences),
+                  icon: const Icon(Icons.autorenew, size: 18),
+                  label: const Text('Replace'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: errorColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () => _confirmDeleteTreatment(index, treatmentReferences),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Remove'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1314,41 +1697,6 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     );
   }
 
-  Widget _buildTreatmentLoadingState() {
-    return Card(
-      elevation: 0,
-      color: Colors.blue.shade50,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.blue.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(subColor),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Loading recommended treatments...',
-                style: TextStyle(
-                  color: Colors.blue.shade800,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildNotesSection() {
     return Container(
@@ -1522,6 +1870,151 @@ class _ExerciseManagerPageState extends State<ExerciseManagerPage> {
     } catch (e) {
       debugPrint('Error generating random exercise: $e');
       return null;
+    }
+  }
+
+  Future<void> _replaceTreatment(int index, List<TreatmentReference> treatmentReferences) async {
+    if (index >= treatmentReferences.length) return;
+    
+    final currentTreatmentRef = treatmentReferences[index];
+    
+    // Get full treatment data to show in confirmation dialog
+    final currentTreatment = await ExerciseDataService.getTreatmentById(currentTreatmentRef.treatmentId);
+    if (currentTreatment == null) return;
+
+    // Show confirmation dialog
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Replace Treatment'),
+          content: Text('Are you sure you want to replace "${currentTreatment.treatmentName}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: successColor,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Replace'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // If user cancels
+    if (confirm != true) return;
+
+    // Proceed with replacement by regenerating treatments
+    try {
+      // Clear existing treatment references to force reload
+      UserRehabilitation.instance.treatmentReferences = null;
+      
+      final treatmentReferences = await generateTreatmentPlan(
+        specificMuscle: UserRehabilitation.instance.selectedMuscle,
+        painLevel: UserRehabilitation.instance.selectedPainLevel,
+        painDuration: UserRehabilitation.instance.selectedPainDuration,
+      );
+      
+      if (mounted) {
+        UserRehabilitation.instance.treatmentReferences = treatmentReferences;
+        await UserRehabilitation.instance.savePlansToHive();
+        
+        // Notify all listeners that treatment references have been refreshed
+        UserDataNotifier.instance.notifyRehabilitationPlanChanged(
+          reason: 'Treatment references replaced'
+        );
+        
+        // Trigger rebuild
+        setState(() {});
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('✅ Treatment plan regenerated successfully'),
+            backgroundColor: successColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteTreatment(int index, List<TreatmentReference> treatmentReferences) async {
+    if (index >= treatmentReferences.length) return;
+    
+    final treatmentRef = treatmentReferences[index];
+    
+    // Get full treatment data to show in confirmation dialog
+    final treatment = await ExerciseDataService.getTreatmentById(treatmentRef.treatmentId);
+    if (treatment == null) return;
+
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Treatment'),
+          content: Text('Are you sure you want to delete "${treatment.treatmentName}" from your plan?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: errorColor,
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      treatmentReferences.removeAt(index);
+      UserRehabilitation.instance.treatmentReferences = treatmentReferences;
+      
+      await UserRehabilitation.instance.savePlansToHive();
+      
+      // Notify all listeners that treatment references have changed
+      UserDataNotifier.instance.notifyRehabilitationPlanChanged(
+        reason: 'Treatment deleted'
+      );
+      
+      // Trigger rebuild
+      setState(() {});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('🗑️ Deleted "${treatment.treatmentName}"'),
+          backgroundColor: errorColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
     }
   }
 }

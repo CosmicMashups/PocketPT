@@ -247,7 +247,7 @@ class SyncQueue {
   static Future<void> loadQueueFromHive() async {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       final box = Hive.box('rehabBox');
@@ -267,7 +267,7 @@ class SyncQueue {
   static Future<void> _saveQueueToHive() async {
     try {
       if (!Hive.isBoxOpen('rehabBox')) {
-        await Hive.openBox('rehabBox');
+        await openRehabBox();
       }
       
       final box = Hive.box('rehabBox');

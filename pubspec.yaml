@@ -38,6 +38,7 @@ dependencies:
   simple_animations: 5.1.0
   video_player: ^2.7.0
   camera: ^0.11.1
+  image_picker: ^1.0.7
   dotted_border: ^2.0.0+3
   intl: ^0.20.2
   file_picker: ^10.1.2
@@ -75,8 +76,8 @@ dependencies:
   # Local notifications
   flutter_local_notifications: ^17.2.1
 
-  # For pytorch
-  flutter_pytorch_lite: ^0.1.0+3
+  # For pytorch - temporarily disabled due to Flutter 3.29.2 compatibility issues
+  # flutter_pytorch_lite: ^0.1.0+3
   
   # For secure storage and crypto
   flutter_secure_storage: ^9.2.2
@@ -136,6 +137,8 @@ flutter:
     - assets/images/
     - assets/images/exercise/
     - assets/images/muscle_region/
+    - assets/images/muscle/
+    - assets/images/pfp/
     - assets/images/profile/
     - assets/images/title/
     - assets/images/logo/

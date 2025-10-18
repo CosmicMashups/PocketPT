@@ -24,6 +24,7 @@ class RehabPlan {
 class ExerciseRecord {
   final DateTime date;
   final String icdCode;
+  final String exerciseId;
   final String exerciseName;
   final int sets;
   final int reps;
@@ -32,6 +33,7 @@ class ExerciseRecord {
   ExerciseRecord({
     required this.date,
     required this.icdCode,
+    required this.exerciseId,
     required this.exerciseName,
     required this.sets,
     required this.reps,
@@ -104,10 +106,13 @@ final selectedDateProvider = StateProvider<DateTime>((ref) {
 
 final exerciseRecordsProvider = StateProvider<List<ExerciseRecord>>((ref) {
   // Convert ExerciseHistory entries to ExerciseRecord format for the calendar
+  // Note: This provider returns placeholder names. The actual exercise names
+  // will be loaded in the UI using FutureBuilder with ExerciseDataService
   return ExerciseHistory.entries.map((entry) => ExerciseRecord(
     date: entry.date,
     icdCode: 'REHAB', // Using a generic code since we don't have ICD codes in our system
-    exerciseName: entry.exerciseName,
+    exerciseId: entry.exerciseId, // Include exercise ID for loading actual exercise data
+    exerciseName: entry.exerciseName, // This will be placeholder name like "Exercise 1"
     sets: entry.sets,
     reps: entry.reps,
     status: entry.status,
