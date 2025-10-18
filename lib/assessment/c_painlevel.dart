@@ -1,9 +1,10 @@
+// Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-// import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
 import '../data/globals.dart';
-import 'c_camera.dart';
+import 'assessment_data.dart';
+// Sync removed for assessment (local-only)
+// removed unused import
 import 'c_paintype.dart';
 
 class AssessPainLevel extends StatefulWidget {
@@ -14,188 +15,272 @@ class AssessPainLevel extends StatefulWidget {
 }
 
 class _AssessPainLevelState extends State<AssessPainLevel> {
-  String painLevel = UserAssess.painLevel;
-  int painScale = UserAssess.painScale;
-
   // Professional healthcare color scheme
-  static const mainColor = Color(0xFF8B2E2E); // Professional blue
-  static const subColor = Color(0xFFC24A4A); // Light blue
-  static const detailColor = Color(0xFF6B7280); // Gray
-  static const backgroundColor = Color(0xFFF8FAFC); // Light background
-  static const successColor = Color(0xFF10B981); // Green
-  static const warningColor = Color(0xFFF59E0B); // Orange
-  static const errorColor = Color(0xFFEF4444); // Red
+  static const mainColor = Color(0xFF8B2E2E);
+  static const subColor = Color(0xFFC24A4A);
+  static const detailColor = Color(0xFF6B7280);
+  static const backgroundColor = Color(0xFFF8FAFC);
+  static const successColor = Color(0xFF10B981);
+
+  int selectedPainLevel = 0;
 
   @override
   void initState() {
     super.initState();
-    // Initialize painLevel and painScale from global variables
-    if (UserAssess.painLevel.isNotEmpty) {
-      painLevel = UserAssess.painLevel;
-    }
-    painScale = UserAssess.painScale;
-  }
-
-  String getPainEmoji(int value) {
-    if (value <= 3) return "🙂";
-    if (value <= 7) return "😟";
-    return "😖";
-  }
-
-  String getPainDescription(int value) {
-    if (value <= 3) return "Low";
-    if (value <= 7) return "Moderate";
-    return "Severe";
-  }
-
-  Color getPainColor(int value) {
-    if (value <= 3) return successColor;
-    if (value <= 7) return warningColor;
-    return errorColor;
+    print('AssessPainLevel: initState() called');
+    print('AssessPainLevel: Current AssessmentData.painScale = "${AssessmentData.painScale}"');
+    print('AssessPainLevel: Current UserAssess.painScale = "${UserAssess.painScale}"');
+    
+    // Initialize selectedPainLevel from local data
+    selectedPainLevel = UserAssess.painScale;
+    print('AssessPainLevel: selectedPainLevel initialized to: $selectedPainLevel');
+    print('AssessPainLevel: initState() completed');
   }
 
   @override
   Widget build(BuildContext context) {
-    int sliderValue = UserAssess.painScale;
+    print('AssessPainLevel: build() called');
+    print('AssessPainLevel: Current AssessmentData.painScale in build = "${AssessmentData.painScale}"');
+    print('AssessPainLevel: Current UserAssess.painScale in build = "${UserAssess.painScale}"');
+    print('AssessPainLevel: Current selectedPainLevel = $selectedPainLevel');
     
-    return _buildContent(context, sliderValue);
+    try {
+      return _buildPageContent(context);
+    } catch (e) {
+      print('AssessPainLevel: ERROR in build() - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading page: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
   }
-  
-  Widget _buildContent(BuildContext context, int sliderValue) {
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
-      appBar: AppBar(
-        backgroundColor: mainColor,
-        title: Text(
-          "Pain Assessment",
+
+  Widget _buildPageContent(BuildContext context) {
+    return Material(
+      color: backgroundColor,
+      child: Column(
+        children: [
+          // Custom AppBar
+          Container(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top,
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            color: mainColor,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: Text(
+                    "Pain Level",
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.w700,
             fontSize: 20,
             color: Colors.white,
             letterSpacing: 0.5,
           ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(24),
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                mainColor,
-                subColor,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.refresh, color: Colors.transparent),
+                ),
               ],
             ),
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(24),
-            ),
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () {
+          // Body Content
+          Expanded(
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Progress Section
+                    _buildProgressSection(4, 8, "Pain Level Assessment"),
+                    
+                    const SizedBox(height: 24),
+
+                    // Question Section
+                    _buildQuestionSection(
+                      "Pain Intensity",
+                      "On a scale of 0-10, how would you rate your current pain level?",
+                      Icons.sentiment_neutral,
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Pain Scale
+                    _buildPainScale(),
+
+                    const SizedBox(height: 24),
+
+                    // Pain Level Description
+                    if (selectedPainLevel > 0) _buildPainDescription(),
+
+                    const SizedBox(height: 32),
+
+                    // Next Button
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: mainColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: selectedPainLevel > 0 ? () {
             Navigator.push(
               context,
               PageRouteBuilder(
-                pageBuilder: (_, __, ___) => const AssessPainCamera(),
-                transitionsBuilder: (_, anim, __, child) {
-                  return SlideTransition(
-                    position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(anim),
-                    child: child,
-                  );
+                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainType(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
+                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
+                                return SlideTransition(position: offsetAnimation, child: child);
                 },
               ),
             );
-          },
-        ),
+                        } : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Continue Assessment",
+                              style: GoogleFonts.ptSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
+    );
+  }
+
+  // Build a progress section widget
+  Widget _buildProgressSection(int currentStep, int totalSteps, String stepName) {
+    return Container(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Compact Progress Section
-            Container(
-              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
                   ),
                 ],
               ),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: mainColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Icon(Icons.health_and_safety, color: mainColor, size: 16),
-                  ),
-                  const SizedBox(width: 12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.track_changes,
+              color: mainColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Pain Assessment",
-                          style: GoogleFonts.ptSans(
-                            fontSize: 14,
+                  "Assessment Progress",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF1F2937),
+                    color: mainColor,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        LinearProgressIndicator(
-                          value: 0.6,
-                          minHeight: 4,
-                          backgroundColor: const Color(0xFFE5E7EB),
-                          valueColor: AlwaysStoppedAnimation<Color>(mainColor),
+                Text(
+                  "Step $currentStep of $totalSteps - $stepName",
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    color: detailColor,
+                  ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    "3/5",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: mainColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 20),
-
-            // Clean Pain Assessment Section
-            Container(
-              padding: const EdgeInsets.all(20),
+  // Build a question section widget
+  Widget _buildQuestionSection(String title, String description, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
-                    blurRadius: 10,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
                 ],
@@ -203,192 +288,228 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
-                  Text(
-                    "How intense is your current pain?",
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: mainColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: mainColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
                     style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1F2937),
-                      height: 1.3,
-                    ),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
                   ),
-                  const SizedBox(height: 6),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
                   Text(
-                    "Please rate your pain level using the scale below",
+            description,
                     style: GoogleFonts.ptSans(
-                      fontSize: 14,
+              fontSize: 16,
                       color: detailColor,
                     ),
                   ),
-                  const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
 
-                  // Pain Display - Cleaner Design
-                  Container(
-                    padding: const EdgeInsets.all(20),
+  Widget _buildPainScale() {
+    return Container(
+      padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: getPainColor(sliderValue).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: getPainColor(sliderValue).withOpacity(0.2),
+          color: const Color(0xFFE5E7EB),
                         width: 1,
                       ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
                     ),
                     child: Column(
                       children: [
+          // Pain scale header
                         Text(
-                          getPainEmoji(sliderValue),
-                          style: const TextStyle(fontSize: 48),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "$sliderValue",
+            "Select your pain level:",
                           style: GoogleFonts.poppins(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w700,
-                            color: getPainColor(sliderValue),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          getPainDescription(sliderValue),
-                          style: GoogleFonts.ptSans(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: mainColor,
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Pain scale numbers
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(11, (index) {
+              final isSelected = selectedPainLevel == index;
+              return GestureDetector(
+                onTap: () {
+                  print('AssessPainLevel: Pain level tapped - index: $index');
+                  print('AssessPainLevel: Before setState - AssessmentData.painScale = "${AssessmentData.painScale}"');
+                  print('AssessPainLevel: Before setState - UserAssess.painScale = "${UserAssess.painScale}"');
+                  
+                  setState(() {
+                    print('AssessPainLevel: Inside setState - setting AssessmentData.painScale to: $index');
+                    AssessmentData.painScale = index;
+                    print('AssessPainLevel: Inside setState - AssessmentData.painScale is now: "${AssessmentData.painScale}"');
+                    
+                    selectedPainLevel = index;
+                    UserAssess.painScale = index;
+                    UserAssess.painLevel = _getPainDescription(index);
+                  });
+                  
+                  print('AssessPainLevel: Selected pain level: $index');
+                  print('AssessPainLevel: Final AssessmentData.painScale = "${AssessmentData.painScale}"');
+                  print('AssessPainLevel: Final UserAssess.painScale = "${UserAssess.painScale}"');
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isSelected ? _getPainColor(index) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? _getPainColor(index) : const Color(0xFFE5E7EB),
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: isSelected ? [
+                      BoxShadow(
+                        color: _getPainColor(index).withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ] : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$index',
+                      style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: getPainColor(sliderValue),
-                          ),
+                        color: isSelected ? Colors.white : detailColor,
                         ),
-                      ],
                     ),
                   ),
+                ),
+              );
+            }),
+                  ),
 
-                  const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
-                  // Pain Scale Labels
+          // Pain scale labels
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         "No Pain",
                         style: GoogleFonts.ptSans(
-                          fontSize: 11,
+                  fontSize: 12,
                           color: detailColor,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       Text(
                         "Severe Pain",
                         style: GoogleFonts.ptSans(
-                          fontSize: 11,
+                  fontSize: 12,
                           color: detailColor,
-                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 6),
-
-                  // Slider
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: getPainColor(sliderValue),
-                      inactiveTrackColor: const Color(0xFFE5E7EB),
-                      thumbColor: getPainColor(sliderValue),
-                      overlayColor: getPainColor(sliderValue).withOpacity(0.15),
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
-                      trackHeight: 5,
-                    ),
-                    child: Slider(
-                      min: 0,
-                      max: 10,
-                      divisions: 10,
-                      value: sliderValue.toDouble(),
-                      label: sliderValue.toString(),
-                      onChanged: (value) {
-                        setState(() {
-                          sliderValue = value.toInt();
-                          UserAssess.painScale = sliderValue;
-                          UserAssess.painLevel = getPainDescription(sliderValue);
-                          PainHistory.recordToday(
-                            painScale: UserAssess.painScale,
-                            painLevel: UserAssess.painLevel,
-                          );
-                        });
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Confirm Button
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          mainColor,
-                          subColor,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: mainColor.withOpacity(0.25),
-                          blurRadius: 6,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        PainHistory.recordToday(
-                          painScale: sliderValue,
-                          painLevel: getPainDescription(sliderValue),
-                        );
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder: (_, __, ___) => const AssessPainType(),
-                            transitionsBuilder: (_, anim, __, child) {
-                              return SlideTransition(
-                                position: Tween(begin: const Offset(1, 0), end: Offset.zero).animate(anim),
-                                child: child,
-                              );
-                            },
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
-                      label: Text(
-                        "Continue Assessment",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-          ],
-        ),
+        ],
       ),
     );
+  }
+
+  Widget _buildPainDescription() {
+    final description = _getPainDescription(selectedPainLevel);
+    final color = _getPainColor(selectedPainLevel);
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+                  Container(
+            padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _getPainIcon(selectedPainLevel),
+                          color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              description,
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPainColor(int level) {
+    if (level <= 2) return successColor;
+    if (level <= 4) return const Color(0xFFF59E0B);
+    if (level <= 6) return subColor;
+    if (level <= 8) return mainColor;
+    return const Color(0xFFEF4444);
+  }
+
+  String _getPainDescription(int level) {
+    if (level == 0) return "No pain";
+    if (level <= 2) return "Mild pain - barely noticeable";
+    if (level <= 4) return "Moderate pain - noticeable but manageable";
+    if (level <= 6) return "Moderately severe pain - interferes with daily activities";
+    if (level <= 8) return "Severe pain - makes it difficult to concentrate";
+    return "Unbearable pain - bed rest required";
+  }
+
+  IconData _getPainIcon(int level) {
+    if (level <= 2) return Icons.sentiment_very_satisfied;
+    if (level <= 4) return Icons.sentiment_neutral;
+    if (level <= 6) return Icons.sentiment_dissatisfied;
+    if (level <= 8) return Icons.sentiment_very_dissatisfied;
+    return Icons.sick;
   }
 }

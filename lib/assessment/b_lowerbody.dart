@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
+import 'assessment_data.dart';
 import 'b_focus1.dart';
 import 'c_video.dart';
+
 class AssessLowerBody extends StatefulWidget {
   const AssessLowerBody({super.key});
 
@@ -12,21 +14,37 @@ class AssessLowerBody extends StatefulWidget {
 }
 
 class _AssessLowerBodyState extends State<AssessLowerBody> {
-  String specificMuscle = UserAssess.specificMuscle;
+  String specificMuscle = '';
 
   @override
   void initState() {
     super.initState();
-    // Initialize specificMuscle from global variables
-    if (UserAssess.specificMuscle.isNotEmpty) {
-      specificMuscle = UserAssess.specificMuscle;
+    print('AssessLowerBody: initState() called');
+    print('AssessLowerBody: Current AssessmentData.specificMuscle = "${AssessmentData.specificMuscle}"');
+    print('AssessLowerBody: Current UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
+    
+    // Ensure we have a default value for specificMuscle
+    if (AssessmentData.specificMuscle.isEmpty) {
+      print('AssessLowerBody: AssessmentData.specificMuscle is empty, setting to empty string');
+      AssessmentData.specificMuscle = '';
+    } else {
+      print('AssessLowerBody: AssessmentData.specificMuscle already has value: "${AssessmentData.specificMuscle}"');
     }
+    
+    // Initialize local variable
+    specificMuscle = AssessmentData.specificMuscle;
+    print('AssessLowerBody: initState() completed');
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
+    print('AssessLowerBody: build() called');
+    print('AssessLowerBody: Current AssessmentData.specificMuscle in build = "${AssessmentData.specificMuscle}"');
+    print('AssessLowerBody: Current UserAssess.specificMuscle in build = "${UserAssess.specificMuscle}"');
+    
+    try {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC), // Professional background
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -323,10 +341,27 @@ class _AssessLowerBodyState extends State<AssessLowerBody> {
         ),
       ),
     );
+    } catch (e) {
+      print('AssessLowerBody: ERROR in build() - $e');
+      return Container(
+        color: const Color(0xFFF8FAFC),
+        child: Center(
+          child: Text(
+            'Error loading page: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildMuscleOption(String title, String description, IconData icon, Color color) {
+    print('AssessLowerBody: _buildMuscleOption() called for title: "$title"');
+    print('AssessLowerBody: Current AssessmentData.specificMuscle = "${AssessmentData.specificMuscle}"');
+    print('AssessLowerBody: Comparing with title: "$title"');
+    
     final isSelected = specificMuscle == title;
+    print('AssessLowerBody: isSelected = $isSelected');
     
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
@@ -347,11 +382,23 @@ class _AssessLowerBodyState extends State<AssessLowerBody> {
         ],
       ),
       child: InkWell(
-        onTap: () {
+        onTap: () async {
+          print('AssessLowerBody: Muscle option tapped - "$title"');
+          print('AssessLowerBody: Before setState - AssessmentData.specificMuscle = "${AssessmentData.specificMuscle}"');
+          print('AssessLowerBody: Before setState - UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
+          
           setState(() {
+            print('AssessLowerBody: Inside setState - setting AssessmentData.specificMuscle to: "$title"');
+            AssessmentData.specificMuscle = title;
+            print('AssessLowerBody: Inside setState - AssessmentData.specificMuscle is now: "${AssessmentData.specificMuscle}"');
+            
             specificMuscle = title;
             UserAssess.specificMuscle = title;
           });
+          
+          print('AssessLowerBody: Selected specific muscle: $title');
+          print('AssessLowerBody: Final AssessmentData.specificMuscle = "${AssessmentData.specificMuscle}"');
+          print('AssessLowerBody: Final UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(

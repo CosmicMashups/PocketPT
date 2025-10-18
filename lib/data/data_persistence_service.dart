@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'globals.dart';
 import 'rehabilitation_plan.dart';
+import 'sync_queue.dart';
 
 /// Service to manage automatic data persistence
 class DataPersistenceService {
@@ -14,6 +15,7 @@ class DataPersistenceService {
   bool _isSaving = false;
   DateTime? _lastSaveTime;
   int _saveCount = 0;
+  bool _isDataLoaded = false;
   
   // Debounce settings
   static const Duration _autoSaveDelay = Duration(seconds: 2);
@@ -52,6 +54,23 @@ class DataPersistenceService {
     });
   }
   
+  /// Whether full user data is currently loaded in-memory
+  bool get isDataLoaded => _isDataLoaded;
+
+  /// Lazily load full dataset only when explicitly requested (e.g., Dashboard)
+  Future<void> loadUserDataIfNeeded() async {
+    if (_isDataLoaded) return;
+    await loadAllDataFromHive();
+    // Optionally trigger a sync here in the future; keep deferred per spec
+    _isDataLoaded = true;
+  }
+
+  /// Mark dataset as unloaded; keep Hive boxes open and writable
+  void unloadUserData() {
+    // We intentionally do not close Hive boxes to preserve write capability
+    _isDataLoaded = false;
+  }
+
   /// Perform the actual save operation
   Future<void> _performAutoSave() async {
     if (_isSaving) {
@@ -183,6 +202,9 @@ class DataPersistenceService {
         // Load history data in parallel
         PainHistory.loadFromHive(),
         ExerciseHistory.loadFromHive(),
+        
+        // Load sync queue
+        SyncQueue.loadQueueFromHive(),
       ]);
       
       // Load and verify metadata

@@ -4,11 +4,34 @@ import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'hive_models.dart';
 import 'rehabilitation_plan.dart';
 import 'data_persistence_service.dart';
 import 'firebase_helper.dart';
 import 'user_data_notifier.dart';
+import '../assessment/assessment_data.dart';
+
+// Enhanced Hive box opening with better error handling
+Future<Box> openRehabBox() async {
+  try {
+    if (!Hive.isBoxOpen('rehabBox')) {
+      debugPrint('🔓 Opening rehabBox...');
+      return await Hive.openBox('rehabBox');
+    } else {
+      debugPrint('✅ rehabBox already open');
+      return Hive.box('rehabBox');
+    }
+  } catch (e) {
+    debugPrint('❌ Error opening rehabBox: $e');
+    try {
+      await Hive.deleteBoxFromDisk('rehabBox');
+      debugPrint('🔄 Deleted and recreating rehabBox');
+      return await Hive.openBox('rehabBox');
+    } catch (e2) {
+      debugPrint('💥 Critical Hive failure: $e2');
+      rethrow;
+    }
+  }
+}
 
 // Class: AppDetails
 class AppDetails {
@@ -25,6 +48,7 @@ class UserDetails {
   static bool hasCompletedAssessment = false;
   static bool isGuest = false;
   static String? guestSessionId;
+  static DateTime? lastModified;
   static List<String> notifications = [
     // 'You have a new workout plan: Push-Ups 3 sets, 10 reps.',
     // 'Reminder: Complete your lateral raise exercises today.',
@@ -236,14 +260,14 @@ class UserDetails {
       }
       
       final box = Hive.box('rehabBox');
-      final hiveUserDetails = box.get('userDetails');
+      final userDetailsData = box.get('userDetails');
       
-      if (hiveUserDetails is HiveUserDetails) {
-        final hasValidData = hiveUserDetails.firstName.isNotEmpty || 
-                            hiveUserDetails.lastName.isNotEmpty || 
-                            hiveUserDetails.email.isNotEmpty;
+      if (userDetailsData is Map<String, dynamic>) {
+        final hasValidData = (userDetailsData['firstName'] ?? '').toString().isNotEmpty || 
+                            (userDetailsData['lastName'] ?? '').toString().isNotEmpty || 
+                            (userDetailsData['email'] ?? '').toString().isNotEmpty;
         debugPrint('UserDetails.verifyHiveData: Data integrity check - Valid: $hasValidData');
-        debugPrint('UserDetails.verifyHiveData: Stored data - firstName: "${hiveUserDetails.firstName}", lastName: "${hiveUserDetails.lastName}", email: "${hiveUserDetails.email}"');
+        debugPrint('UserDetails.verifyHiveData: Stored data - firstName: "${userDetailsData['firstName']}", lastName: "${userDetailsData['lastName']}", email: "${userDetailsData['email']}"');
         return hasValidData;
       }
       
@@ -385,7 +409,7 @@ class UserDetails {
     }
   }
 
-  // Hive persistence methods
+  // Hive persistence methods - Simplified using Map
   static Future<void> saveToHive() async {
     try {
       // Check if Hive box is open
@@ -395,22 +419,27 @@ class UserDetails {
       }
       
       final box = Hive.box('rehabBox');
-      final hiveUserDetails = HiveUserDetails(
-        firstName: firstName,
-        lastName: lastName,
-        email: email,
-        password: password,
-        notifications: List<String>.from(notifications),
-        isGuest: isGuest,
-        guestSessionId: guestSessionId,
-        profilePicture: profilePicture,
-      );
       
-      await box.put('userDetails', hiveUserDetails);
-      // Persist assessment completion flag separately to avoid adapter changes
-      await box.put('hasCompletedAssessment', hasCompletedAssessment);
+      // Update timestamp
+      lastModified = DateTime.now();
       
-      debugPrint('UserDetails.saveToHive: Successfully saved - firstName: "$firstName", lastName: "$lastName", email: "$email", isGuest: $isGuest');
+      // Save user details as a simple Map
+      final userDetailsMap = {
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'password': password,
+        'notifications': List<String>.from(notifications),
+        'isGuest': isGuest,
+        'guestSessionId': guestSessionId,
+        'profilePicture': profilePicture,
+        'hasCompletedAssessment': hasCompletedAssessment,
+        'lastModified': lastModified?.millisecondsSinceEpoch,
+      };
+      
+      await box.put('userDetails', userDetailsMap);
+      
+      debugPrint('UserDetails.saveToHive: Successfully saved - firstName: "$firstName", lastName: "$lastName", email: "$email", isGuest: $isGuest, lastModified: $lastModified');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'User details updated');
@@ -430,25 +459,28 @@ class UserDetails {
       }
       
       final box = Hive.box('rehabBox');
-      final hiveUserDetails = box.get('userDetails');
+      final userDetailsData = box.get('userDetails');
       
-      if (hiveUserDetails is HiveUserDetails) {
-        firstName = hiveUserDetails.firstName;
-        lastName = hiveUserDetails.lastName;
-        email = hiveUserDetails.email;
-        password = hiveUserDetails.password;
-        notifications = List<String>.from(hiveUserDetails.notifications);
-        isGuest = hiveUserDetails.isGuest;
-        guestSessionId = hiveUserDetails.guestSessionId;
-        profilePicture = hiveUserDetails.profilePicture;
+      if (userDetailsData is Map<String, dynamic>) {
+        firstName = userDetailsData['firstName'] ?? '';
+        lastName = userDetailsData['lastName'] ?? '';
+        email = userDetailsData['email'] ?? '';
+        password = userDetailsData['password'] ?? '';
+        notifications = List<String>.from(userDetailsData['notifications'] ?? []);
+        isGuest = userDetailsData['isGuest'] ?? false;
+        guestSessionId = userDetailsData['guestSessionId'];
+        profilePicture = userDetailsData['profilePicture'] ?? '01.jpg';
+        hasCompletedAssessment = userDetailsData['hasCompletedAssessment'] ?? false;
         
-        // Load assessment completion flag if present
-        final storedHasCompleted = box.get('hasCompletedAssessment');
-        if (storedHasCompleted is bool) {
-          hasCompletedAssessment = storedHasCompleted;
+        // Load timestamp
+        final lastModifiedTimestamp = userDetailsData['lastModified'];
+        if (lastModifiedTimestamp is int) {
+          lastModified = DateTime.fromMillisecondsSinceEpoch(lastModifiedTimestamp);
+        } else {
+          lastModified = null;
         }
         
-        debugPrint('UserDetails.loadFromHive: Successfully loaded - firstName: "$firstName", lastName: "$lastName", email: "$email", isGuest: $isGuest');
+        debugPrint('UserDetails.loadFromHive: Successfully loaded - firstName: "$firstName", lastName: "$lastName", email: "$email", isGuest: $isGuest, lastModified: $lastModified');
         
         // Notify UI of data changes
         UserDataNotifier.instance.updateUserData(
@@ -458,34 +490,8 @@ class UserDetails {
           hasCompletedAssessment: hasCompletedAssessment,
         );
       } else {
-        debugPrint('UserDetails.loadFromHive: No user details found in Hive');
-        // Try to load from Firebase if no local data exists
-        try {
-          await loadFromFirebase();
-        } catch (firebaseError) {
-          debugPrint('UserDetails.loadFromHive: Firebase fallback failed: $firebaseError');
-          // Set default values if both Hive and Firebase fail
-          firstName = '';
-          lastName = '';
-          email = '';
-          password = '';
-          hasCompletedAssessment = false;
-          isGuest = false;
-          guestSessionId = null;
-          notifications = [];
-        }
-      }
-    } catch (e) {
-      debugPrint('UserDetails.loadFromHive: Error loading from Hive: $e');
-      debugPrint('UserDetails.loadFromHive: Error type: ${e.runtimeType}');
-      
-      // Fallback to Firebase if Hive fails
-      try {
-        debugPrint('UserDetails.loadFromHive: Attempting Firebase fallback...');
-        await loadFromFirebase();
-      } catch (firebaseError) {
-        debugPrint('UserDetails.loadFromHive: Firebase fallback failed: $firebaseError');
-        // Set default values if both Hive and Firebase fail
+        debugPrint('UserDetails.loadFromHive: No user details found in Hive, using defaults');
+        // Set default values if no Hive data exists
         firstName = '';
         lastName = '';
         email = '';
@@ -494,6 +500,7 @@ class UserDetails {
         isGuest = false;
         guestSessionId = null;
         notifications = [];
+        lastModified = null;
         
         // Notify UI with empty data
         UserDataNotifier.instance.updateUserData(
@@ -503,6 +510,28 @@ class UserDetails {
           hasCompletedAssessment: hasCompletedAssessment,
         );
       }
+    } catch (e) {
+      debugPrint('UserDetails.loadFromHive: Error loading from Hive: $e');
+      debugPrint('UserDetails.loadFromHive: Error type: ${e.runtimeType}');
+      
+      // Set default values if Hive fails
+      firstName = '';
+      lastName = '';
+      email = '';
+      password = '';
+      hasCompletedAssessment = false;
+      isGuest = false;
+      guestSessionId = null;
+      notifications = [];
+      lastModified = null;
+      
+      // Notify UI with empty data
+      UserDataNotifier.instance.updateUserData(
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        hasCompletedAssessment: hasCompletedAssessment,
+      );
     }
   }
 }
@@ -518,23 +547,109 @@ class UserProgress {
   static int totalSeconds = 0;
   static String? notes;
   static DateTime? lastExerciseDate;
+  static DateTime? lastModified;
 
-  // Hive persistence methods
+  // Firebase instances
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Firebase sync methods
+  static Future<void> saveToFirebase() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('UserProgress.saveToFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('UserProgress.saveToFirebase: Saving progress to Firebase');
+      
+      await _firestore.collection('progress').doc(currentUser.uid).set({
+        'title': title,
+        'titleColor': titleColor,
+        'streak': streak,
+        'totalDays': totalDays,
+        'totalExercises': totalExercises,
+        'totalSeconds': totalSeconds,
+        'notes': notes,
+        'lastExerciseDate': lastExerciseDate,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'userId': currentUser.uid,
+      });
+      
+      debugPrint('UserProgress.saveToFirebase: Successfully saved progress to Firebase');
+    } catch (e) {
+      debugPrint('UserProgress.saveToFirebase: Error saving to Firebase: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> loadFromFirebase() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('UserProgress.loadFromFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('UserProgress.loadFromFirebase: Loading progress from Firebase');
+      
+      final DocumentSnapshot doc = await _firestore
+          .collection('progress')
+          .doc(currentUser.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        title = data['title'] ?? 'Initiator';
+        titleColor = data['titleColor'] ?? '';
+        streak = data['streak'] ?? 0;
+        totalDays = data['totalDays'] ?? 0;
+        totalExercises = data['totalExercises'] ?? 0;
+        totalSeconds = data['totalSeconds'] ?? 0;
+        notes = data['notes'];
+        lastExerciseDate = data['lastExerciseDate']?.toDate();
+        
+        debugPrint('UserProgress.loadFromFirebase: Successfully loaded progress from Firebase');
+        
+        // Save to Hive for offline access
+        await saveToHive();
+      } else {
+        debugPrint('UserProgress.loadFromFirebase: No progress document found in Firebase');
+      }
+    } catch (e) {
+      debugPrint('UserProgress.loadFromFirebase: Error loading from Firebase: $e');
+      rethrow;
+    }
+  }
+
+  // Hive persistence methods - Simplified using Map
   static Future<void> saveToHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('UserProgress.saveToHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveUserProgress = HiveUserProgress(
-        title: title,
-        titleColor: titleColor,
-        streak: streak,
-        totalDays: totalDays,
-        totalExercises: totalExercises,
-        totalSeconds: totalSeconds,
-        notes: notes,
-        lastExerciseDate: lastExerciseDate,
-      );
-      await box.put('userProgress', hiveUserProgress);
-      debugPrint('Saved user progress to Hive');
+      
+      // Update timestamp
+      lastModified = DateTime.now();
+      
+      // Save user progress as a simple Map
+      final userProgressMap = {
+        'title': title,
+        'titleColor': titleColor,
+        'streak': streak,
+        'totalDays': totalDays,
+        'totalExercises': totalExercises,
+        'totalSeconds': totalSeconds,
+        'notes': notes,
+        'lastExerciseDate': lastExerciseDate?.millisecondsSinceEpoch,
+        'lastModified': lastModified?.millisecondsSinceEpoch,
+      };
+      
+      await box.put('userProgress', userProgressMap);
+      debugPrint('Saved user progress to Hive - lastModified: $lastModified');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'User progress updated');
@@ -546,23 +661,46 @@ class UserProgress {
 
   static Future<void> loadFromHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('UserProgress.loadFromHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveUserProgress = box.get('userProgress');
-      if (hiveUserProgress is HiveUserProgress) {
-        title = hiveUserProgress.title;
-        titleColor = hiveUserProgress.titleColor;
-        streak = hiveUserProgress.streak;
-        totalDays = hiveUserProgress.totalDays;
-        totalExercises = hiveUserProgress.totalExercises;
-        totalSeconds = hiveUserProgress.totalSeconds;
-        notes = hiveUserProgress.notes;
-        lastExerciseDate = hiveUserProgress.lastExerciseDate;
-        debugPrint('Loaded user progress from Hive: $title, streak: $streak, total exercises: $totalExercises');
+      final userProgressData = box.get('userProgress');
+      
+      if (userProgressData is Map<String, dynamic>) {
+        title = userProgressData['title'] ?? 'Initiator';
+        titleColor = userProgressData['titleColor'] ?? '';
+        streak = userProgressData['streak'] ?? 0;
+        totalDays = userProgressData['totalDays'] ?? 0;
+        totalExercises = userProgressData['totalExercises'] ?? 0;
+        totalSeconds = userProgressData['totalSeconds'] ?? 0;
+        notes = userProgressData['notes'];
+        
+        // Convert timestamp back to DateTime
+        final lastExerciseTimestamp = userProgressData['lastExerciseDate'];
+        if (lastExerciseTimestamp is int) {
+          lastExerciseDate = DateTime.fromMillisecondsSinceEpoch(lastExerciseTimestamp);
+        } else {
+          lastExerciseDate = null;
+        }
+        
+        // Load lastModified timestamp
+        final lastModifiedTimestamp = userProgressData['lastModified'];
+        if (lastModifiedTimestamp is int) {
+          lastModified = DateTime.fromMillisecondsSinceEpoch(lastModifiedTimestamp);
+        } else {
+          lastModified = null;
+        }
+        
+        debugPrint('Loaded user progress from Hive: $title, streak: $streak, total exercises: $totalExercises, lastModified: $lastModified');
       } else {
         debugPrint('No user progress found in Hive, using defaults');
+        lastModified = null;
       }
     } catch (e) {
       debugPrint('Error loading user progress from Hive: $e');
+      lastModified = null;
     }
   }
 }
@@ -579,54 +717,48 @@ class UserAssess {
   static String painDuration = '';
   static bool isInjured = false;
   static bool isAssessed = false;
+  static DateTime? lastModified;
 
-  // Hive persistence methods
+  // Assessment stored locally only; no Firebase/Hive persistence
+  // Keep fields in-memory and mirror to AssessmentData when asked to save/load
+
+  // Firebase sync methods are no-ops by design (local-only storage)
+  static Future<void> saveToFirebase() async {
+    debugPrint('UserAssess.saveToFirebase: skipped (local-only)');
+  }
+
+  static Future<void> loadFromFirebase() async {
+    debugPrint('UserAssess.loadFromFirebase: skipped (local-only)');
+  }
+
+  // Hive persistence methods are replaced with local variable sync
   static Future<void> saveToHive() async {
-    try {
-      final box = Hive.box('rehabBox');
-      final hiveUserAssess = HiveUserAssess(
-        rehabGoal: rehabGoal,
-        generalMuscle: generalMuscle,
-        specificMuscle: specificMuscle,
-        painScale: painScale,
-        painLevel: painLevel,
-        painType: painType,
-        painDuration: painDuration,
-        isInjured: isInjured,
-        isAssessed: isAssessed,
-      );
-      await box.put('userAssess', hiveUserAssess);
-      debugPrint('Saved user assessment to Hive');
-      
-      // Trigger auto-save
-      DataPersistenceService.instance.triggerSave(reason: 'User assessment updated');
-    } catch (e) {
-      debugPrint('Error saving user assessment to Hive: $e');
-      rethrow;
-    }
+    // Mirror current fields to AssessmentData
+    lastModified = DateTime.now();
+    AssessmentData.rehabGoal = rehabGoal;
+    AssessmentData.generalMuscle = generalMuscle;
+    AssessmentData.specificMuscle = specificMuscle;
+    AssessmentData.painScale = painScale;
+    AssessmentData.painLevel = painLevel;
+    AssessmentData.painType = painType;
+    AssessmentData.painDuration = painDuration;
+    AssessmentData.isInjured = isInjured;
+    AssessmentData.isAssessed = isAssessed;
+    debugPrint('UserAssess.saveToHive: synced to AssessmentData (local-only)');
   }
 
   static Future<void> loadFromHive() async {
-    try {
-      final box = Hive.box('rehabBox');
-      final hiveUserAssess = box.get('userAssess');
-      if (hiveUserAssess is HiveUserAssess) {
-        rehabGoal = hiveUserAssess.rehabGoal;
-        generalMuscle = hiveUserAssess.generalMuscle;
-        specificMuscle = hiveUserAssess.specificMuscle;
-        painScale = hiveUserAssess.painScale;
-        painLevel = hiveUserAssess.painLevel;
-        painType = hiveUserAssess.painType;
-        painDuration = hiveUserAssess.painDuration;
-        isInjured = hiveUserAssess.isInjured;
-        isAssessed = hiveUserAssess.isAssessed;
-        debugPrint('Loaded user assessment from Hive');
-      } else {
-        debugPrint('No user assessment data found in Hive, using defaults');
-      }
-    } catch (e) {
-      debugPrint('Error loading user assessment from Hive: $e');
-    }
+    // Mirror current AssessmentData values into UserAssess
+    rehabGoal = AssessmentData.rehabGoal;
+    generalMuscle = AssessmentData.generalMuscle;
+    specificMuscle = AssessmentData.specificMuscle;
+    painScale = AssessmentData.painScale;
+    painLevel = AssessmentData.painLevel;
+    painType = AssessmentData.painType;
+    painDuration = AssessmentData.painDuration;
+    isInjured = AssessmentData.isInjured;
+    isAssessed = AssessmentData.isAssessed;
+    debugPrint('UserAssess.loadFromHive: loaded from AssessmentData (local-only)');
   }
 }
 
@@ -636,20 +768,102 @@ class UserSettings {
   static bool isStreakAlert = true;
   static bool isExerciseReminder = true; // 08:00 AM exercise reminder toggle
   static TimeOfDay exerciseReminderTime = const TimeOfDay(hour: 8, minute: 0);
+  static DateTime? lastModified;
 
-  // Hive persistence methods
+  // Firebase instances
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Firebase sync methods
+  static Future<void> saveToFirebase() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('UserSettings.saveToFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('UserSettings.saveToFirebase: Saving settings to Firebase');
+      
+      await _firestore.collection('settings').doc(currentUser.uid).set({
+        'isDailyReminder': isDailyReminder,
+        'isStreakAlert': isStreakAlert,
+        'isExerciseReminder': isExerciseReminder,
+        'exerciseReminderHour': exerciseReminderTime.hour,
+        'exerciseReminderMinute': exerciseReminderTime.minute,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'userId': currentUser.uid,
+      });
+      
+      debugPrint('UserSettings.saveToFirebase: Successfully saved settings to Firebase');
+    } catch (e) {
+      debugPrint('UserSettings.saveToFirebase: Error saving to Firebase: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> loadFromFirebase() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('UserSettings.loadFromFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('UserSettings.loadFromFirebase: Loading settings from Firebase');
+      
+      final DocumentSnapshot doc = await _firestore
+          .collection('settings')
+          .doc(currentUser.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        isDailyReminder = data['isDailyReminder'] ?? true;
+        isStreakAlert = data['isStreakAlert'] ?? true;
+        isExerciseReminder = data['isExerciseReminder'] ?? true;
+        exerciseReminderTime = TimeOfDay(
+          hour: data['exerciseReminderHour'] ?? 8,
+          minute: data['exerciseReminderMinute'] ?? 0,
+        );
+        
+        debugPrint('UserSettings.loadFromFirebase: Successfully loaded settings from Firebase');
+        
+        // Save to Hive for offline access
+        await saveToHive();
+      } else {
+        debugPrint('UserSettings.loadFromFirebase: No settings document found in Firebase');
+      }
+    } catch (e) {
+      debugPrint('UserSettings.loadFromFirebase: Error loading from Firebase: $e');
+      rethrow;
+    }
+  }
+
+  // Hive persistence methods - Simplified using Map
   static Future<void> saveToHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('UserSettings.saveToHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveUserSettings = HiveUserSettings(
-        isDailyReminder: isDailyReminder,
-        isStreakAlert: isStreakAlert,
-        isExerciseReminder: isExerciseReminder,
-        exerciseReminderHour: exerciseReminderTime.hour,
-        exerciseReminderMinute: exerciseReminderTime.minute,
-      );
-      await box.put('userSettings', hiveUserSettings);
-      debugPrint('Saved user settings to Hive');
+      
+      // Update timestamp
+      lastModified = DateTime.now();
+      
+      // Save user settings as a simple Map
+      final userSettingsMap = {
+        'isDailyReminder': isDailyReminder,
+        'isStreakAlert': isStreakAlert,
+        'isExerciseReminder': isExerciseReminder,
+        'exerciseReminderHour': exerciseReminderTime.hour,
+        'exerciseReminderMinute': exerciseReminderTime.minute,
+        'lastModified': lastModified?.millisecondsSinceEpoch,
+      };
+      
+      await box.put('userSettings', userSettingsMap);
+      debugPrint('Saved user settings to Hive - lastModified: $lastModified');
       
       // Trigger auto-save
       DataPersistenceService.instance.triggerSave(reason: 'User settings updated');
@@ -661,22 +875,38 @@ class UserSettings {
 
   static Future<void> loadFromHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('UserSettings.loadFromHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveUserSettings = box.get('userSettings');
-      if (hiveUserSettings is HiveUserSettings) {
-        isDailyReminder = hiveUserSettings.isDailyReminder;
-        isStreakAlert = hiveUserSettings.isStreakAlert;
-        isExerciseReminder = hiveUserSettings.isExerciseReminder;
+      final userSettingsData = box.get('userSettings');
+      
+      if (userSettingsData is Map<String, dynamic>) {
+        isDailyReminder = userSettingsData['isDailyReminder'] ?? true;
+        isStreakAlert = userSettingsData['isStreakAlert'] ?? true;
+        isExerciseReminder = userSettingsData['isExerciseReminder'] ?? true;
         exerciseReminderTime = TimeOfDay(
-          hour: hiveUserSettings.exerciseReminderHour,
-          minute: hiveUserSettings.exerciseReminderMinute,
+          hour: userSettingsData['exerciseReminderHour'] ?? 8,
+          minute: userSettingsData['exerciseReminderMinute'] ?? 0,
         );
-        debugPrint('Loaded user settings from Hive: daily reminder: $isDailyReminder, exercise reminder: $isExerciseReminder at ${exerciseReminderTime.hour}:${exerciseReminderTime.minute.toString().padLeft(2, '0')}');
+        
+        // Load lastModified timestamp
+        final lastModifiedTimestamp = userSettingsData['lastModified'];
+        if (lastModifiedTimestamp is int) {
+          lastModified = DateTime.fromMillisecondsSinceEpoch(lastModifiedTimestamp);
+        } else {
+          lastModified = null;
+        }
+        
+        debugPrint('Loaded user settings from Hive: daily reminder: $isDailyReminder, exercise reminder: $isExerciseReminder at ${exerciseReminderTime.hour}:${exerciseReminderTime.minute.toString().padLeft(2, '0')}, lastModified: $lastModified');
       } else {
         debugPrint('No user settings found in Hive, using defaults');
+        lastModified = null;
       }
     } catch (e) {
       debugPrint('Error loading user settings from Hive: $e');
+      lastModified = null;
     }
   }
 }
@@ -685,12 +915,21 @@ class UserSettings {
 class ActiveProgram {
   static DateTime? startDate;
 
-  // Hive persistence methods
+  // Hive persistence methods - Simplified using Map
   static Future<void> saveToHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('ActiveProgram.saveToHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveActiveProgram = HiveActiveProgram(startDate: startDate);
-      await box.put('activeProgram', hiveActiveProgram);
+      
+      // Save active program as a simple Map
+      final activeProgramMap = {
+        'startDate': startDate?.millisecondsSinceEpoch,
+      };
+      
+      await box.put('activeProgram', activeProgramMap);
       debugPrint('Saved active program to Hive');
       
       // Trigger auto-save
@@ -703,10 +942,21 @@ class ActiveProgram {
 
   static Future<void> loadFromHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('ActiveProgram.loadFromHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveActiveProgram = box.get('activeProgram');
-      if (hiveActiveProgram is HiveActiveProgram) {
-        startDate = hiveActiveProgram.startDate;
+      final activeProgramData = box.get('activeProgram');
+      
+      if (activeProgramData is Map<String, dynamic>) {
+        // Convert timestamp back to DateTime
+        final startDateTimestamp = activeProgramData['startDate'];
+        if (startDateTimestamp is int) {
+          startDate = DateTime.fromMillisecondsSinceEpoch(startDateTimestamp);
+        } else {
+          startDate = null;
+        }
         debugPrint('Loaded active program from Hive: start date: ${startDate?.toString() ?? 'null'}');
       } else {
         debugPrint('No active program found in Hive, using defaults');
@@ -848,12 +1098,99 @@ class PainHistory {
     return true;
   }
 
-  // Hive persistence methods
+  // Firebase instances
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Firebase sync methods
+  static Future<void> saveToFirebase() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('PainHistory.saveToFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('PainHistory.saveToFirebase: Saving pain history to Firebase');
+      
+      final List<Map<String, dynamic>> entriesData = entries.map((entry) => {
+        'date': Timestamp.fromDate(entry.date),
+        'painScale': entry.painScale,
+        'painLevel': entry.painLevel,
+      }).toList();
+      
+      await _firestore.collection('painHistory').doc(currentUser.uid).set({
+        'entries': entriesData,
+        'lastPromptedDate': _lastPromptedDate != null ? Timestamp.fromDate(_lastPromptedDate!) : null,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'userId': currentUser.uid,
+      });
+      
+      debugPrint('PainHistory.saveToFirebase: Successfully saved ${entries.length} pain history entries to Firebase');
+    } catch (e) {
+      debugPrint('PainHistory.saveToFirebase: Error saving to Firebase: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> loadFromFirebase() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('PainHistory.loadFromFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('PainHistory.loadFromFirebase: Loading pain history from Firebase');
+      
+      final DocumentSnapshot doc = await _firestore
+          .collection('painHistory')
+          .doc(currentUser.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final List<dynamic> entriesData = data['entries'] ?? [];
+        
+        entries.clear();
+        entries.addAll(entriesData.map((entryData) => PainRecordEntry(
+          date: (entryData['date'] as Timestamp).toDate(),
+          painScale: entryData['painScale'] ?? 0,
+          painLevel: entryData['painLevel'] ?? '',
+        )));
+        
+        _lastPromptedDate = data['lastPromptedDate']?.toDate();
+        
+        debugPrint('PainHistory.loadFromFirebase: Successfully loaded ${entries.length} pain history entries from Firebase');
+        
+        // Save to Hive for offline access
+        await saveToHive();
+      } else {
+        debugPrint('PainHistory.loadFromFirebase: No pain history document found in Firebase');
+      }
+    } catch (e) {
+      debugPrint('PainHistory.loadFromFirebase: Error loading from Firebase: $e');
+      rethrow;
+    }
+  }
+
+  // Hive persistence methods - Simplified using List of Maps
   static Future<void> saveToHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('PainHistory.saveToHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveEntries = entries.map((e) => HivePainRecordEntry.fromPainRecordEntry(e)).toList();
-      await box.put('painHistory', hiveEntries);
+      
+      // Save pain history as a simple List of Maps
+      final painHistoryList = entries.map((entry) => {
+        'date': entry.date.millisecondsSinceEpoch,
+        'painScale': entry.painScale,
+        'painLevel': entry.painLevel,
+      }).toList();
+      
+      await box.put('painHistory', painHistoryList);
       debugPrint('Saved ${entries.length} pain history entries to Hive');
       
       // Trigger auto-save
@@ -866,11 +1203,23 @@ class PainHistory {
 
   static Future<void> loadFromHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('PainHistory.loadFromHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveEntries = box.get('painHistory', defaultValue: <HivePainRecordEntry>[]);
-      if (hiveEntries is List<HivePainRecordEntry>) {
+      final painHistoryData = box.get('painHistory', defaultValue: <Map<String, dynamic>>[]);
+      
+      if (painHistoryData is List<dynamic>) {
         entries.clear();
-        entries.addAll(hiveEntries.map((he) => he.toPainRecordEntry()));
+        entries.addAll(painHistoryData.map((entryData) {
+          final entry = entryData as Map<String, dynamic>;
+          return PainRecordEntry(
+            date: DateTime.fromMillisecondsSinceEpoch(entry['date']),
+            painScale: entry['painScale'] ?? 0,
+            painLevel: entry['painLevel'] ?? '',
+          );
+        }));
         debugPrint('Loaded ${entries.length} pain history entries from Hive');
       }
     } catch (e) {
@@ -951,12 +1300,108 @@ class ExerciseHistory {
            date1.day == date2.day;
   }
 
-  // Hive persistence methods
+  // Firebase instances
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Firebase sync methods
+  static Future<void> saveToFirebase() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('ExerciseHistory.saveToFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('ExerciseHistory.saveToFirebase: Saving exercise history to Firebase');
+      
+      final List<Map<String, dynamic>> entriesData = entries.map((entry) => {
+        'date': Timestamp.fromDate(entry.date),
+        'exerciseId': entry.exerciseId,
+        'exerciseName': entry.exerciseName,
+        'sets': entry.sets,
+        'reps': entry.reps,
+        'durationSeconds': entry.durationSeconds,
+        'status': entry.status,
+      }).toList();
+      
+      await _firestore.collection('exerciseHistory').doc(currentUser.uid).set({
+        'entries': entriesData,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'userId': currentUser.uid,
+      });
+      
+      debugPrint('ExerciseHistory.saveToFirebase: Successfully saved ${entries.length} exercise history entries to Firebase');
+    } catch (e) {
+      debugPrint('ExerciseHistory.saveToFirebase: Error saving to Firebase: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> loadFromFirebase() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('ExerciseHistory.loadFromFirebase: No authenticated user found');
+        return;
+      }
+
+      debugPrint('ExerciseHistory.loadFromFirebase: Loading exercise history from Firebase');
+      
+      final DocumentSnapshot doc = await _firestore
+          .collection('exerciseHistory')
+          .doc(currentUser.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final List<dynamic> entriesData = data['entries'] ?? [];
+        
+        entries.clear();
+        entries.addAll(entriesData.map((entryData) => ExerciseRecordEntry(
+          date: (entryData['date'] as Timestamp).toDate(),
+          exerciseId: entryData['exerciseId'] ?? '',
+          exerciseName: entryData['exerciseName'] ?? '',
+          sets: entryData['sets'] ?? 0,
+          reps: entryData['reps'] ?? 0,
+          durationSeconds: entryData['durationSeconds'] ?? 0,
+          status: entryData['status'] ?? 'completed',
+        )));
+        
+        debugPrint('ExerciseHistory.loadFromFirebase: Successfully loaded ${entries.length} exercise history entries from Firebase');
+        
+        // Save to Hive for offline access
+        await saveToHive();
+      } else {
+        debugPrint('ExerciseHistory.loadFromFirebase: No exercise history document found in Firebase');
+      }
+    } catch (e) {
+      debugPrint('ExerciseHistory.loadFromFirebase: Error loading from Firebase: $e');
+      rethrow;
+    }
+  }
+
+  // Hive persistence methods - Simplified using List of Maps
   static Future<void> saveToHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('ExerciseHistory.saveToHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveEntries = entries.map((e) => HiveExerciseRecordEntry.fromExerciseRecordEntry(e)).toList();
-      await box.put('exerciseHistory', hiveEntries);
+      
+      // Save exercise history as a simple List of Maps
+      final exerciseHistoryList = entries.map((entry) => {
+        'date': entry.date.millisecondsSinceEpoch,
+        'exerciseId': entry.exerciseId,
+        'exerciseName': entry.exerciseName,
+        'sets': entry.sets,
+        'reps': entry.reps,
+        'durationSeconds': entry.durationSeconds,
+        'status': entry.status,
+      }).toList();
+      
+      await box.put('exerciseHistory', exerciseHistoryList);
       debugPrint('Saved ${entries.length} exercise history entries to Hive');
       
       // Trigger auto-save
@@ -969,11 +1414,27 @@ class ExerciseHistory {
 
   static Future<void> loadFromHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('ExerciseHistory.loadFromHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
-      final hiveEntries = box.get('exerciseHistory', defaultValue: <HiveExerciseRecordEntry>[]);
-      if (hiveEntries is List<HiveExerciseRecordEntry>) {
+      final exerciseHistoryData = box.get('exerciseHistory', defaultValue: <Map<String, dynamic>>[]);
+      
+      if (exerciseHistoryData is List<dynamic>) {
         entries.clear();
-        entries.addAll(hiveEntries.map((he) => he.toExerciseRecordEntry()));
+        entries.addAll(exerciseHistoryData.map((entryData) {
+          final entry = entryData as Map<String, dynamic>;
+          return ExerciseRecordEntry(
+            date: DateTime.fromMillisecondsSinceEpoch(entry['date']),
+            exerciseId: entry['exerciseId'] ?? '',
+            exerciseName: entry['exerciseName'] ?? '',
+            sets: entry['sets'] ?? 0,
+            reps: entry['reps'] ?? 0,
+            durationSeconds: entry['durationSeconds'] ?? 0,
+            status: entry['status'] ?? 'completed',
+          );
+        }));
         debugPrint('Loaded ${entries.length} exercise history entries from Hive');
       }
     } catch (e) {

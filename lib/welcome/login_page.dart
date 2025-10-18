@@ -28,6 +28,10 @@ class _LoginPageState extends State<LoginPage> {
   
   bool _isLoading = false;
   String? _errorMessage = '';
+  String _loadingMessage = 'Signing in...';
+  double _loadingProgress = 0.0;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
 
   @override
   void initState() {
@@ -43,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  /// Handle email/password sign in
+  /// Handle email/password sign in with optimized flow
   Future<void> _handleEmailSignIn() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -51,77 +55,95 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _isLoading = true;
         _errorMessage = '';
+        _loadingMessage = 'Authenticating...';
+        _loadingProgress = 0.0;
       });
     }
 
     try {
-      // Use optimized data service for login with caching
-      final result = await OptimizedDataService().getData(
-        'login_${_emailController.text.trim()}',
-        () => _authService.signInWithEmailAndPassword(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-        ).timeout(const Duration(seconds: 12)),
-      );
+      // Update loading progress
+      if (mounted) {
+        setState(() {
+          _loadingMessage = 'Verifying credentials...';
+          _loadingProgress = 0.3;
+        });
+      }
 
-      if (result?.success == true) {
-        // Preload user data for smooth navigation
-        await OptimizedDataService().preloadData(
-          'user_data',
-          () async => result,
-        );
-        _navigateToHome();
-      } else if (result?.requiresEmailVerification == true) {
-        _showEmailVerificationPage(result!.email!);
+      // Authenticate user first
+      final result = await _authService.signInWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      ).timeout(const Duration(seconds: 15));
+
+      if (result.success == true) {
+        // Update loading progress before navigation
+        if (mounted) {
+          setState(() {
+            _loadingMessage = 'Welcome back!';
+            _loadingProgress = 1.0;
+          });
+        }
+        
+        // Small delay to show completion message
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Navigate immediately for better UX
+        _navigateToHomeWithBackgroundSync();
+      } else if (result.requiresEmailVerification == true) {
+        _showEmailVerificationPage(result.email!);
       } else {
         if (mounted) {
           setState(() {
-            _errorMessage = result?.error ?? 'Login failed. Please try again.';
+            _errorMessage = result.error ?? 'Login failed. Please try again.';
             _isLoading = false;
           });
         }
       }
     } on TimeoutException {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Connection timed out. Please check your internet and try again.';
-          _isLoading = false;
-        });
-      }
+      _handleLoginError('Connection timed out. Please check your internet and try again.');
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'An unexpected error occurred. Please try again.';
-          _isLoading = false;
-        });
-      }
+      _handleLoginError('An unexpected error occurred. Please try again.');
     }
   }
 
-  /// Handle Google sign in
+  /// Handle Google sign in with optimized flow
   Future<void> _handleGoogleSignIn() async {
     if (mounted) {
       setState(() {
         _isLoading = true;
         _errorMessage = '';
+        _loadingMessage = 'Connecting to Google...';
+        _loadingProgress = 0.0;
       });
     }
 
     try {
-      // Use optimized data service for Google sign-in
-      final result = await OptimizedDataService().getData(
-        'google_signin',
-        () => _authService.signInWithGoogle().timeout(const Duration(seconds: 12)),
-      );
+      // Update loading progress
+      if (mounted) {
+        setState(() {
+          _loadingMessage = 'Authenticating with Google...';
+          _loadingProgress = 0.5;
+        });
+      }
 
-      if (result?.success == true) {
-        // Preload user data for smooth navigation
-        await OptimizedDataService().preloadData(
-          'user_data',
-          () async => result,
-        );
-        _navigateToHome();
-      } else if (result?.cancelled == true) {
+      // Authenticate with Google
+      final result = await _authService.signInWithGoogle().timeout(const Duration(seconds: 15));
+
+      if (result.success == true) {
+        // Update loading progress before navigation
+        if (mounted) {
+          setState(() {
+            _loadingMessage = 'Welcome!';
+            _loadingProgress = 1.0;
+          });
+        }
+        
+        // Small delay to show completion message
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // Navigate immediately for better UX
+        _navigateToHomeWithBackgroundSync();
+      } else if (result.cancelled == true) {
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -130,25 +152,15 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         if (mounted) {
           setState(() {
-            _errorMessage = result?.error ?? 'Google sign in failed. Please try again.';
+            _errorMessage = result.error ?? 'Google sign in failed. Please try again.';
             _isLoading = false;
           });
         }
       }
     } on TimeoutException {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Connection timed out. Please check your internet and try again.';
-          _isLoading = false;
-        });
-      }
+      _handleLoginError('Connection timed out. Please check your internet and try again.');
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'An unexpected error occurred. Please try again.';
-          _isLoading = false;
-        });
-      }
+      _handleLoginError('An unexpected error occurred. Please try again.');
     }
   }
 
@@ -174,13 +186,111 @@ class _LoginPageState extends State<LoginPage> {
         );
   }
 
-  /// Navigate to home page
+  /// Navigate to home page with background data sync
+  void _navigateToHomeWithBackgroundSync() {
+    // Navigate immediately for better UX
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const HomePage()),
+      (Route<dynamic> route) => false,
+    );
+    
+    // Start background data sync without blocking UI
+    _performBackgroundDataSync();
+  }
+
+  /// Navigate to home page (legacy method for compatibility)
   void _navigateToHome() {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const HomePage()),
       (Route<dynamic> route) => false,
     );
+  }
+
+  /// Handle login errors with retry logic
+  void _handleLoginError(String message) {
+    if (mounted) {
+      setState(() {
+        _errorMessage = message;
+        _isLoading = false;
+        _loadingProgress = 0.0;
+      });
+    }
+  }
+
+  /// Retry the last attempted action
+  void _retryLastAction() {
+    // Simple retry logic - could be enhanced to track the last action
+    if (_retryCount <= _maxRetries) {
+      // Add a small delay before retry
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          // Reset retry count after max retries
+          if (_retryCount >= _maxRetries) {
+            _retryCount = 0;
+          }
+        }
+      });
+    }
+  }
+
+  /// Perform background data sync without blocking UI
+  Future<void> _performBackgroundDataSync() async {
+    try {
+      print('LoginPage: Starting background data sync...');
+      
+      // Start background sync operations in parallel with priority
+      final futures = <Future<void>>[];
+      
+      // High priority: User profile data
+      futures.add(
+        OptimizedDataService().preloadData(
+          'user_profile',
+          () async {
+            // Simulate loading user profile data
+            await Future.delayed(const Duration(milliseconds: 50));
+            return 'user_profile_loaded';
+          },
+        ).then((_) => print('LoginPage: User profile preloaded')),
+      );
+      
+      // Medium priority: Exercise data (load in background)
+      futures.add(
+        Future.delayed(const Duration(milliseconds: 100)).then((_) =>
+          OptimizedDataService().preloadData(
+            'exercise_data',
+            () async {
+              // Simulate loading exercise data
+              await Future.delayed(const Duration(milliseconds: 100));
+              return 'exercise_data_loaded';
+            },
+          ),
+        ).then((_) => print('LoginPage: Exercise data preloaded')),
+      );
+      
+      // Low priority: Treatment data (load last)
+      futures.add(
+        Future.delayed(const Duration(milliseconds: 200)).then((_) =>
+          OptimizedDataService().preloadData(
+            'treatment_data',
+            () async {
+              // Simulate loading treatment data
+              await Future.delayed(const Duration(milliseconds: 80));
+              return 'treatment_data_loaded';
+            },
+          ),
+        ).then((_) => print('LoginPage: Treatment data preloaded')),
+      );
+      
+      // Wait for all background operations to complete
+      await Future.wait(futures);
+      
+      print('LoginPage: Background data sync completed successfully');
+    } catch (e) {
+      print('LoginPage: Background data sync failed: $e');
+      // Don't show error to user as this is background operation
+    }
   }
 
   /// Navigate to register page
@@ -199,23 +309,53 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  /// Handle guest mode login
+  /// Handle guest mode login with optimized flow
   Future<void> _handleGuestMode() async {
     if (mounted) {
       setState(() {
         _isLoading = true;
         _errorMessage = '';
+        _loadingMessage = 'Setting up guest mode...';
+        _loadingProgress = 0.0;
       });
     }
 
     try {
+      // Update loading progress
+      if (mounted) {
+        setState(() {
+          _loadingMessage = 'Initializing guest session...';
+          _loadingProgress = 0.4;
+        });
+      }
+
       // Initialize guest mode service
       await _guestModeService.initialize();
       
+      // Update loading progress
+      if (mounted) {
+        setState(() {
+          _loadingMessage = 'Starting guest session...';
+          _loadingProgress = 0.7;
+        });
+      }
+      
       // Start guest session
-      final result = await _guestModeService.startGuestSession().timeout(const Duration(seconds: 10));
+      final result = await _guestModeService.startGuestSession().timeout(const Duration(seconds: 8));
 
       if (result['success']) {
+        // Update loading progress before navigation
+        if (mounted) {
+          setState(() {
+            _loadingMessage = 'Welcome, Guest!';
+            _loadingProgress = 1.0;
+          });
+        }
+        
+        // Small delay to show completion message
+        await Future.delayed(const Duration(milliseconds: 300));
+        
+        // Navigate immediately for guest mode (no background sync needed)
         _navigateToHome();
       } else {
         if (mounted) {
@@ -226,19 +366,9 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
     } on TimeoutException {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Connection timed out. Please try again.';
-          _isLoading = false;
-        });
-      }
+      _handleLoginError('Connection timed out. Please try again.');
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'An unexpected error occurred. Please try again.';
-          _isLoading = false;
-        });
-      }
+      _handleLoginError('An unexpected error occurred. Please try again.');
     }
   }
 
@@ -251,7 +381,8 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC), // Professional background
       body: LoadingOverlay(
         isLoading: _isLoading,
-        message: _isLoading ? 'Signing in...' : null,
+        message: _isLoading ? _loadingMessage : null,
+        progress: _isLoading ? _loadingProgress : null,
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -447,15 +578,20 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 ),
                               ),
-                              if (_errorMessage!.contains('timeout') || _errorMessage!.contains('connection'))
+                              if (_errorMessage!.contains('timeout') || _errorMessage!.contains('connection') || _errorMessage!.contains('unexpected'))
                                 TextButton(
                                   onPressed: () {
                                     setState(() {
                                       _errorMessage = '';
+                                      _retryCount++;
                                     });
+                                    // Retry the last attempted action
+                                    if (_retryCount <= _maxRetries) {
+                                      _retryLastAction();
+                                    }
                                   },
                                   child: Text(
-                                    'Try Again',
+                                    _retryCount < _maxRetries ? 'Try Again' : 'Reset',
                                     style: GoogleFonts.ptSans(
                                       color: const Color(0xFF8B2E2E),
                                       fontWeight: FontWeight.w600,

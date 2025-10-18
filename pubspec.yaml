@@ -77,6 +77,11 @@ dependencies:
 
   # For pytorch
   flutter_pytorch_lite: ^0.1.0+3
+  
+  # For secure storage and crypto
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.2
+  crypto: ^3.0.5
 
 # App Icon
 flutter_icons:

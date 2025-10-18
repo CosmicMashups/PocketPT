@@ -140,7 +140,7 @@ class FirebaseHelper {
     }
   }
 
-  /// Ensure user progress subcollection exists
+  /// Ensure user progress collection exists (flat structure: progress/{userId})
   static Future<void> ensureUserProgressCollection() async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -151,26 +151,19 @@ class FirebaseHelper {
 
       final String userId = currentUser.uid;
       
-      // Ensure user document exists first
-      await ensureUserDocument();
-      
-      // Check if user progress document exists
+      // Check if user progress document exists in flat collection
       final DocumentSnapshot progressDoc = await _firestore
-          .collection('users')
+          .collection('progress')
           .doc(userId)
-          .collection('userProgress')
-          .doc('progress')
           .get();
 
       if (!progressDoc.exists) {
-        print('FirebaseHelper: Creating user progress document');
+        print('FirebaseHelper: Creating user progress document in progress collection');
         
-        // Create empty user progress document
+        // Create empty user progress document in flat collection
         await _firestore
-            .collection('users')
+            .collection('progress')
             .doc(userId)
-            .collection('userProgress')
-            .doc('progress')
             .set({
           'title': 'Initiator',
           'titleColor': '',
@@ -184,9 +177,9 @@ class FirebaseHelper {
           'userId': userId,
         });
         
-        print('FirebaseHelper: User progress document created successfully');
+        print('FirebaseHelper: User progress document created successfully in progress collection');
       } else {
-        print('FirebaseHelper: User progress document already exists');
+        print('FirebaseHelper: User progress document already exists in progress collection');
       }
     } catch (e) {
       print('FirebaseHelper: Error ensuring user progress collection: $e');
@@ -194,7 +187,7 @@ class FirebaseHelper {
     }
   }
 
-  /// Ensure user assessment subcollection exists
+  /// Ensure user assessment collection exists (flat structure: assessment/{userId})
   static Future<void> ensureUserAssessmentCollection() async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -205,26 +198,19 @@ class FirebaseHelper {
 
       final String userId = currentUser.uid;
       
-      // Ensure user document exists first
-      await ensureUserDocument();
-      
-      // Check if user assessment document exists
+      // Check if user assessment document exists in flat collection
       final DocumentSnapshot assessmentDoc = await _firestore
-          .collection('users')
+          .collection('assessment')
           .doc(userId)
-          .collection('userAssessment')
-          .doc('assessment')
           .get();
 
       if (!assessmentDoc.exists) {
-        print('FirebaseHelper: Creating user assessment document');
+        print('FirebaseHelper: Creating user assessment document in assessment collection');
         
-        // Create empty user assessment document
+        // Create empty user assessment document in flat collection
         await _firestore
-            .collection('users')
+            .collection('assessment')
             .doc(userId)
-            .collection('userAssessment')
-            .doc('assessment')
             .set({
           'rehabGoal': '',
           'generalMuscle': '',
@@ -239,9 +225,9 @@ class FirebaseHelper {
           'userId': userId,
         });
         
-        print('FirebaseHelper: User assessment document created successfully');
+        print('FirebaseHelper: User assessment document created successfully in assessment collection');
       } else {
-        print('FirebaseHelper: User assessment document already exists');
+        print('FirebaseHelper: User assessment document already exists in assessment collection');
       }
     } catch (e) {
       print('FirebaseHelper: Error ensuring user assessment collection: $e');
@@ -249,7 +235,7 @@ class FirebaseHelper {
     }
   }
 
-  /// Ensure user settings subcollection exists
+  /// Ensure user settings collection exists (flat structure: settings/{userId})
   static Future<void> ensureUserSettingsCollection() async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -260,26 +246,19 @@ class FirebaseHelper {
 
       final String userId = currentUser.uid;
       
-      // Ensure user document exists first
-      await ensureUserDocument();
-      
-      // Check if user settings document exists
+      // Check if user settings document exists in flat collection
       final DocumentSnapshot settingsDoc = await _firestore
-          .collection('users')
+          .collection('settings')
           .doc(userId)
-          .collection('userSettings')
-          .doc('settings')
           .get();
 
       if (!settingsDoc.exists) {
-        print('FirebaseHelper: Creating user settings document');
+        print('FirebaseHelper: Creating user settings document in settings collection');
         
-        // Create default user settings document
+        // Create default user settings document in flat collection
         await _firestore
-            .collection('users')
+            .collection('settings')
             .doc(userId)
-            .collection('userSettings')
-            .doc('settings')
             .set({
           'isDailyReminder': true,
           'isStreakAlert': true,
@@ -290,9 +269,9 @@ class FirebaseHelper {
           'userId': userId,
         });
         
-        print('FirebaseHelper: User settings document created successfully');
+        print('FirebaseHelper: User settings document created successfully in settings collection');
       } else {
-        print('FirebaseHelper: User settings document already exists');
+        print('FirebaseHelper: User settings document already exists in settings collection');
       }
     } catch (e) {
       print('FirebaseHelper: Error ensuring user settings collection: $e');
@@ -300,7 +279,7 @@ class FirebaseHelper {
     }
   }
 
-  /// Ensure pain history subcollection exists
+  /// Ensure pain history collection exists (flat structure: painHistory/{userId})
   static Future<void> ensurePainHistoryCollection() async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -311,26 +290,19 @@ class FirebaseHelper {
 
       final String userId = currentUser.uid;
       
-      // Ensure user document exists first
-      await ensureUserDocument();
-      
-      // Check if pain history document exists
+      // Check if pain history document exists in flat collection
       final DocumentSnapshot painHistoryDoc = await _firestore
-          .collection('users')
-          .doc(userId)
           .collection('painHistory')
-          .doc('history')
+          .doc(userId)
           .get();
 
       if (!painHistoryDoc.exists) {
-        print('FirebaseHelper: Creating pain history document');
+        print('FirebaseHelper: Creating pain history document in painHistory collection');
         
-        // Create empty pain history document
+        // Create empty pain history document in flat collection
         await _firestore
-            .collection('users')
-            .doc(userId)
             .collection('painHistory')
-            .doc('history')
+            .doc(userId)
             .set({
           'entries': [],
           'lastPromptedDate': null,
@@ -338,9 +310,9 @@ class FirebaseHelper {
           'userId': userId,
         });
         
-        print('FirebaseHelper: Pain history document created successfully');
+        print('FirebaseHelper: Pain history document created successfully in painHistory collection');
       } else {
-        print('FirebaseHelper: Pain history document already exists');
+        print('FirebaseHelper: Pain history document already exists in painHistory collection');
       }
     } catch (e) {
       print('FirebaseHelper: Error ensuring pain history collection: $e');
@@ -348,7 +320,7 @@ class FirebaseHelper {
     }
   }
 
-  /// Ensure exercise history subcollection exists
+  /// Ensure exercise history collection exists (flat structure: exerciseHistory/{userId})
   static Future<void> ensureExerciseHistoryCollection() async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -359,38 +331,72 @@ class FirebaseHelper {
 
       final String userId = currentUser.uid;
       
-      // Ensure user document exists first
-      await ensureUserDocument();
-      
-      // Check if exercise history document exists
+      // Check if exercise history document exists in flat collection
       final DocumentSnapshot exerciseHistoryDoc = await _firestore
-          .collection('users')
-          .doc(userId)
           .collection('exerciseHistory')
-          .doc('history')
+          .doc(userId)
           .get();
 
       if (!exerciseHistoryDoc.exists) {
-        print('FirebaseHelper: Creating exercise history document');
+        print('FirebaseHelper: Creating exercise history document in exerciseHistory collection');
         
-        // Create empty exercise history document
+        // Create empty exercise history document in flat collection
         await _firestore
-            .collection('users')
-            .doc(userId)
             .collection('exerciseHistory')
-            .doc('history')
+            .doc(userId)
             .set({
           'entries': [],
           'lastUpdated': FieldValue.serverTimestamp(),
           'userId': userId,
         });
         
-        print('FirebaseHelper: Exercise history document created successfully');
+        print('FirebaseHelper: Exercise history document created successfully in exerciseHistory collection');
       } else {
-        print('FirebaseHelper: Exercise history document already exists');
+        print('FirebaseHelper: Exercise history document already exists in exerciseHistory collection');
       }
     } catch (e) {
       print('FirebaseHelper: Error ensuring exercise history collection: $e');
+      rethrow;
+    }
+  }
+
+  /// Ensure rehabilitation collection exists (flat structure: rehabilitation/{userId})
+  static Future<void> ensureRehabilitationCollection() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        print('FirebaseHelper: No authenticated user found');
+        throw Exception('No authenticated user found');
+      }
+
+      final String userId = currentUser.uid;
+
+      // Ensure user document exists first (for metadata consistency)
+      await ensureUserDocument();
+
+      // Check if rehabilitation document exists in flat collection
+      final DocumentSnapshot rehabDoc = await _firestore
+          .collection('rehabilitation')
+          .doc(userId)
+          .get();
+
+      if (!rehabDoc.exists) {
+        print('FirebaseHelper: Creating rehabilitation document in rehabilitation collection');
+
+        await _firestore
+            .collection('rehabilitation')
+            .doc(userId)
+            .set({
+          'userId': userId,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        });
+
+        print('FirebaseHelper: Rehabilitation document created successfully in rehabilitation collection');
+      } else {
+        print('FirebaseHelper: Rehabilitation document already exists in rehabilitation collection');
+      }
+    } catch (e) {
+      print('FirebaseHelper: Error ensuring rehabilitation collection: $e');
       rethrow;
     }
   }
@@ -441,6 +447,7 @@ class FirebaseHelper {
         {'name': 'userDocument', 'method': ensureUserDocument},
         {'name': 'rehabilitationPlans', 'method': ensureRehabilitationPlansCollection},
         {'name': 'treatments', 'method': ensureTreatmentsCollection},
+        {'name': 'rehabilitation', 'method': ensureRehabilitationCollection},
         {'name': 'userProgress', 'method': ensureUserProgressCollection},
         {'name': 'userAssessment', 'method': ensureUserAssessmentCollection},
         {'name': 'userSettings', 'method': ensureUserSettingsCollection},
@@ -479,20 +486,54 @@ class FirebaseHelper {
     return results;
   }
 
-  /// Check which collections actually exist in Firebase
+  /// Check which collections actually exist in Firebase (flat structure)
   static Future<void> _checkExistingCollections(String userId, Map<String, dynamic> results) async {
     try {
-      final List<String> collectionNames = [
-        'rehabilitationPlans',
-        'treatments',
-        'userProgress',
-        'userAssessment',
-        'userSettings',
+      // Check flat collections
+      final List<String> flatCollectionNames = [
+        'progress',
+        'assessment',
+        'settings',
         'painHistory',
         'exerciseHistory',
       ];
 
-      for (final collectionName in collectionNames) {
+      for (final collectionName in flatCollectionNames) {
+        try {
+          final DocumentSnapshot snapshot = await _firestore
+              .collection(collectionName)
+              .doc(userId)
+              .get();
+          
+          if (snapshot.exists) {
+            results['existingCollections'].add(collectionName);
+          }
+        } catch (e) {
+          print('FirebaseHelper: Error checking $collectionName collection: $e');
+        }
+      }
+
+      // Check rehabilitation collection (also flat)
+      try {
+        final DocumentSnapshot rehabSnapshot = await _firestore
+            .collection('rehabilitation')
+            .doc(userId)
+            .get();
+        
+        if (rehabSnapshot.exists) {
+          results['existingCollections'].add('rehabilitation');
+        }
+      } catch (e) {
+        print('FirebaseHelper: Error checking rehabilitation collection: $e');
+      }
+
+      // Check legacy nested collections (for backward compatibility)
+      final List<String> legacyCollectionNames = [
+        'rehabilitationPlans',
+        'treatments',
+      ];
+
+      for (final collectionName in legacyCollectionNames) {
         try {
           final QuerySnapshot snapshot = await _firestore
               .collection('users')
@@ -502,10 +543,10 @@ class FirebaseHelper {
               .get();
           
           if (snapshot.docs.isNotEmpty) {
-            results['existingCollections'].add(collectionName);
+            results['existingCollections'].add('legacy_$collectionName');
           }
         } catch (e) {
-          print('FirebaseHelper: Error checking $collectionName collection: $e');
+          print('FirebaseHelper: Error checking legacy $collectionName collection: $e');
         }
       }
     } catch (e) {
@@ -556,18 +597,22 @@ class FirebaseHelper {
 
       final userData = userDoc.data() as Map<String, dynamic>;
       
-      // Get rehabilitation plans count
-      final QuerySnapshot plansSnapshot = await _firestore
-          .collection('users')
+      // Check rehabilitation data (flat collection)
+      final DocumentSnapshot rehabSnapshot = await _firestore
+          .collection('rehabilitation')
           .doc(userId)
-          .collection('rehabilitationPlans')
           .get();
 
-      // Get treatments count
-      final QuerySnapshot treatmentsSnapshot = await _firestore
-          .collection('users')
+      // Check progress data (flat collection)
+      final DocumentSnapshot progressSnapshot = await _firestore
+          .collection('progress')
           .doc(userId)
-          .collection('treatments')
+          .get();
+
+      // Check assessment data (flat collection)
+      final DocumentSnapshot assessmentSnapshot = await _firestore
+          .collection('assessment')
+          .doc(userId)
           .get();
 
       return {
@@ -577,8 +622,9 @@ class FirebaseHelper {
         'email': userData['email'] ?? '',
         'createdAt': userData['createdAt'],
         'lastUpdated': userData['lastUpdated'],
-        'rehabilitationPlansCount': plansSnapshot.docs.length,
-        'treatmentsCount': treatmentsSnapshot.docs.length,
+        'hasRehabilitationData': rehabSnapshot.exists,
+        'hasProgressData': progressSnapshot.exists,
+        'hasAssessmentData': assessmentSnapshot.exists,
       };
     } catch (e) {
       print('FirebaseHelper: Error getting user data summary: $e');

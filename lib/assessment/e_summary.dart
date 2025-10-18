@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'd_history.dart';
 import 'generate_plan.dart';
+import 'assessment_data.dart';
 class AssessSummary extends StatefulWidget {
   const AssessSummary({super.key});
 
@@ -11,11 +12,10 @@ class AssessSummary extends StatefulWidget {
 }
 
 class _AssessSummaryState extends State<AssessSummary> {
-  bool isInjured = UserAssess.isInjured;
+  bool isInjured = false;
 
   // Professional healthcare color scheme
   static const mainColor = Color(0xFF8B2E2E); // Professional blue
-  static const subColor = Color(0xFFC24A4A); // Light blue
   static const detailColor = Color(0xFF6B7280); // Gray
   static const backgroundColor = Color(0xFFF8FAFC); // Light background
   static const successColor = Color(0xFF10B981); // Green
@@ -23,64 +23,37 @@ class _AssessSummaryState extends State<AssessSummary> {
   @override
   void initState() {
     super.initState();
-    // Initialize isInjured from global variables
+    print('AssessSummary: initState() called');
+    print('AssessSummary: Current AssessmentData.isInjured = "${AssessmentData.isInjured}"');
+    print('AssessSummary: Current UserAssess.isInjured = "${UserAssess.isInjured}"');
+    
+    // Initialize isInjured from local data
     isInjured = UserAssess.isInjured;
+    print('AssessSummary: isInjured initialized to: $isInjured');
+    print('AssessSummary: initState() completed');
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    print('AssessSummary: build() called');
+    print('AssessSummary: Current AssessmentData.isInjured in build = "${AssessmentData.isInjured}"');
+    print('AssessSummary: Current UserAssess.isInjured in build = "${UserAssess.isInjured}"');
+    print('AssessSummary: Current isInjured = $isInjured');
+    
+    try {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
-      appBar: AppBar(
-        backgroundColor: mainColor,
-        title: Text(
-          "Assessment Complete",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: Colors.white,
-            letterSpacing: 0.5,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(24),
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                mainColor,
-                subColor,
-              ],
-            ),
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(24),
-            ),
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (_, __, ___) => const AssessHistory(),
-              transitionsBuilder: (_, animation, __, child) =>
-                  SlideTransition(position: animation.drive(Tween(begin: const Offset(1, 0), end: Offset.zero).chain(CurveTween(curve: Curves.easeInOut))), child: child),
-            ),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
+      body: Column(
+        children: [
+          _buildAppBar(context),
+          Expanded(
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
             // Progress Section
             Container(
               padding: const EdgeInsets.all(20),
@@ -93,7 +66,7 @@ class _AssessSummaryState extends State<AssessSummary> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                    color: isDark ? const Color(0x33000000) : const Color(0x0A000000),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -136,7 +109,7 @@ class _AssessSummaryState extends State<AssessSummary> {
               ),
             ),
 
-            const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
             // Success Header
             Container(
@@ -147,17 +120,17 @@ class _AssessSummaryState extends State<AssessSummary> {
                   end: Alignment.bottomRight,
                   colors: [
                     isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                    successColor.withOpacity(0.05),
+                    const Color(0x0D10B981),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: successColor.withOpacity(0.2),
+                  color: const Color(0x3310B981),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                    color: isDark ? const Color(0x33000000) : const Color(0x0A000000),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -200,7 +173,7 @@ class _AssessSummaryState extends State<AssessSummary> {
               ),
             ),
 
-            const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
             // Clinical Summary Report
             Container(
@@ -274,7 +247,7 @@ class _AssessSummaryState extends State<AssessSummary> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: successColor.withOpacity(0.3),
+                    color: const Color(0x4D10B981),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -282,6 +255,11 @@ class _AssessSummaryState extends State<AssessSummary> {
               ),
               child: ElevatedButton.icon(
                 onPressed: () {
+                  print('AssessSummary: Generate Treatment Plan button pressed');
+                  print('AssessSummary: Final AssessmentData.isInjured = "${AssessmentData.isInjured}"');
+                  print('AssessSummary: Final UserAssess.isInjured = "${UserAssess.isInjured}"');
+                  print('AssessSummary: Navigating to GeneratePlanPage');
+                  
                   Navigator.push(
                     context,
                     PageRouteBuilder(
@@ -312,10 +290,85 @@ class _AssessSummaryState extends State<AssessSummary> {
               ),
             ),
 
-            const SizedBox(height: 24),
-          ],
-        ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+    } catch (e) {
+      print('AssessSummary: ERROR in build() - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading assessment summary: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      height: kToolbarHeight + MediaQuery.of(context).padding.top,
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      color: mainColor,
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () {
+              print('AssessSummary: Back button pressed');
+              print('AssessSummary: Current AssessmentData.isInjured = "${AssessmentData.isInjured}"');
+              print('AssessSummary: Current UserAssess.isInjured = "${UserAssess.isInjured}"');
+              print('AssessSummary: Navigating back to AssessHistory');
+              
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (_, __, ___) => const AssessHistory(),
+                  transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                    position: animation.drive(Tween(begin: const Offset(1, 0), end: Offset.zero).chain(CurveTween(curve: Curves.easeInOut))),
+                    child: child,
+                  ),
+                ),
+              );
+            },
+          ),
+          Expanded(
+            child: Text(
+              "Assessment Complete",
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.refresh, color: Colors.transparent),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // Dev-only helper: call from any screen to quickly test E screen
+  // ignore: unused_element
+  void _testNavigateToAssessSummary(BuildContext context) {
+    debugPrint('🧪 TEST: Direct navigation to AssessSummary');
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AssessSummary()),
+      (route) => false,
     );
   }
 

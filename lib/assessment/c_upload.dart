@@ -1,288 +1,460 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:dotted_border/dotted_border.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
-import '../data/globals.dart';
-import 'c_camera.dart';
-import 'c_videopreview.dart';
-class AssessPainUpload extends StatefulWidget {
-  const AssessPainUpload({super.key});
+import 'c_video.dart';
+
+class AssessUpload extends StatefulWidget {
+  const AssessUpload({super.key});
 
   @override
-  State<AssessPainUpload> createState() => _AssessPainUploadState();
+  State<AssessUpload> createState() => _AssessUploadState();
 }
 
-class _AssessPainUploadState extends State<AssessPainUpload> {
-  String painLevel = UserAssess.painLevel;
-  int painScale = UserAssess.painScale;
-  File? _selectedVideoFile = UserAssess.painVideo;
+class _AssessUploadState extends State<AssessUpload> {
+  // Professional healthcare color scheme
+  static const mainColor = Color(0xFF8B2E2E);
+  static const subColor = Color(0xFFC24A4A);
+  static const detailColor = Color(0xFF6B7280);
+  static const backgroundColor = Color(0xFFF8FAFC);
+  static const successColor = Color(0xFF10B981);
 
   @override
   void initState() {
     super.initState();
-    // Initialize painLevel and painScale from global variables
-    if (UserAssess.painLevel.isNotEmpty) {
-      painLevel = UserAssess.painLevel;
-    }
-    painScale = UserAssess.painScale;
-    _selectedVideoFile = UserAssess.painVideo;
-  }
-
-  Future<bool> uploadVideoFile() async {
-    await Future.delayed(Duration(seconds: 2)); // Simulate upload delay
-    return true; // Replace with actual upload logic
-  }
-
-  Widget buildVideoPreview() {
-    if (_selectedVideoFile != null) {
-      return Column(
-        children: [
-          const SizedBox(height: 10),
-          // ClipRRect(
-          //   borderRadius: BorderRadius.circular(12),
-          //   child: Container(
-          //     color: Colors.black,
-          //     width: 200,
-          //     height: 140,
-          //     child: const Center(
-          //       child: Icon(Icons.play_circle_fill, color: Colors.white, size: 50),
-          //     ),
-          //   ),
-          // ),
-          // const SizedBox(height: 10),
-          Text(
-            "Selected: ${_selectedVideoFile!.path.split('/').last}",
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-        ],
-      );
-    } else {
-      return const SizedBox.shrink();
-    }
+    print('AssessUpload: initState() called');
+    print('AssessUpload: initState() completed');
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          "Upload Video",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: const Color(0xFF1F2937),
+    print('AssessUpload: build() called');
+    
+    try {
+      return _buildPageContent(context);
+    } catch (e) {
+      print('AssessUpload: ERROR in build() - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading page: $e',
+            style: const TextStyle(color: Colors.red),
           ),
         ),
-        centerTitle: true,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
-            onPressed: () => Navigator.push(
-              context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => AssessPainCamera(),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  var offsetAnimation = animation.drive(
-                    Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                        .chain(CurveTween(curve: Curves.easeInOut)),
-                  );
-                  return SlideTransition(position: offsetAnimation, child: child);
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            LinearProgressIndicator(
-              value: 0.6,
-              minHeight: 8,
-              color: const Color(0xFF800020),
-              backgroundColor: const Color(0xFF404040),
-            ),
-            const SizedBox(height: 30),
+      );
+    }
+  }
 
-            // Title with subtitle and icon
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30.0, vertical: 8.0),
-              child: Column(
-                children: [
-                  // "Question 3 of 5"
-                  Row(
-                    children: [
-                      Icon(Icons.help_outline, color: const Color(0xFF800020), size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Question 3 of 5",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF800020),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.upload_file, color: Color(0xFF800020), size: 28),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Upload Your Video',
-                        style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E1E1E),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Up to 200 MB, formats: .mp4, .mkv, .webm',
-                    style: GoogleFonts.ptSans(
-                      fontStyle: FontStyle.italic,
-                      fontSize: 14,
+
+  Widget _buildPageContent(BuildContext context) {
+    return Material(
+      color: backgroundColor,
+      child: Column(
+        children: [
+          // Custom AppBar
+          Container(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top,
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            color: mainColor,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: Text(
+                    "Upload Evidence",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 30),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.refresh, color: Colors.transparent),
+                ),
+              ],
+            ),
+          ),
+          // Body Content
+          Flexible(
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Progress Section
+                    _buildProgressSection(6, 8, "Evidence Upload"),
+                    
+                    const SizedBox(height: 24),
 
-                  // Dotted Upload Box
-                  DottedBorder(
-                    color: const Color(0xFF800020),
-                    dashPattern: [8, 4],
-                    strokeWidth: 2,
-                    borderType: BorderType.RRect,
-                    radius: const Radius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
+                    // Question Section
+                    _buildQuestionSection(
+                      "Upload Evidence",
+                      "Help us better understand your condition by uploading photos or videos",
+                      Icons.cloud_upload,
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Upload Options
+                    _buildUploadOption(
+                      'Take Photo',
+                      'Capture a photo of the affected area',
+                      Icons.camera_alt,
+                      mainColor,
+                      () => _takePhoto(),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildUploadOption(
+                      'Record Video',
+                      'Record a video showing your range of motion',
+                      Icons.videocam,
+                      subColor,
+                      () => _recordVideo(),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildUploadOption(
+                      'Upload from Gallery',
+                      'Select existing photos or videos from your device',
+                      Icons.photo_library,
+                      successColor,
+                      () => _selectFromGallery(),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Skip Option
+                    Container(
                       width: double.infinity,
-                      color: const Color(0xFFD79691),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.video_call_rounded, size: 50, color: Colors.white),
-                          const SizedBox(height: 10),
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.video);
-                              if (result != null && result.files.single.path != null) {
-                                setState(() {
-                                  _selectedVideoFile = File(result.files.single.path!);
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.video_library, color: Colors.white),
-                            label: Text('Choose Video',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 18,
-                                  color: Color(0xFFF8F6F4),
-                                )),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF800020),
-                              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 16),
-                            ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFE5E7EB),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
-                          const SizedBox(height: 15),
-                          Text(
-                            'Or drag and drop your video here',
-                            style: GoogleFonts.ptSans(fontStyle: FontStyle.italic),
-                            textAlign: TextAlign.center,
-                          ),
-                          buildVideoPreview(),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Upload Button
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      bool success = await uploadVideoFile();
-                      if (success) {
+                      child: InkWell(
+                        onTap: () {
                         Navigator.push(
                           context,
                           PageRouteBuilder(
-                            pageBuilder: (_, __, ___) => AssessPainVideoPreview(videoPath: _selectedVideoFile?.path ?? ''),
-                            transitionsBuilder: (_, animation, __, child) {
-                              return SlideTransition(
-                                position: Tween(begin: const Offset(1, 0), end: Offset.zero)
-                                    .chain(CurveTween(curve: Curves.easeInOut))
-                                    .animate(animation),
-                                child: child,
-                              );
+                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideo(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
+                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
+                                return SlideTransition(position: offsetAnimation, child: child);
                             },
                           ),
                         );
-                      } else {
-                        showDialog(
-                          context: context,
-                          builder: (_) => AlertDialog(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            title: Row(
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: detailColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.skip_next,
+                                  color: detailColor,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.error, color: Colors.red),
-                                SizedBox(width: 10),
-                                Text("Upload Failed"),
-                              ],
-                            ),
-                            content: Text("Your video could not be uploaded. Please check your connection or try again."),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text("OK"),
+                                    Text(
+                                      "Skip for Now",
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                        color: detailColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "Continue without uploading evidence",
+                                      style: GoogleFonts.ptSans(
+                                        fontSize: 14,
+                                        color: detailColor.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                color: detailColor,
+                                size: 16,
                               ),
                             ],
                           ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.cloud_upload, color: Colors.white),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF800020),
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
-                    ),
-                    label: Text(
-                      'Upload Video',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: Color(0xFFF8F6F4),
+                        ),
                       ),
                     ),
-                  ),
-                ]
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build a progress section widget
+  Widget _buildProgressSection(int currentStep, int totalSteps, String stepName) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: mainColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.track_changes,
+              color: mainColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Assessment Progress",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Step $currentStep of $totalSteps - $stepName",
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    color: detailColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build a question section widget
+  Widget _buildQuestionSection(String title, String description, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: mainColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: mainColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            description,
+            style: GoogleFonts.ptSans(
+              fontSize: 16,
+              color: detailColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadOption(String title, String description, IconData icon, Color color, VoidCallback onTap) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              // Icon
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        color: detailColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: color,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _takePhoto() {
+    // TODO: Implement camera functionality
+    debugPrint('AssessUpload: Take photo selected');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Camera functionality coming soon!'),
+        backgroundColor: mainColor,
+      ),
+    );
+  }
+
+  void _recordVideo() {
+    // TODO: Implement video recording functionality
+    debugPrint('AssessUpload: Record video selected');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Video recording functionality coming soon!'),
+        backgroundColor: mainColor,
+      ),
+    );
+  }
+
+  void _selectFromGallery() {
+    // TODO: Implement gallery selection functionality
+    debugPrint('AssessUpload: Select from gallery selected');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Gallery selection functionality coming soon!'),
+        backgroundColor: mainColor,
       ),
     );
   }

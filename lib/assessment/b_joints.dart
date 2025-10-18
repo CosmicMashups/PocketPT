@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
+import 'assessment_data.dart';
 import 'b_focus1.dart';
 import 'c_video.dart';
+
 class AssessJoints extends StatefulWidget {
   const AssessJoints({super.key});
 
@@ -12,301 +14,341 @@ class AssessJoints extends StatefulWidget {
 }
 
 class _AssessJointsState extends State<AssessJoints> {
-  String specificMuscle = UserAssess.specificMuscle;
+  // Professional healthcare color scheme
+  static const mainColor = Color(0xFF8B2E2E);
+  static const subColor = Color(0xFFC24A4A);
+  static const detailColor = Color(0xFF6B7280);
+  static const backgroundColor = Color(0xFFF8FAFC);
+  static const successColor = Color(0xFF10B981);
+
+  String specificMuscle = '';
 
   @override
   void initState() {
     super.initState();
-    // Initialize specificMuscle from global variables
-    if (UserAssess.specificMuscle.isNotEmpty) {
-      specificMuscle = UserAssess.specificMuscle;
-    }
+    print('AssessJoints: initState() called');
+    print('AssessJoints: Current AssessmentData.specificMuscle = "${AssessmentData.specificMuscle}"');
+    print('AssessJoints: Current UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
+    
+    // Initialize specificMuscle from local data
+    specificMuscle = UserAssess.specificMuscle;
+    print('AssessJoints: specificMuscle initialized to: "$specificMuscle"');
+    print('AssessJoints: initState() completed');
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC), // Professional background
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
-          onPressed: () => Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => AssessFocus1(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-            ),
+    print('AssessJoints: build() called');
+    print('AssessJoints: Current AssessmentData.specificMuscle in build = "${AssessmentData.specificMuscle}"');
+    print('AssessJoints: Current UserAssess.specificMuscle in build = "${UserAssess.specificMuscle}"');
+    print('AssessJoints: Current specificMuscle = "$specificMuscle"');
+    
+    try {
+      return _buildPageContent(context);
+    } catch (e) {
+      print('AssessJoints: ERROR in build() - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading page: $e',
+            style: const TextStyle(color: Colors.red),
           ),
         ),
-        ),
-        title: Text(
-          "Joint Areas",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: const Color(0xFF1F2937),
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Progress Section
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.assessment,
-                          color: Color(0xFF8B2E2E),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Assessment Progress",
-                              style: GoogleFonts.ptSans(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "Step 2 of 5",
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1F2937),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-            LinearProgressIndicator(
-              value: 0.4,
-              minHeight: 8,
-                    backgroundColor: const Color(0xFFE5E7EB),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
-                  ),
-                ],
-              ),
-            ),
+      );
+    }
+  }
 
-            // Question Section
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.help_outline,
-                          color: Color(0xFF8B2E2E),
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Joint Selection",
-                              style: GoogleFonts.poppins(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1F2937),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                      Text(
-                              "Select the specific joint area you'd like to focus on",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
 
-            const SizedBox(height: 24),
-
-            // Joint Options
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                children: [
-
-                  _buildMuscleOption(
-                    'Elbow',
-                    'A hinge joint enabling arm bending and extension, supported by surrounding muscles and tendons.',
-                    Icons.accessibility_new,
-                    const Color(0xFF8B2E2E),
-                  ),
-                  
-                  _buildMuscleOption(
-                    'Knee',
-                    'A complex joint that allows leg bending and straightening, vital for standing and movement.',
-                    Icons.directions_run,
-                    const Color(0xFFC24A4A),
-                  ),
-                  
-                  _buildMuscleOption(
-                    'Ankle',
-                    'A flexible joint connecting the foot to the leg, essential for walking, running, and balance.',
-                    Icons.directions_walk,
-                    const Color(0xFF10B981),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Next Button
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideo(),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              const begin = Offset(1.0, 0.0);
-                              const end = Offset.zero;
-                              const curve = Curves.easeInOut;
-                              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                              var offsetAnimation = animation.drive(tween);
-                              return SlideTransition(position: offsetAnimation, child: child);
-                            },
-                          ),
-                        );
+  Widget _buildPageContent(BuildContext context) {
+    return Material(
+      color: backgroundColor,
+      child: Column(
+        children: [
+          // Custom AppBar
+          Container(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top,
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            color: mainColor,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  onPressed: () => Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => AssessFocus1(),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(1.0, 0.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeInOut;
+                        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                        var offsetAnimation = animation.drive(tween);
+                        return SlideTransition(position: offsetAnimation, child: child);
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    "Joint Areas",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.refresh, color: Colors.transparent),
+                ),
+              ],
+            ),
+          ),
+          // Body Content
+          Flexible(
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Progress Section
+                    _buildProgressSection(2, 8, "Joint Selection"),
+                    
+                    const SizedBox(height: 24),
+
+                    // Question Section
+                    _buildQuestionSection(
+                      "Joint Selection",
+                      "Select the specific joint area you'd like to focus on",
+                      Icons.help_outline,
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Joint Options
+                    _buildMuscleOption(
+                      'Elbow',
+                      'A hinge joint enabling arm bending and extension, supported by surrounding muscles and tendons.',
+                      Icons.accessibility_new,
+                      mainColor,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildMuscleOption(
+                      'Knee',
+                      'A complex joint that allows leg bending and straightening, vital for standing and movement.',
+                      Icons.directions_run,
+                      subColor,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildMuscleOption(
+                      'Ankle',
+                      'A flexible joint connecting the foot to the leg, essential for walking, running, and balance.',
+                      Icons.directions_walk,
+                      successColor,
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Next Button
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Continue Assessment",
-                            style: GoogleFonts.ptSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(
-                            Icons.arrow_forward,
-                            color: Colors.white,
-                            size: 20,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: mainColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainVideo(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
+                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
+                                return SlideTransition(position: offsetAnimation, child: child);
+                              },
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Continue Assessment",
+                              style: GoogleFonts.ptSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-
-                ],
+                  ],
+                ),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build a progress section widget
+  Widget _buildProgressSection(int currentStep, int totalSteps, String stepName) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: mainColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.track_changes,
+              color: mainColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Assessment Progress",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Step $currentStep of $totalSteps - $stepName",
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    color: detailColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build a question section widget
+  Widget _buildQuestionSection(String title, String description, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: mainColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: mainColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            description,
+            style: GoogleFonts.ptSans(
+              fontSize: 16,
+              color: detailColor,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -314,11 +356,10 @@ class _AssessJointsState extends State<AssessJoints> {
   Widget _buildMuscleOption(String title, String description, IconData icon, Color color) {
     final isSelected = specificMuscle == title;
     
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isSelected ? color.withOpacity(0.1) : (isDark ? Theme.of(context).colorScheme.surface : Colors.white),
+        color: isSelected ? color.withOpacity(0.1) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isSelected ? color : const Color(0xFFE5E7EB),
@@ -326,7 +367,7 @@ class _AssessJointsState extends State<AssessJoints> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -334,10 +375,22 @@ class _AssessJointsState extends State<AssessJoints> {
       ),
       child: InkWell(
         onTap: () {
+          print('AssessJoints: Joint option tapped - title: "$title"');
+          print('AssessJoints: Before setState - AssessmentData.specificMuscle = "${AssessmentData.specificMuscle}"');
+          print('AssessJoints: Before setState - UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
+          
           setState(() {
+            print('AssessJoints: Inside setState - setting AssessmentData.specificMuscle to: "$title"');
+            AssessmentData.specificMuscle = title;
+            print('AssessJoints: Inside setState - AssessmentData.specificMuscle is now: "${AssessmentData.specificMuscle}"');
+            
             specificMuscle = title;
             UserAssess.specificMuscle = title;
           });
+          
+          print('AssessJoints: Selected joint: $title');
+          print('AssessJoints: Final AssessmentData.specificMuscle = "${AssessmentData.specificMuscle}"');
+          print('AssessJoints: Final UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -376,7 +429,7 @@ class _AssessJointsState extends State<AssessJoints> {
                       description,
                       style: GoogleFonts.ptSans(
                         fontSize: 14,
-                        color: isSelected ? color.withOpacity(0.8) : const Color(0xFF6B7280),
+                        color: isSelected ? color.withOpacity(0.8) : detailColor,
                       ),
                     ),
                   ],

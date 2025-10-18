@@ -1368,15 +1368,19 @@ class _CameraPosePageState extends State<CameraPosePage> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: CustomPaint(
-                      painter: EnhancedPoseSkeletonPainter(
-                        landmarks: _currentLandmarks!,
-                        showLandmarkLabels: _skeletonConfig.showLandmarkLabels,
-                        strokeWidth: _skeletonConfig.strokeWidth,
-                        pointRadius: _skeletonConfig.pointRadius,
-                        showConfidence: _skeletonConfig.showConfidence,
-                      ),
-                      size: Size.infinite,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return CustomPaint(
+                          painter: EnhancedPoseSkeletonPainter(
+                            landmarks: _currentLandmarks!,
+                            showLandmarkLabels: _skeletonConfig.showLandmarkLabels,
+                            strokeWidth: _skeletonConfig.strokeWidth,
+                            pointRadius: _skeletonConfig.pointRadius,
+                            showConfidence: _skeletonConfig.showConfidence,
+                          ),
+                          size: Size(constraints.maxWidth, constraints.maxHeight),
+                        );
+                      },
                     ),
                   ),
                 ),

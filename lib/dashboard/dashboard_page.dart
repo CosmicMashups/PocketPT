@@ -6,6 +6,7 @@ import '../assessment/preliminary.dart';
 import '../dailyAssessment/instructionVideo.dart';
 import '../assessment/generate_plan.dart';
 import '../data/user_data_notifier.dart';
+import '../data/data_persistence_service.dart';
 import '../data/local_notifications_service.dart';
 // removed loader: using direct global data like a_goal1.dart
 
@@ -32,6 +33,8 @@ class NotificationItem {
 class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
   List<String> notifications = [];
   List<NotificationItem> _computedNotifications = [];
+  bool _isLoading = true;
+  String? _loadError;
 
   @override
   bool get wantKeepAlive => true;
@@ -39,6 +42,8 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   @override
   void initState() {
     super.initState();
+    // Trigger lazy load of full dataset for Dashboard only
+    _loadData();
     // Listen for rehabilitation plan changes
     UserDataNotifier.instance.addListener(_onRehabilitationPlanChanged);
   }
@@ -46,6 +51,8 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   @override
   void dispose() {
     UserDataNotifier.instance.removeListener(_onRehabilitationPlanChanged);
+    // Unload full dataset when leaving Dashboard to reduce memory usage
+    DataPersistenceService.instance.unloadUserData();
     super.dispose();
   }
   
@@ -60,6 +67,26 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_loadError != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 40),
+            const SizedBox(height: 12),
+            Text(_loadError!, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
     final data = _gatherDashboardData();
 
     // Refresh notifications based on current globals
@@ -71,6 +98,28 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     }
 
     return _buildDashboardContent(context, data);
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+    try {
+      await DataPersistenceService.instance.loadUserDataIfNeeded();
+      // Initialize notifier once data is available
+      UserDataNotifier.instance.initialize();
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = 'Failed to load dashboard data. Please try again.';
+      });
+    }
   }
 
   Map<String, dynamic> _gatherDashboardData() {

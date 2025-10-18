@@ -2,8 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
+import 'assessment_data.dart';
+// Sync removed for assessment (local-only)
 import 'c_painlevel.dart';
-import 'd_history.dart';
+// removed unused import
+
 class AssessPainDuration extends StatefulWidget {
   const AssessPainDuration({super.key});
 
@@ -12,325 +15,342 @@ class AssessPainDuration extends StatefulWidget {
 }
 
 class _AssessPainDurationState extends State<AssessPainDuration> {
-  String painDuration = UserAssess.painDuration;
-
   // Professional healthcare color scheme
-  static const mainColor = Color(0xFF8B2E2E); // Professional blue
-  static const subColor = Color(0xFFC24A4A); // Light maroon
-  static const detailColor = Color(0xFF6B7280); // Gray
-  static const backgroundColor = Color(0xFFF8FAFC); // Light background
-  static const successColor = Color(0xFF10B981); // Green
-  static const warningColor = Color(0xFFF59E0B); // Orange
+  static const mainColor = Color(0xFF8B2E2E);
+  static const subColor = Color(0xFFC24A4A);
+  static const detailColor = Color(0xFF6B7280);
+  static const backgroundColor = Color(0xFFF8FAFC);
+  static const successColor = Color(0xFF10B981);
+
+  String painDuration = '';
 
   @override
   void initState() {
     super.initState();
-    // Initialize painDuration from global variables
-    if (UserAssess.painDuration.isNotEmpty) {
-      painDuration = UserAssess.painDuration;
-    }
+    print('AssessPainDuration: initState() called');
+    print('AssessPainDuration: Current AssessmentData.painDuration = "${AssessmentData.painDuration}"');
+    print('AssessPainDuration: Current UserAssess.painDuration = "${UserAssess.painDuration}"');
+    
+    // Initialize painDuration from local data
+    painDuration = UserAssess.painDuration;
+    print('AssessPainDuration: painDuration initialized to: "$painDuration"');
+    print('AssessPainDuration: initState() completed');
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
-      appBar: AppBar(
-        backgroundColor: mainColor,
-        title: Text(
-          "Pain Duration",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: Colors.white,
-            letterSpacing: 0.5,
+    print('AssessPainDuration: build() called');
+    print('AssessPainDuration: Current AssessmentData.painDuration in build = "${AssessmentData.painDuration}"');
+    print('AssessPainDuration: Current UserAssess.painDuration in build = "${UserAssess.painDuration}"');
+    print('AssessPainDuration: Current painDuration = "$painDuration"');
+    
+    try {
+      return _buildPageContent(context);
+    } catch (e) {
+      print('AssessPainDuration: ERROR in build() - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading page: $e',
+            style: const TextStyle(color: Colors.red),
           ),
         ),
-        centerTitle: true,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(24),
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                mainColor,
-                subColor,
+      );
+    }
+  }
+
+
+  Widget _buildPageContent(BuildContext context) {
+    return Material(
+      color: backgroundColor,
+      child: Column(
+        children: [
+          // Custom AppBar
+          Container(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top,
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            color: mainColor,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                Expanded(
+                  child: Text(
+                    "Pain Duration",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.refresh, color: Colors.transparent),
+                ),
               ],
             ),
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(24),
-            ),
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const AssessPainLevel(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
-
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
-
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-            ),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Progress Section
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.assessment, color: mainColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Assessment Progress",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: mainColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  LinearProgressIndicator(
-                    value: 0.6,
-                    minHeight: 8,
-                    backgroundColor: const Color(0xFFE5E7EB),
-                    valueColor: AlwaysStoppedAnimation<Color>(mainColor),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Step 3 of 5",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 14,
-                      color: detailColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Question Section
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: warningColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(Icons.schedule, color: warningColor, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        "Pain Assessment",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: mainColor,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Text(
-                    "How long have you been experiencing this issue?",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: mainColor,
-                      height: 1.3,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    "Understanding the duration helps us determine the appropriate treatment approach",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 16,
-                      color: detailColor,
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Duration Options
-                  _buildDurationOption(
-                    'Less than 48 hours ago',
-                    'Within the past two days',
-                    Icons.access_time,
-                    successColor,
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  _buildDurationOption(
-                    'Within the past 3 weeks',
-                    'One to three weeks ago',
-                    Icons.calendar_today,
-                    mainColor,
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  _buildDurationOption(
-                    'Within the past 6 weeks',
-                    'Four to six weeks ago',
-                    Icons.date_range,
-                    subColor,
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  _buildDurationOption(
-                    'More than 2 months ago',
-                    'Two months onwards',
-                    Icons.history,
-                    warningColor,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Next Button
-            Container(
+          // Body Content
+          Expanded(
+            child: SizedBox(
               width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    mainColor,
-                    subColor,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: mainColor.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => const AssessHistory(),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        const begin = Offset(1.0, 0.0);
-                        const end = Offset.zero;
-                        const curve = Curves.easeInOut;
-
-                        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                        var offsetAnimation = animation.drive(tween);
-
-                        return SlideTransition(position: offsetAnimation, child: child);
-                      },
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      "Continue Assessment",
-                      style: GoogleFonts.ptSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+                    // Progress Section
+                    _buildProgressSection(3, 8, "Pain Duration Assessment"),
+                    
+                    const SizedBox(height: 24),
+
+                    // Question Section
+                    _buildQuestionSection(
+                      "Pain Duration",
+                      "How long have you been experiencing this pain?",
+                      Icons.access_time,
                     ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.arrow_forward,
-                      color: Colors.white,
-                      size: 20,
+
+                    const SizedBox(height: 24),
+
+                    // Duration Options
+                    _buildDurationOption(
+                      'Less than 1 week',
+                      'Recent onset of pain',
+                      Icons.schedule,
+                      mainColor,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDurationOption(
+                      '1-4 weeks',
+                      'Short-term pain',
+                      Icons.date_range,
+                      subColor,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDurationOption(
+                      '1-3 months',
+                      'Medium-term pain',
+                      Icons.calendar_month,
+                      successColor,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDurationOption(
+                      '3-6 months',
+                      'Long-term pain',
+                      Icons.calendar_today,
+                      const Color(0xFFF59E0B),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDurationOption(
+                      'More than 6 months',
+                      'Chronic pain',
+                      Icons.event_available,
+                      const Color(0xFFEF4444),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Next Button
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: mainColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: painDuration.isNotEmpty ? () {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => AssessPainLevel(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
+                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
+                                return SlideTransition(position: offsetAnimation, child: child);
+                              },
+                            ),
+                          );
+                        } : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Continue Assessment",
+                              style: GoogleFonts.ptSans(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 24),
-          ],
+  // Build a progress section widget
+  Widget _buildProgressSection(int currentStep, int totalSteps, String stepName) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: mainColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.track_changes,
+              color: mainColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Assessment Progress",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Step $currentStep of $totalSteps - $stepName",
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    color: detailColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build a question section widget
+  Widget _buildQuestionSection(String title, String description, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: mainColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: mainColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            description,
+            style: GoogleFonts.ptSans(
+              fontSize: 16,
+              color: detailColor,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -339,26 +359,47 @@ class _AssessPainDurationState extends State<AssessPainDuration> {
     final isSelected = painDuration == title;
     
     return Container(
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: isSelected ? color.withOpacity(0.1) : const Color(0xFFF9FAFB),
+        color: isSelected ? color.withOpacity(0.1) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isSelected ? color : const Color(0xFFE5E7EB),
           width: isSelected ? 2 : 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: InkWell(
         onTap: () {
+          print('AssessPainDuration: Duration option tapped - title: "$title"');
+          print('AssessPainDuration: Before setState - AssessmentData.painDuration = "${AssessmentData.painDuration}"');
+          print('AssessPainDuration: Before setState - UserAssess.painDuration = "${UserAssess.painDuration}"');
+          
           setState(() {
+            print('AssessPainDuration: Inside setState - setting AssessmentData.painDuration to: "$title"');
+            AssessmentData.painDuration = title;
+            print('AssessPainDuration: Inside setState - AssessmentData.painDuration is now: "${AssessmentData.painDuration}"');
+            
             painDuration = title;
             UserAssess.painDuration = title;
           });
+          
+          print('AssessPainDuration: Selected pain duration: $title');
+          print('AssessPainDuration: Final AssessmentData.painDuration = "${AssessmentData.painDuration}"');
+          print('AssessPainDuration: Final UserAssess.painDuration = "${UserAssess.painDuration}"');
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
+              // Icon
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -372,16 +413,17 @@ class _AssessPainDurationState extends State<AssessPainDuration> {
                 ),
               ),
               const SizedBox(width: 16),
+              // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: GoogleFonts.ptSans(
+                      style: GoogleFonts.poppins(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? color : mainColor,
+                        color: isSelected ? color : const Color(0xFF1F2937),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -395,6 +437,7 @@ class _AssessPainDurationState extends State<AssessPainDuration> {
                   ],
                 ),
               ),
+              // Selection indicator
               if (isSelected)
                 Container(
                   padding: const EdgeInsets.all(4),

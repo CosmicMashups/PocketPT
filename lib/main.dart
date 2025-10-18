@@ -21,8 +21,7 @@ import 'data/globals.dart';
 import 'data/data_persistence_service.dart';
 import 'data/auth_persistence_service.dart';
 import 'data/data_sync_service.dart';
-import 'data/fast_loading_service.dart';
-import 'data/page_specific_data_service.dart';
+// Removed fast/background preloaders to support lazy-loading
 import 'data/auto_save_service.dart';
 import 'data/asset_loading_service.dart';
 import 'data/theme_controller.dart';
@@ -30,7 +29,6 @@ import 'data/navigation_service.dart';
 import 'data/user_data_notifier.dart';
 import 'data/local_notifications_service.dart';
 import 'data/guest_mode_service.dart';
-import 'data/comprehensive_data_loader.dart';
 import 'welcome/login_page.dart';
 import 'dashboard/dashboard_page.dart';
 import 'assessment/preliminary.dart';
@@ -111,7 +109,7 @@ void main() async {
       }
     }
     
-    // Initialize services in parallel - skip Hive-dependent services on web
+    // Initialize core services only (defer heavy data loading until Dashboard)
     try {
       debugPrint('Main: Starting service initialization...');
       if (kIsWeb) {
@@ -122,13 +120,11 @@ void main() async {
         ]);
         debugPrint('Main: Web services initialized successfully');
       } else {
-        // On mobile/desktop, initialize all services
+        // On mobile/desktop, initialize only lightweight services
         await Future.wait([
           DataSyncService.instance.initialize(),
           AuthPersistenceService.instance.initialize(),
-          FastLoadingService.instance.initialize(),
           AssetLoadingService.instance.initialize(),
-          ComprehensiveDataLoader.instance.initialize(),
         ]);
         // Initialize local notifications (after Hive so we can use its box)
         await LocalNotificationsService.instance.initialize();
@@ -169,60 +165,15 @@ void main() async {
       }
     }
     
-    // Start the app immediately - critical data is already loading
+    // Start the app immediately - defer user data loading until Dashboard
     runApp(const ProviderScope(child: MyApp()));
-    
-    // Load background data and sync in background (non-blocking)
-    _loadBackgroundDataAndSync();
+    // Background preloading removed to honor lazy-loading architecture
   }, (error, stack) {
     debugPrint('Uncaught zone error: $error');
   });
 }
 
-// Load background data and sync in background
-void _loadBackgroundDataAndSync() async {
-  try {
-    if (kIsWeb) {
-      // On web, only sync Firebase data if authenticated
-      if (AuthPersistenceService.instance.isAuthenticated) {
-        debugPrint('Main: User is authenticated, syncing data from Firebase in background...');
-        AuthPersistenceService.instance.syncAllData().catchError((e) {
-          debugPrint('Main: Background sync failed: $e');
-        });
-      } else {
-        debugPrint('Main: User not authenticated, using Firebase data only');
-      }
-    } else {
-      // On mobile/desktop, use full data loading
-      // Wait for critical data to be loaded
-      await FastLoadingService.instance.waitForCriticalData();
-      
-      // Load background data
-      await FastLoadingService.instance.loadBackgroundData();
-      
-      // Preload page-specific data for better performance
-      try {
-        await PageSpecificDataService.instance.preloadData('dashboard');
-        await PageSpecificDataService.instance.preloadData('profile');
-        debugPrint('Main: Page-specific data preloaded successfully');
-      } catch (e) {
-        debugPrint('Main: Page-specific data preload failed: $e');
-      }
-      
-      // Sync data if user is authenticated
-      if (AuthPersistenceService.instance.isAuthenticated) {
-        debugPrint('Main: User is authenticated, syncing data from Firebase in background...');
-        AuthPersistenceService.instance.syncAllData().catchError((e) {
-          debugPrint('Main: Background sync failed: $e');
-        });
-      } else {
-        debugPrint('Main: User not authenticated, using local data only');
-      }
-    }
-  } catch (e) {
-    debugPrint('Main: Error in background loading: $e');
-  }
-}
+// Background preloading removed per lazy-loading design
 
 // Function to save all data to Hive
 Future<void> saveAllDataToHive() async {
@@ -367,17 +318,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // Check authentication status
       await AuthPersistenceService.instance.forceAuthCheck();
       
-      if (!kIsWeb) {
-        // Verify Hive data integrity first
-        final hasValidHiveData = await UserDetails.verifyHiveData();
-        debugPrint('App lifecycle: Hive data integrity check - Valid: $hasValidHiveData');
-        
-        // Load data from Hive (mobile/desktop only)
-        await DataPersistenceService.loadAllDataFromHive();
-        
-        // Re-initialize UserDataNotifier with loaded data
-        UserDataNotifier.instance.initialize();
-      }
+      // Defer full data loading to Dashboard; no-op here to preserve lazy-loading
       
       // Sync data if authenticated
       if (AuthPersistenceService.instance.isAuthenticated) {
@@ -753,23 +694,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
         return;
       }
 
-      if (kIsWeb) {
-        // On web, skip FastLoadingService and use Firebase data directly
-        debugPrint('AuthWrapper: Using Firebase data for assessment check on web');
-        // Load user data from Firebase
-        await UserDetails.loadFromFirebase();
-      } else {
-        // Use comprehensive data loader to ensure all data is loaded
-        debugPrint('AuthWrapper: Using comprehensive data loader for assessment check');
-        await ComprehensiveDataLoader.instance.initialize();
-        
-        // Ensure all critical data is loaded
-        await Future.wait([
-          ComprehensiveDataLoader.instance.ensureDataLoaded('userData'),
-          ComprehensiveDataLoader.instance.ensureDataLoaded('userAssessment'),
-          ComprehensiveDataLoader.instance.ensureDataLoaded('rehabilitationPlans'),
-        ]);
-      }
+      // Minimal assessment-only loading; avoid full user data until Dashboard
+      await UserAssess.loadFromHive();
       
       // Initialize the user data notifier with current data
       UserDataNotifier.instance.initialize();
@@ -829,7 +755,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const _FallbackScaffold();
     }
 
-    // If user hasn't completed assessment, show assessment (including guests)
+      // If user hasn't completed assessment, show assessment (including guests)
     if (!UserDetails.hasCompletedAssessment) {
       return const AssessPrelim();
     }
@@ -961,6 +887,10 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
         onTap: (int index) {
+          // If leaving Dashboard (index 0), unload full dataset
+          if (_currentIndex == 0 && index != 0) {
+            DataPersistenceService.instance.unloadUserData();
+          }
           if (index == 2) {  // If it's the PreRecordPage index (index 2)
             // Use pushReplacement to completely navigate to PreRecordPage
             Navigator.push(

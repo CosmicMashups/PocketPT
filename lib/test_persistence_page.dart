@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'data/persistence_test.dart';
+import 'data/persistence_validation.dart';
 
 class TestPersistencePage extends StatefulWidget {
   const TestPersistencePage({super.key});
@@ -12,6 +13,7 @@ class _TestPersistencePageState extends State<TestPersistencePage> {
   bool _isRunning = false;
   Map<String, dynamic>? _testResults;
   String _status = 'Ready to run tests';
+  Map<String, dynamic>? _validationResult;
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +61,19 @@ class _TestPersistencePageState extends State<TestPersistencePage> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: _isRunning ? null : _runValidation,
+                icon: const Icon(Icons.verified),
+                label: const Text('Run Hive ↔ Firebase Validation'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             if (_testResults != null) ...[
               Text(
@@ -80,6 +95,35 @@ class _TestPersistencePageState extends State<TestPersistencePage> {
                       const SizedBox(height: 12),
                       if (_testResults!['tests'] != null)
                         ..._buildTestResultCards(_testResults!['tests']),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            if (_validationResult != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Validation Summary',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildKeyValue('Success', (_validationResult!['success'] == true).toString()),
+                      if (_validationResult!['steps'] != null)
+                        _buildKeyValue('Steps', (_validationResult!['steps'] as List).join(' \u2192 ')),
+                      if (_validationResult!['errors'] != null && (_validationResult!['errors'] as List).isNotEmpty)
+                        _buildKeyValue('Errors', (_validationResult!['errors'] as List).join(' | ')),
+                      if (_validationResult!['collections'] != null)
+                        _buildKeyValue('Collections Ensured', _validationResult!['collections'].toString()),
+                      if (_validationResult!['models'] != null)
+                        _buildKeyValue('Models Snapshot', _validationResult!['models'].toString()),
                     ],
                   ),
                 ),
@@ -114,6 +158,34 @@ class _TestPersistencePageState extends State<TestPersistencePage> {
         _testResults = {
           'success': false,
           'error': e.toString(),
+        };
+      });
+    }
+  }
+
+  Future<void> _runValidation() async {
+    setState(() {
+      _isRunning = true;
+      _status = 'Running Hive ↔ Firebase validation...';
+      _validationResult = null;
+    });
+
+    try {
+      final result = await PersistenceValidation.runFull();
+      setState(() {
+        _validationResult = result;
+        _isRunning = false;
+        _status = result['success'] == true
+            ? 'Validation succeeded.'
+            : 'Validation failed. See summary below.';
+      });
+    } catch (e) {
+      setState(() {
+        _isRunning = false;
+        _status = 'Error running validation: $e';
+        _validationResult = {
+          'success': false,
+          'errors': ['Exception: $e'],
         };
       });
     }
@@ -265,6 +337,30 @@ class _TestPersistencePageState extends State<TestPersistencePage> {
       default:
         return testName;
     }
+  }
+
+  Widget _buildKeyValue(String key, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 180,
+            child: Text(
+              key,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

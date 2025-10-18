@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'c_painduration.dart';
 import 'e_summary.dart';
+import 'assessment_data.dart';
+// Sync removed for assessment (local-only)
+
 class AssessHistory extends StatefulWidget {
   const AssessHistory({super.key});
 
@@ -12,7 +15,7 @@ class AssessHistory extends StatefulWidget {
 }
 
 class _AssessHistoryState extends State<AssessHistory> {
-  bool isInjured = UserAssess.isInjured;
+  bool isInjured = false;
 
   // Professional healthcare color scheme
   static const mainColor = Color(0xFF8B2E2E); // Professional blue
@@ -24,73 +27,39 @@ class _AssessHistoryState extends State<AssessHistory> {
   @override
   void initState() {
     super.initState();
-    // Initialize isInjured from global variables
+    print('AssessHistory: initState() called');
+    print('AssessHistory: Current AssessmentData.isInjured = "${AssessmentData.isInjured}"');
+    print('AssessHistory: Current UserAssess.isInjured = "${UserAssess.isInjured}"');
+    
+    // Initialize isInjured from local data
     isInjured = UserAssess.isInjured;
+    print('AssessHistory: isInjured initialized to: $isInjured');
+    print('AssessHistory: initState() completed');
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
-      appBar: AppBar(
-        backgroundColor: mainColor,
-        title: Text(
-          "Medical History",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: Colors.white,
-            letterSpacing: 0.5,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(24),
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                mainColor,
-                subColor,
-              ],
-            ),
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(24),
-            ),
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const AssessPainDuration(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
-
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
-
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-            ),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    print('AssessHistory: build() called');
+    print('AssessHistory: Current AssessmentData.isInjured in build = "${AssessmentData.isInjured}"');
+    print('AssessHistory: Current UserAssess.isInjured in build = "${UserAssess.isInjured}"');
+    print('AssessHistory: Current isInjured = $isInjured');
+    
+    try {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return Material(
+      color: isDark ? Theme.of(context).scaffoldBackgroundColor : backgroundColor,
+      child: Column(
+        children: [
+          _buildAppBar(context),
+          Expanded(
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
             // Progress Section
             Container(
               padding: const EdgeInsets.all(20),
@@ -103,7 +72,7 @@ class _AssessHistoryState extends State<AssessHistory> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+                    color: isDark ? const Color(0x33000000) : const Color(0x0A000000),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -145,7 +114,7 @@ class _AssessHistoryState extends State<AssessHistory> {
               ),
             ),
 
-            const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
             // Question Section
             Container(
@@ -173,7 +142,7 @@ class _AssessHistoryState extends State<AssessHistory> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: mainColor.withOpacity(0.1),
+                          color: const Color(0x1A8B2E2E),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(Icons.medical_information, color: mainColor, size: 20),
@@ -236,7 +205,7 @@ class _AssessHistoryState extends State<AssessHistory> {
               ),
             ),
 
-            const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
             // Next Button
             Container(
@@ -253,7 +222,7 @@ class _AssessHistoryState extends State<AssessHistory> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: mainColor.withOpacity(0.3),
+                    color: const Color(0x4D8B2E2E),
                     blurRadius: 12,
                     offset: const Offset(0, 6),
                   ),
@@ -261,6 +230,9 @@ class _AssessHistoryState extends State<AssessHistory> {
               ),
                     child: ElevatedButton(
                       onPressed: () {
+                        debugPrint('🔍 AssessHistory: Complete Assessment button pressed');
+                        debugPrint('📊 AssessHistory: UserAssess.isInjured = ${UserAssess.isInjured}');
+                        debugPrint('🗺️ AssessHistory: Navigating to AssessSummary');
                         Navigator.push(
                           context,
                           PageRouteBuilder(
@@ -309,15 +281,83 @@ class _AssessHistoryState extends State<AssessHistory> {
                     ),
                   ),
 
-            const SizedBox(height: 24),
-          ],
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    } catch (e) {
+      print('AssessHistory: ERROR in build() - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading page: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
         ),
+      );
+    }
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      height: kToolbarHeight + MediaQuery.of(context).padding.top,
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      color: mainColor,
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () => Navigator.push(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => const AssessPainDuration(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                  var offsetAnimation = animation.drive(tween);
+                  return SlideTransition(position: offsetAnimation, child: child);
+                },
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              "Medical History",
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.refresh, color: Colors.transparent),
+          ),
+        ],
       ),
     );
   }
 
+
   Widget _buildHistoryOption(bool value, String title, String description, IconData icon, Color color) {
+    print('AssessHistory: _buildHistoryOption() called for value: $value, title: "$title"');
+    print('AssessHistory: Current AssessmentData.isInjured = "${AssessmentData.isInjured}"');
+    print('AssessHistory: Current UserAssess.isInjured = "${UserAssess.isInjured}"');
+    print('AssessHistory: Current isInjured = $isInjured');
+    
     final isSelected = isInjured == value;
+    print('AssessHistory: isSelected = $isSelected');
     
     return Container(
       decoration: BoxDecoration(
@@ -329,11 +369,23 @@ class _AssessHistoryState extends State<AssessHistory> {
         ),
       ),
       child: InkWell(
-        onTap: () {
+        onTap: () async {
+          print('AssessHistory: History option tapped - value: $value, title: "$title"');
+          print('AssessHistory: Before setState - AssessmentData.isInjured = "${AssessmentData.isInjured}"');
+          print('AssessHistory: Before setState - UserAssess.isInjured = "${UserAssess.isInjured}"');
+          
           setState(() {
+            print('AssessHistory: Inside setState - setting AssessmentData.isInjured to: $value');
+            AssessmentData.isInjured = value;
+            print('AssessHistory: Inside setState - AssessmentData.isInjured is now: "${AssessmentData.isInjured}"');
+            
             isInjured = value;
             UserAssess.isInjured = value;
           });
+          
+          print('AssessHistory: Selected injury status: $value');
+          print('AssessHistory: Final AssessmentData.isInjured = "${AssessmentData.isInjured}"');
+          print('AssessHistory: Final UserAssess.isInjured = "${UserAssess.isInjured}"');
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(

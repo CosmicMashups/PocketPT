@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'assessment_data.dart';
 import '../data/globals.dart';
-import '../data/page_specific_data_service.dart';
-import 'preliminary.dart';
 import 'b_focus1.dart';
+// Persistence and sync removed for assessment choices (local-only)
 
 class AssessGoal1 extends StatefulWidget {
   const AssessGoal1({super.key});
@@ -14,335 +13,339 @@ class AssessGoal1 extends StatefulWidget {
 }
 
 class _AssessGoal1State extends State<AssessGoal1> {
-  String rehabGoal = ''; // Will be loaded from global variables
-
   // Professional healthcare color scheme
-  static const mainColor = Color(0xFF8B2E2E); // Professional blue
-  static const subColor = Color(0xFFC24A4A); // Light blue
-  static const detailColor = Color(0xFF6B7280); // Gray
-  static const backgroundColor = Color(0xFFF8FAFC); // Light background
-  static const successColor = Color(0xFF10B981); // Green
+  static const mainColor = Color(0xFF8B2E2E);
+  static const subColor = Color(0xFFC24A4A);
+  static const detailColor = Color(0xFF6B7280);
+  static const backgroundColor = Color(0xFFF8FAFC);
+  static const successColor = Color(0xFF10B981);
 
   @override
   void initState() {
     super.initState();
-    // Initialize rehabGoal from global variables
-    if (UserAssess.rehabGoal.isNotEmpty) {
-      rehabGoal = UserAssess.rehabGoal;
+    print('AssessGoal1: initState() called');
+    print('AssessGoal1: Current AssessmentData.rehabGoal = "${AssessmentData.rehabGoal}"');
+    print('AssessGoal1: Current UserAssess.rehabGoal = "${UserAssess.rehabGoal}"');
+    
+    // Ensure we have a default value for rehabGoal
+    if (AssessmentData.rehabGoal.isEmpty) {
+      print('AssessGoal1: AssessmentData.rehabGoal is empty, setting to empty string');
+      AssessmentData.rehabGoal = '';
+    } else {
+      print('AssessGoal1: AssessmentData.rehabGoal already has value: "${AssessmentData.rehabGoal}"');
     }
+    
+    print('AssessGoal1: initState() completed');
   }
 
   @override
   Widget build(BuildContext context) {
-    // Load data from global variables instead of using OptimizedPageLoader
-    // This ensures the page always displays properly
-    if (rehabGoal.isEmpty && UserAssess.rehabGoal.isNotEmpty) {
-      rehabGoal = UserAssess.rehabGoal;
-    }
+    print('AssessGoal1: build() called');
+    print('AssessGoal1: Current AssessmentData.rehabGoal in build = "${AssessmentData.rehabGoal}"');
+    print('AssessGoal1: Current UserAssess.rehabGoal in build = "${UserAssess.rehabGoal}"');
     
-    return _buildPageContent(context);
+    try {
+      return _buildPageContent(context);
+    } catch (e) {
+      print('AssessGoal1: ERROR in build() - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading page: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
   }
 
 
   Widget _buildPageContent(BuildContext context) {
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: mainColor,
-        title: Text(
-          "Rehabilitation Goal",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: Colors.white,
-            letterSpacing: 0.5,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(24),
-          ),
-        ),
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                mainColor,
-                subColor,
+    print('AssessGoal1: _buildPageContent() called');
+    print('AssessGoal1: Current AssessmentData.rehabGoal in _buildPageContent = "${AssessmentData.rehabGoal}"');
+    print('AssessGoal1: MediaQuery size: ${MediaQuery.of(context).size}');
+    print('AssessGoal1: MediaQuery padding: ${MediaQuery.of(context).padding}');
+    print('AssessGoal1: Building layout structure...');
+    
+    try {
+      print('AssessGoal1: Creating Material widget with Column layout');
+      return Material(
+      color: backgroundColor,
+      child: Column(
+        children: [
+          // Custom AppBar
+          Container(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top,
+            padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+            color: mainColor,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  onPressed: () {
+                    print('AssessGoal1: Back button pressed');
+                    print('AssessGoal1: Current AssessmentData.rehabGoal before navigation = "${AssessmentData.rehabGoal}"');
+                    print('AssessGoal1: Current UserAssess.rehabGoal before navigation = "${UserAssess.rehabGoal}"');
+                    Navigator.pop(context);
+                    print('AssessGoal1: Navigator.pop() completed');
+                  },
+                ),
+                Expanded(
+                  child: Text(
+                    "Rehabilitation Goal",
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ],
             ),
-            borderRadius: const BorderRadius.vertical(
-              bottom: Radius.circular(24),
-            ),
           ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => const AssessPrelim(),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                const begin = Offset(1.0, 0.0);
-                const end = Offset.zero;
-                const curve = Curves.easeInOut;
-
-                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                var offsetAnimation = animation.drive(tween);
-
-                return SlideTransition(position: offsetAnimation, child: child);
-              },
-            ),
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Progress Section
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: const Color(0xFFE5E7EB),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.assessment, color: mainColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Assessment Progress",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: mainColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  LinearProgressIndicator(
-                    value: 0.2,
-                    minHeight: 8,
-                    backgroundColor: const Color(0xFFE5E7EB),
-                    valueColor: AlwaysStoppedAnimation<Color>(mainColor),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Step 1 of 5",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 14,
-                      color: detailColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Question Section
-            Container(
+          // Body Content
+          Expanded(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: const Color(0xFFE5E7EB),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: mainColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(Icons.help_outline, color: mainColor, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        "Clinical Assessment",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: mainColor,
-                        ),
-                      ),
-                    ],
-                  ),
+                    // Progress Section
+                    _buildProgressSection(1, 8, "Goal Selection"),
+                    
+                    const SizedBox(height: 24),
 
-                  const SizedBox(height: 20),
-
-                  Text(
-                    "What specific rehabilitation goal would you like to prioritize?",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: mainColor,
-                      height: 1.3,
+                    // Question Section
+                    _buildQuestionSection(
+                      "What is your primary rehabilitation goal?",
+                      "Select the goal that best describes what you want to achieve through your rehabilitation program.",
+                      Icons.flag,
                     ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
 
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 24),
 
-                  Text(
-                    "Select the primary objective for your treatment plan",
-                    style: GoogleFonts.ptSans(
-                      fontSize: 16,
-                      color: detailColor,
+                    // Goal Options
+                    _buildGoalOption(
+                      "Pain Relief",
+                      "Reduce or eliminate pain and discomfort",
+                      Icons.healing,
+                      successColor,
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Goal Options
-                  _buildGoalOption(
-                    'Alleviate Pain',
-                    'Reduce discomfort through therapy or treatment',
-                    Icons.healing,
-                    mainColor,
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  _buildGoalOption(
-                    'Improve Mobility',
-                    'Enhance your ability to move with ease',
-                    Icons.directions_walk,
-                    subColor,
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  _buildGoalOption(
-                    'Strengthen Muscle',
-                    'Focus on rebuilding physical strength',
-                    Icons.fitness_center,
-                    successColor,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Next Button
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    mainColor,
-                    subColor,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: mainColor.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => const AssessFocus1(),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        const begin = Offset(1.0, 0.0);
-                        const end = Offset.zero;
-                        const curve = Curves.easeInOut;
-
-                        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                        var offsetAnimation = animation.drive(tween);
-
-                        return SlideTransition(position: offsetAnimation, child: child);
-                      },
+                    const SizedBox(height: 16),
+                    _buildGoalOption(
+                      "Improved Mobility",
+                      "Increase range of motion and flexibility",
+                      Icons.accessibility,
+                      subColor,
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Continue Assessment",
-                      style: GoogleFonts.ptSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
+                    const SizedBox(height: 16),
+                    _buildGoalOption(
+                      "Strength Building",
+                      "Build muscle strength and endurance",
+                      Icons.fitness_center,
+                      mainColor,
                     ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.arrow_forward,
-                      color: Colors.white,
-                      size: 20,
+                    const SizedBox(height: 16),
+                    _buildGoalOption(
+                      "Functional Recovery",
+                      "Restore daily living activities",
+                      Icons.home_work,
+                      const Color(0xFF8B5CF6),
                     ),
                   ],
                 ),
               ),
-            ),
-
-            const SizedBox(height: 24),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+    } catch (e) {
+      print('AssessGoal1: ERROR in _buildPageContent - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading page content\nError: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
   }
 
+  // Build a progress section widget
+  Widget _buildProgressSection(int currentStep, int totalSteps, String stepName) {
+    print('AssessGoal1: _buildProgressSection() called - Step $currentStep of $totalSteps - $stepName');
+    try {
+      return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: mainColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.track_changes,
+              color: mainColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Assessment Progress",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Step $currentStep of $totalSteps - $stepName",
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    color: detailColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    } catch (e) {
+      print('AssessGoal1: ERROR in _buildProgressSection - $e');
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red, width: 1),
+        ),
+        child: Text(
+          'Error loading progress section\nError: $e',
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+  }
+
+  // Build a question section widget
+  Widget _buildQuestionSection(String title, String description, IconData icon) {
+    print('AssessGoal1: _buildQuestionSection() called - Title: "$title"');
+    try {
+      return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: mainColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: mainColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: mainColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            description,
+            style: GoogleFonts.ptSans(
+              fontSize: 16,
+              color: detailColor,
+            ),
+          ),
+        ],
+      ),
+    );
+    } catch (e) {
+      print('AssessGoal1: ERROR in _buildQuestionSection - $e');
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.red, width: 1),
+        ),
+        child: Text(
+          'Error loading question section\nError: $e',
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+  }
+
+
   Widget _buildGoalOption(String title, String description, IconData icon, Color color) {
-    final isSelected = rehabGoal == title;
+    print('AssessGoal1: _buildGoalOption() called for title: "$title"');
+    print('AssessGoal1: Current AssessmentData.rehabGoal = "${AssessmentData.rehabGoal}"');
+    print('AssessGoal1: Comparing with title: "$title"');
     
-    return Container(
+    final isSelected = AssessmentData.rehabGoal == title;
+    print('AssessGoal1: isSelected = $isSelected');
+    
+    try {
+      return Container(
       decoration: BoxDecoration(
         color: isSelected ? color.withOpacity(0.1) : const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(16),
@@ -352,35 +355,54 @@ class _AssessGoal1State extends State<AssessGoal1> {
         ),
       ),
       child: InkWell(
-        onTap: () {
+        onTap: () async {
+          print('AssessGoal1: Goal option tapped - "$title"');
+          print('AssessGoal1: Before setState - AssessmentData.rehabGoal = "${AssessmentData.rehabGoal}"');
+          print('AssessGoal1: Before setState - UserAssess.rehabGoal = "${UserAssess.rehabGoal}"');
+          
           setState(() {
-            rehabGoal = title;
-            UserAssess.rehabGoal = title;
+            print('AssessGoal1: Inside setState - setting AssessmentData.rehabGoal to: "$title"');
+            AssessmentData.rehabGoal = title;
+            print('AssessGoal1: Inside setState - AssessmentData.rehabGoal is now: "${AssessmentData.rehabGoal}"');
           });
           
-          // Save data using optimized service
-          PageSpecificDataService.instance.saveAssessmentData({
-            'rehabGoal': title,
-            'generalMuscle': UserAssess.generalMuscle,
-            'specificMuscle': UserAssess.specificMuscle,
-            'painScale': UserAssess.painScale,
-            'painLevel': UserAssess.painLevel,
-            'painType': UserAssess.painType,
-            'painDuration': UserAssess.painDuration,
-            'isInjured': UserAssess.isInjured,
-            'isAssessed': UserAssess.isAssessed,
-          });
+          // Update UserAssess with the new goal
+          print('AssessGoal1: Before UserAssess update - UserAssess.rehabGoal = "${UserAssess.rehabGoal}"');
+          UserAssess.rehabGoal = title;
+          print('AssessGoal1: After UserAssess update - UserAssess.rehabGoal = "${UserAssess.rehabGoal}"');
+          
+          print('AssessGoal1: Selected rehab goal: $title');
+          print('AssessGoal1: Stored locally in AssessmentData/UserAssess');
+          print('AssessGoal1: Final AssessmentData.rehabGoal = "${AssessmentData.rehabGoal}"');
+          print('AssessGoal1: Final UserAssess.rehabGoal = "${UserAssess.rehabGoal}"');
+          AssessmentData.printData();
+          
+          // Navigate to next page after a brief delay
+          print('AssessGoal1: Waiting 300ms before navigation...');
+          await Future.delayed(const Duration(milliseconds: 300));
+          print('AssessGoal1: Delay completed, checking if mounted...');
+          if (mounted) {
+            print('AssessGoal1: Widget is mounted, navigating to AssessFocus1');
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AssessFocus1()),
+            );
+            print('AssessGoal1: Navigation completed');
+          } else {
+            print('AssessGoal1: Widget is not mounted, skipping navigation');
+          }
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
+              // Icon
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isSelected ? color : color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   icon,
@@ -392,30 +414,27 @@ class _AssessGoal1State extends State<AssessGoal1> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: GoogleFonts.ptSans(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? color : mainColor,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      title,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? color : const Color(0xFF374151),
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Flexible(
-                      child: Text(
-                        description,
-                        style: GoogleFonts.ptSans(
-                          fontSize: 14,
-                          color: isSelected ? color.withOpacity(0.8) : detailColor,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      description,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        color: detailColor,
                       ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -425,12 +444,12 @@ class _AssessGoal1State extends State<AssessGoal1> {
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: color,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.check,
                     color: Colors.white,
-                    size: 16,
+                    size: 20,
                   ),
                 ),
             ],
@@ -438,5 +457,20 @@ class _AssessGoal1State extends State<AssessGoal1> {
         ),
       ),
     );
+    } catch (e) {
+      print('AssessGoal1: ERROR in _buildGoalOption for "$title" - $e');
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red, width: 1),
+        ),
+        child: Text(
+          'Error loading option: $title\nError: $e',
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
   }
 }

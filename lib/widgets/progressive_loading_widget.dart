@@ -240,17 +240,19 @@ class _ProgressiveLoadingWidgetState extends State<ProgressiveLoadingWidget>
   }
 }
 
-/// Simple loading overlay
+/// Simple loading overlay with progress support
 class LoadingOverlay extends StatelessWidget {
   final Widget child;
   final bool isLoading;
   final String? message;
+  final double? progress;
 
   const LoadingOverlay({
     super.key,
     required this.child,
     required this.isLoading,
     this.message,
+    this.progress,
   });
 
   @override
@@ -272,7 +274,36 @@ class LoadingOverlay extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const CircularProgressIndicator(),
+                    // Show progress indicator or circular progress
+                    if (progress != null) ...[
+                      SizedBox(
+                        width: 60,
+                        height: 60,
+                        child: Stack(
+                          children: [
+                            CircularProgressIndicator(
+                              value: progress,
+                              strokeWidth: 4,
+                              backgroundColor: Colors.grey[300],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.blue[600]!,
+                              ),
+                            ),
+                            Center(
+                              child: Text(
+                                '${(progress! * 100).toInt()}%',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue[600],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else
+                      const CircularProgressIndicator(),
                     if (message != null) ...[
                       const SizedBox(height: 16),
                       Text(
@@ -280,6 +311,7 @@ class LoadingOverlay extends StatelessWidget {
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           color: Colors.grey[800],
+                          fontWeight: FontWeight.w500,
                         ),
                         textAlign: TextAlign.center,
                       ),

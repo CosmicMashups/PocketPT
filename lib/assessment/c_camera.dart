@@ -1,7 +1,6 @@
 // Import necessary packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'dart:io';
 import 'dart:async';
@@ -10,6 +9,7 @@ import '../data/globals.dart';
 import '../main.dart';
 import '../data/pose_detection_service.dart';
 import '../widgets/enhanced_pose_skeleton_painter.dart';
+import 'assessment_data.dart';
 import 'c_video.dart';
 import 'c_upload.dart';
 import 'c_videopreview.dart';
@@ -22,13 +22,13 @@ class AssessPainCamera extends StatefulWidget {
 
 class _AssessPainCameraState extends State<AssessPainCamera> {
   // Constants matching Jupyter Python code
-  static const double CALF_SEVERE_THRESHOLD = 0.15;  // Normalized displacement < 0.15 -> Severe
-  static const double CALF_MODERATE_THRESHOLD = 0.30;  // 0.15 <= displacement < 0.30 -> Moderate
-  static const double HAMSTRING_SEVERE_THRESHOLD = 60.0;  // Angle < 60° -> Severe
-  static const double HAMSTRING_MODERATE_THRESHOLD = 80.0;  // 60° <= Angle < 80° -> Moderate
-  static const double PELVIC_COMPENSATION_THRESHOLD_NORM = 0.05; // Vertical difference > 5% of body height proxy -> Warning
+  static const double calfSevereThreshold = 0.15;  // Normalized displacement < 0.15 -> Severe
+  static const double calfModerateThreshold = 0.30;  // 0.15 <= displacement < 0.30 -> Moderate
+  static const double hamstringSevereThreshold = 60.0;  // Angle < 60° -> Severe
+  static const double hamstringModerateThreshold = 80.0;  // 60° <= Angle < 80° -> Moderate
+  static const double pelvicCompensationThresholdNorm = 0.05; // Vertical difference > 5% of body height proxy -> Warning
 
-  int painScale = UserAssess.painScale;
+  int painScale = 0;
   late CameraController _controller;
   late List<CameraDescription> cameras;
   bool _isCameraInitialized = false;
@@ -96,7 +96,16 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   @override
   void initState() {
     super.initState();
+    print('AssessPainCamera: initState() called');
+    print('AssessPainCamera: Current AssessmentData.painScale = "${AssessmentData.painScale}"');
+    print('AssessPainCamera: Current UserAssess.painScale = "${UserAssess.painScale}"');
+    
+    // Initialize pain scale from local data
+    painScale = UserAssess.painScale;
+    print('AssessPainCamera: painScale initialized to: $painScale');
+    
     _initializeCamera();
+    print('AssessPainCamera: initState() completed');
   }
 
   @override
@@ -406,14 +415,14 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
       // ROM Classification based on normalized displacement
       // Using exact thresholds from Jupyter code
-      if (absNormDisplacement < CALF_SEVERE_THRESHOLD) {
-        _calfROMLevel = "Calf ROM: Severe (< ${CALF_SEVERE_THRESHOLD.toStringAsFixed(2)})";
+      if (absNormDisplacement < calfSevereThreshold) {
+        _calfROMLevel = "Calf ROM: Severe (< ${calfSevereThreshold.toStringAsFixed(2)})";
         _calfDisplayColor = Colors.red;
-      } else if (absNormDisplacement < CALF_MODERATE_THRESHOLD) {
-        _calfROMLevel = "Calf ROM: Moderate (${CALF_SEVERE_THRESHOLD.toStringAsFixed(2)}-${CALF_MODERATE_THRESHOLD.toStringAsFixed(2)})";
+      } else if (absNormDisplacement < calfModerateThreshold) {
+        _calfROMLevel = "Calf ROM: Moderate (${calfSevereThreshold.toStringAsFixed(2)}-${calfModerateThreshold.toStringAsFixed(2)})";
         _calfDisplayColor = Colors.orange;
-      } else { // absNormDisplacement >= CALF_MODERATE_THRESHOLD
-        _calfROMLevel = "Calf ROM: Good (> ${CALF_MODERATE_THRESHOLD.toStringAsFixed(2)})";
+      } else { // absNormDisplacement >= calfModerateThreshold
+        _calfROMLevel = "Calf ROM: Good (> ${calfModerateThreshold.toStringAsFixed(2)})";
         _calfDisplayColor = Colors.green;
       }
 
@@ -425,11 +434,11 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       }
 
       // Update pain score based on ROM level (using standardized clinical scale)
-      if (absNormDisplacement < CALF_SEVERE_THRESHOLD) {
+      if (absNormDisplacement < calfSevereThreshold) {
         UserAssess.painScale = 9; // Severe (8-10 range)
-      } else if (absNormDisplacement < CALF_MODERATE_THRESHOLD) {
+      } else if (absNormDisplacement < calfModerateThreshold) {
         UserAssess.painScale = 6; // Moderate (5-7 range)
-      } else { // absNormDisplacement >= CALF_MODERATE_THRESHOLD
+      } else { // absNormDisplacement >= calfModerateThreshold
         UserAssess.painScale = 1; // Good (0-1 range)
       }
       UserAssess.painLevel = UserAssess.painScale.toString();
@@ -472,16 +481,16 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       _hamstringAngle = _calculateVerticalAngle(hip, ankle);
 
       // ROM Classification based on angle (using standardized clinical scale)
-      if (_hamstringAngle < HAMSTRING_SEVERE_THRESHOLD) {
-        _hamstringROMLevel = "Hamstring ROM: Severe (< ${HAMSTRING_SEVERE_THRESHOLD.toInt()}°)";
+      if (_hamstringAngle < hamstringSevereThreshold) {
+        _hamstringROMLevel = "Hamstring ROM: Severe (< ${hamstringSevereThreshold.toInt()}°)";
         _hamstringDisplayColor = Colors.red;
         UserAssess.painScale = 9; // Severe (8-10 range)
-      } else if (_hamstringAngle < HAMSTRING_MODERATE_THRESHOLD) {
-        _hamstringROMLevel = "Hamstring ROM: Moderate (${HAMSTRING_SEVERE_THRESHOLD.toInt()}-${HAMSTRING_MODERATE_THRESHOLD.toInt()}°)";
+      } else if (_hamstringAngle < hamstringModerateThreshold) {
+        _hamstringROMLevel = "Hamstring ROM: Moderate (${hamstringSevereThreshold.toInt()}-${hamstringModerateThreshold.toInt()}°)";
         _hamstringDisplayColor = Colors.orange;
         UserAssess.painScale = 6; // Moderate (5-7 range)
-      } else { // _hamstringAngle >= HAMSTRING_MODERATE_THRESHOLD
-        _hamstringROMLevel = "Hamstring ROM: Good (> ${HAMSTRING_MODERATE_THRESHOLD.toInt()}°)";
+      } else { // _hamstringAngle >= hamstringModerateThreshold
+        _hamstringROMLevel = "Hamstring ROM: Good (> ${hamstringModerateThreshold.toInt()}°)";
         _hamstringDisplayColor = Colors.green;
         UserAssess.painScale = 1; // Good (0-1 range)
       }
@@ -500,7 +509,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       if (torsoHeightProxy > 5) {
         final normVerticalHipDifference = verticalHipDifference / torsoHeightProxy;
         
-        if (normVerticalHipDifference > PELVIC_COMPENSATION_THRESHOLD_NORM) { // 5% threshold from Jupyter code
+        if (normVerticalHipDifference > pelvicCompensationThresholdNorm) { // 5% threshold from Jupyter code
           _hamstringCompensation = "Compensation: Pelvic Tilt (${normVerticalHipDifference.toStringAsFixed(2)})";
         } else {
           _hamstringCompensation = "Compensation: Stable";
@@ -576,11 +585,14 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   @override
   Widget build(BuildContext context) {
-    // final screenHeight = MediaQuery.of(context).size.height;
-    // final screenWidth = MediaQuery.of(context).size.width;
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
+    print('AssessPainCamera: build() called');
+    print('AssessPainCamera: Current AssessmentData.painScale in build = "${AssessmentData.painScale}"');
+    print('AssessPainCamera: Current UserAssess.painScale in build = "${UserAssess.painScale}"');
+    print('AssessPainCamera: Current painScale = $painScale');
+    
+    try {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : kBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -1053,15 +1065,19 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(18),
-                          child: CustomPaint(
-                            painter: EnhancedPoseSkeletonPainter(
-                              landmarks: _currentLandmarks!,
-                              showLandmarkLabels: _skeletonConfig.showLandmarkLabels,
-                              strokeWidth: _skeletonConfig.strokeWidth,
-                              pointRadius: _skeletonConfig.pointRadius,
-                              showConfidence: _skeletonConfig.showConfidence,
-                            ),
-                            size: Size.infinite,
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return CustomPaint(
+                                painter: EnhancedPoseSkeletonPainter(
+                                  landmarks: _currentLandmarks!,
+                                  showLandmarkLabels: _skeletonConfig.showLandmarkLabels,
+                                  strokeWidth: _skeletonConfig.strokeWidth,
+                                  pointRadius: _skeletonConfig.pointRadius,
+                                  showConfidence: _skeletonConfig.showConfidence,
+                                ),
+                                size: Size(constraints.maxWidth, constraints.maxHeight),
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -1310,7 +1326,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                           });
                         }
                         if (context.mounted) {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => AssessPainUpload()));
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => AssessUpload()));
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -1413,6 +1429,18 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         ],
       ),
     );
+    } catch (e) {
+      print('AssessPainCamera: ERROR in build() - $e');
+      return Container(
+        color: kBackgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading camera page: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
   }
 
   // ROM Display Update Methods

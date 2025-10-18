@@ -238,6 +238,11 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
         if (mounted) {
           setState(() {});
         }
+      }).catchError((error) {
+        if (mounted) {
+          setState(() {});
+        }
+        debugPrint('Error initializing video: $error');
       });
 
     _listener = () {
@@ -284,7 +289,9 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
+                    aspectRatio: _controller.value.aspectRatio > 0 
+                        ? _controller.value.aspectRatio 
+                        : 16/9, // Default aspect ratio if invalid
                     child: VideoPlayer(_controller),
                   ),
                 ),
@@ -328,7 +335,19 @@ class _LocalVideoPlayerState extends State<LocalVideoPlayer> {
               ],
             ),
           )
-        : const Center(child: CircularProgressIndicator());
+        : Container(
+            height: 200, // Fixed height for loading state
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F2F2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF800020)),
+              ),
+            ),
+          );
   }
 }
 

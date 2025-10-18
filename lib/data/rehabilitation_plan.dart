@@ -507,6 +507,10 @@ class UserRehabilitation {
   // Hive persistence - now saves only IDs like Firebase
   Future<void> savePlansToHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        print('UserRehabilitation.savePlansToHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
       
       // Extract all unique exercise IDs from rehabilitation plans
@@ -571,6 +575,10 @@ class UserRehabilitation {
 
   Future<void> loadPlansFromHive() async {
     try {
+      if (!Hive.isBoxOpen('rehabBox')) {
+        print('UserRehabilitation.loadPlansFromHive: Hive box not open, attempting to open...');
+        await Hive.openBox('rehabBox');
+      }
       final box = Hive.box('rehabBox');
       
       // Load exercise IDs from Hive

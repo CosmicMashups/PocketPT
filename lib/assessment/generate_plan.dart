@@ -61,7 +61,9 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
           _isLoading = false;
         });
         UserRehabilitation.instance.treatmentReferences = treatmentReferences;
+        // Persist current treatment recommendations (IDs) for consistency across sessions
         await UserRehabilitation.instance.savePlansToHive();
+        await UserRehabilitation.instance.savePlansToFirebase();
       } else if (plan == null && (treatmentReferences == null || treatmentReferences.isEmpty)) {
         setState(() {
           _error = "⚠️ Not enough matching exercises or treatments found.";
@@ -69,7 +71,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
           _treatmentReferences = null;
           _isLoading = false;
         });
-        await UserRehabilitation.instance.savePlansToHive();
+        // Keep plans only in memory for now (no persistence here)
       } else {
         UserRehabilitation.instance.rehabPlans = plan != null ? [plan] : [];
         setState(() {
@@ -79,7 +81,9 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
           _isLoading = false;
         });
         UserRehabilitation.instance.treatmentReferences = treatmentReferences;
+        // Persist plan exercises (IDs) and treatments (IDs) to both Hive and Firebase
         await UserRehabilitation.instance.savePlansToHive();
+        await UserRehabilitation.instance.savePlansToFirebase();
       }
     } catch (e) {
       setState(() {
@@ -451,6 +455,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                       await UserAssess.saveToHive();
                       // Persist rehab plans/treatments immediately
                       await UserRehabilitation.instance.savePlansToHive();
+                      await UserRehabilitation.instance.savePlansToFirebase();
                       // Ensure an active program is recorded
                       if (ActiveProgram.startDate == null) {
                         ActiveProgram.startDate = DateTime.now();
