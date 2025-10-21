@@ -122,38 +122,31 @@ class _AssessPainDurationState extends State<AssessPainDuration> {
 
                     // Duration Options
                     _buildDurationOption(
-                      'Less than 1 week',
-                      'Recent onset of pain',
+                      'Less than 48 hours ago',
+                      'Very recent onset of pain',
                       Icons.schedule,
                       mainColor,
                     ),
                     const SizedBox(height: 16),
                     _buildDurationOption(
-                      '1-4 weeks',
-                      'Short-term pain',
+                      'Within the past 3 weeks',
+                      'Recent pain within the past few weeks',
                       Icons.date_range,
                       subColor,
                     ),
                     const SizedBox(height: 16),
                     _buildDurationOption(
-                      '1-3 months',
-                      'Medium-term pain',
+                      'Within the past 6 weeks',
+                      'Pain experienced within the past month and a half',
                       Icons.calendar_month,
                       successColor,
                     ),
                     const SizedBox(height: 16),
                     _buildDurationOption(
-                      '3-6 months',
-                      'Long-term pain',
+                      'More than 2 months ago',
+                      'Pain that has been ongoing for more than 2 months',
                       Icons.calendar_today,
                       const Color(0xFFF59E0B),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildDurationOption(
-                      'More than 6 months',
-                      'Chronic pain',
-                      Icons.event_available,
-                      const Color(0xFFEF4444),
                     ),
                     const SizedBox(height: 32),
 

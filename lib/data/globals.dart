@@ -767,6 +767,12 @@ class UserAssess {
   static bool isInjured = false;
   static bool isAssessed = false;
   static DateTime? lastModified;
+  
+  // Muscle injury assessment fields
+  static List<String> injuredMuscles = [];
+  static Map<String, int> musclePainLevels = {}; // muscle name -> pain level (0-10)
+  static Map<String, String> musclePainCategories = {}; // muscle name -> category (Low/Moderate/Severe)
+  static Map<String, bool> muscleStillPainful = {}; // muscle name -> still experiencing pain (true/false)
 
   // Assessment stored locally only; no Firebase/Hive persistence
   // Keep fields in-memory and mirror to AssessmentData when asked to save/load
@@ -792,6 +798,10 @@ class UserAssess {
         'painDuration': painDuration,
         'isInjured': isInjured,
         'isAssessed': isAssessed,
+        'injuredMuscles': injuredMuscles,
+        'musclePainLevels': musclePainLevels,
+        'musclePainCategories': musclePainCategories,
+        'muscleStillPainful': muscleStillPainful,
         'lastUpdated': FieldValue.serverTimestamp(),
         'userId': currentUser.uid,
       });
@@ -829,6 +839,10 @@ class UserAssess {
         painDuration = data['painDuration'] ?? '';
         isInjured = data['isInjured'] ?? false;
         isAssessed = data['isAssessed'] ?? false;
+        injuredMuscles = List<String>.from(data['injuredMuscles'] ?? []);
+        musclePainLevels = Map<String, int>.from(data['musclePainLevels'] ?? {});
+        musclePainCategories = Map<String, String>.from(data['musclePainCategories'] ?? {});
+        muscleStillPainful = Map<String, bool>.from(data['muscleStillPainful'] ?? {});
         
         debugPrint('UserAssess.loadFromFirebase: Successfully loaded assessment from Firebase');
         
@@ -856,6 +870,10 @@ class UserAssess {
     AssessmentData.painDuration = painDuration;
     AssessmentData.isInjured = isInjured;
     AssessmentData.isAssessed = isAssessed;
+    AssessmentData.injuredMuscles = injuredMuscles;
+    AssessmentData.musclePainLevels = musclePainLevels;
+    AssessmentData.musclePainCategories = musclePainCategories;
+    AssessmentData.muscleStillPainful = muscleStillPainful;
     debugPrint('UserAssess.saveToHive: synced to AssessmentData (local-only)');
   }
 
@@ -870,6 +888,10 @@ class UserAssess {
     painDuration = AssessmentData.painDuration;
     isInjured = AssessmentData.isInjured;
     isAssessed = AssessmentData.isAssessed;
+    injuredMuscles = AssessmentData.injuredMuscles;
+    musclePainLevels = AssessmentData.musclePainLevels;
+    musclePainCategories = AssessmentData.musclePainCategories;
+    muscleStillPainful = AssessmentData.muscleStillPainful;
     debugPrint('UserAssess.loadFromHive: loaded from AssessmentData (local-only)');
   }
 }
@@ -1674,6 +1696,7 @@ class ExerciseHistory {
           sets: exerciseRef.sets,
           imageUrl: '',
           videoUrl: '',
+          otherMuscles: '',
         );
       }
     }
@@ -1692,6 +1715,7 @@ class ExerciseHistory {
         sets: lastRef.sets,
         imageUrl: '',
         videoUrl: '',
+        otherMuscles: '',
       );
     }
     return null;
@@ -1710,6 +1734,7 @@ class ExerciseSnapshot {
   final int sets;
   final String imageUrl;
   final String videoUrl;
+  final String otherMuscles;
 
   const ExerciseSnapshot({
     required this.exerciseId,
@@ -1722,6 +1747,7 @@ class ExerciseSnapshot {
     required this.sets,
     required this.imageUrl,
     required this.videoUrl,
+    required this.otherMuscles,
   });
 }
 

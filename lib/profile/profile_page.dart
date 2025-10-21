@@ -105,7 +105,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final firstName = data['firstName'] ?? '';
     final lastName = data['lastName'] ?? '';
     final email = data['email'] ?? '';
-    final profilePicture = data['profilePicture'] ?? '01.jpg';
     
     return Container(
               padding: const EdgeInsets.all(24),
@@ -156,7 +155,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             children: [
                               CircleAvatar(
                                 radius: 50,
-                        backgroundImage: AssetImage('assets/images/pfp/$profilePicture'),
+                        backgroundImage: AssetImage('assets/images/pfp/${UserDataNotifier.instance.profilePicture}'),
                                 backgroundColor: Colors.grey[200],
                               ),
                               Positioned(
@@ -226,27 +225,59 @@ class _ProfilePageState extends State<ProfilePage> {
                           showCustomInputDialog(
                             context: context,
                             title: 'Edit Profile',
-                            fieldLabels: ['First Name', 'Last Name', 'Email'],
+                            fieldLabels: ['First Name', 'Last Name'],
                             initialValues: [
                               UserDataNotifier.instance.firstName,
                               UserDataNotifier.instance.lastName,
-                              UserDataNotifier.instance.email,
                             ],
                             onSave: (values) async {
-                              setState(() {
-                                UserDataNotifier.instance.updateUserData(
-                                  firstName: values[0],
-                                  lastName: values[1],
-                                  email: values[2],
+                              // Validate that both fields are non-empty
+                              if (values[0].trim().isEmpty || values[1].trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('First name and last name cannot be empty'),
+                                    backgroundColor: Colors.red,
+                                  ),
                                 );
-                              });
+                                return;
+                              }
 
-                              // Save to Hive
-                              await UserDetails.saveToHive();
+                              try {
+                                // Update the UI immediately
+                                setState(() {
+                                  UserDataNotifier.instance.updateUserData(
+                                    firstName: values[0].trim(),
+                                    lastName: values[1].trim(),
+                                  );
+                                });
 
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('User details updated successfully')),
-                              );
+                                // Save to Hive
+                                await UserDetails.saveToHive();
+
+                                // Sync to Firebase
+                                await UserDetails.updateInFirebase(
+                                  newFirstName: values[0].trim(),
+                                  newLastName: values[1].trim(),
+                                );
+
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Profile updated successfully'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to update profile: ${e.toString()}'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
                             },
                           );
                         },
@@ -893,36 +924,113 @@ class _ProfilePageState extends State<ProfilePage> {
             'Update your account password',
             Icons.lock,
             () {
+              // Check if user is in guest mode
+              if (UserDetails.isGuest) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Password changes are not available for guest users'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
               showCustomInputDialog(
                 context: context,
                 title: 'Change Password',
                 fieldLabels: ['New Password', 'Confirm Password'],
                 initialValues: ['', ''],
                 onSave: (values) async {
+                  // Validate that both fields are non-empty
                   if (values[0].isEmpty || values[1].isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please fill in both fields')),
+                      const SnackBar(
+                        content: Text('Please fill in both fields'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                     return;
                   }
 
+                  // Validate minimum password length
+                  if (values[0].length < 6) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Password must be at least 6 characters long'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Validate password confirmation
                   if (values[0] != values[1]) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Passwords do not match')),
+                      const SnackBar(
+                        content: Text('Passwords do not match'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                     return;
                   }
 
-                  setState(() {
-                    UserDetails.password = values[0];
-                  });
+                  try {
+                    // Update password in Firebase Auth
+                    final user = _auth.currentUser;
+                    if (user != null) {
+                      await user.updatePassword(values[0]);
+                    }
 
-                  // Save to Hive
-                  await UserDetails.saveToHive();
+                    // Update password in local storage
+                    setState(() {
+                      UserDetails.password = values[0];
+                    });
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password updated successfully')),
-                  );
+                    // Save to Hive
+                    await UserDetails.saveToHive();
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Password updated successfully'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } on FirebaseAuthException catch (e) {
+                    String errorMessage = 'Failed to update password';
+                    switch (e.code) {
+                      case 'weak-password':
+                        errorMessage = 'Password is too weak';
+                        break;
+                      case 'requires-recent-login':
+                        errorMessage = 'Please log in again before changing password';
+                        break;
+                      case 'network-request-failed':
+                        errorMessage = 'Network error. Please check your connection';
+                        break;
+                      default:
+                        errorMessage = 'Failed to update password: ${e.message}';
+                    }
+                    
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(errorMessage),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('An unexpected error occurred: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
                 },
               );
             },

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:camera/camera.dart';
 import '../data/globals.dart';
 import '../home_dialog.dart';
 import '../data/rehabilitation_plan.dart';
 import 'pre_record_page.dart';
 import 'confirm_save_page.dart';
 import 'stopwatch_service.dart';
+import 'camera_service.dart';
+import 'exercise_cache_service.dart';
 class RecordExercisePage extends StatefulWidget {
   final Exercise exercise;
 
@@ -17,9 +18,9 @@ class RecordExercisePage extends StatefulWidget {
 }
 
 class _RecordExercisePageState extends State<RecordExercisePage> {
-  late CameraController _controller;
+  final CameraService _cameraService = CameraService.instance;
+  final ExerciseCacheService _cacheService = ExerciseCacheService.instance;
   bool _isCameraInitialized = false;
-  late List<CameraDescription> cameras;
 
   @override
   void initState() {
@@ -30,20 +31,11 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
 
   Future<void> _initializeCamera() async {
     try {
-      cameras = await availableCameras();
-      if (cameras.isNotEmpty) {
-        // Use lower resolution and disable audio to reduce load on low-end devices
-        _controller = CameraController(
-          cameras[0],
-          ResolutionPreset.medium,
-          enableAudio: false,
-        );
-        await _controller.initialize();
-        if (mounted) {
-          setState(() {
-            _isCameraInitialized = true;
-          });
-        }
+      final success = await _cameraService.initialize();
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = success;
+        });
       }
     } catch (e) {
       debugPrint('Error initializing camera: $e');
@@ -57,19 +49,63 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
 
   @override
   void dispose() {
-    try {
-      if (_isCameraInitialized) {
-        _controller.dispose();
-      }
-    } catch (e) {
-      debugPrint('Error disposing camera: $e');
-    }
+    // Don't dispose camera service here as it's shared across pages
+    // Only dispose when exiting the entire recording workflow
     super.dispose();
+  }
+
+  Widget _buildCameraPreview(bool isDark) {
+    if (_isCameraInitialized && _cameraService.isReady) {
+      final cameraPreview = _cameraService.getCameraPreview();
+      if (cameraPreview != null) {
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
+            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: AspectRatio(
+              aspectRatio: _cameraService.controller!.value.aspectRatio,
+              child: cameraPreview,
+            ),
+          ),
+        );
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(
+            'Initializing camera...',
+            style: GoogleFonts.ptSans(
+              color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    double screenHeight = MediaQuery.of(context).size.height;
     final rehabPlans = UserRehabilitation.instance.rehabPlans;
     final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
     final currentExercise = widget.exercise;
@@ -141,33 +177,11 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Camera Preview
-                _isCameraInitialized
-                    ? Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: SizedBox(
-                            height: screenHeight * 0.55,
-                            width: double.infinity,
-                            child: AspectRatio(
-                              aspectRatio: _controller.value.aspectRatio,
-                              child: CameraPreview(_controller),
-                            ),
-                          ),
-                        ),
-                      )
-                    : const Center(child: CircularProgressIndicator()),
+                // Camera Preview with responsive layout
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.4,
+                  child: _buildCameraPreview(isDark),
+                ),
                 const SizedBox(height: 10),
 
                 // Timer
@@ -201,7 +215,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                 ),
                 const SizedBox(height: 24),
 
-                // Buttons
+                // Buttons with responsive layout
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -226,7 +240,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                             );
 
                             final prevExerciseRef = rehabPlan.exerciseReferences[prevIndex];
-                            final prevExercise = await ExerciseDataService.getExerciseById(prevExerciseRef.exerciseId);
+                            final prevExercise = await _cacheService.getExerciseById(prevExerciseRef.exerciseId);
                             
                             if (prevExercise != null) {
                               Navigator.pushReplacement(
@@ -295,7 +309,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                             );
 
                             final nextExerciseRef = rehabPlan.exerciseReferences[nextIndex];
-                            final nextExercise = await ExerciseDataService.getExerciseById(nextExerciseRef.exerciseId);
+                            final nextExercise = await _cacheService.getExerciseById(nextExerciseRef.exerciseId);
                             
                             if (nextExercise != null) {
                               Navigator.pushReplacement(
@@ -317,7 +331,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                             // Record all completed exercises for today
                             for (int i = 0; i <= currentIndex; i++) {
                               final exerciseRef = rehabPlan.exerciseReferences[i];
-                              final exercise = await ExerciseDataService.getExerciseById(exerciseRef.exerciseId);
+                              final exercise = await _cacheService.getExerciseById(exerciseRef.exerciseId);
                               if (exercise != null) {
                                 ExerciseHistory.recordTodayAndSave(
                                   exerciseId: exercise.exerciseId,
@@ -426,31 +440,39 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
   }
 
   Widget _buildCustomButton({required IconData icon, required String label, required VoidCallback onTap}) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+    return Flexible(
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 100, maxWidth: 150),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(color: const Color(0xFF8B2E2E).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+          ],
         ),
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(color: const Color(0xFF8B2E2E).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.chevron_right, color: Colors.white),
-        label: Text(
-          label,
-          style: GoogleFonts.ptSans(color: Colors.white, fontWeight: FontWeight.w700),
+        child: ElevatedButton.icon(
+          icon: Icon(icon, color: Colors.white, size: 20),
+          label: Flexible(
+            child: Text(
+              label,
+              style: GoogleFonts.ptSans(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          ),
+          onPressed: onTap,
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        ),
-        onPressed: onTap,
       ),
     );
   }

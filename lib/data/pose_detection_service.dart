@@ -18,6 +18,7 @@ class PoseDetectionService {
   );
 
   // State from last processed frame to support coordinate normalization
+  // These are used to ensure landmarks are properly normalized and mirrored
   Size? _lastImageSize;
   bool _isFrontCamera = false;
 
@@ -122,20 +123,31 @@ class PoseDetectionService {
     return format ?? InputImageFormat.nv21;
   }
 
-  // Get pose landmarks as a map
+  // Get pose landmarks as a map with improved coordinate normalization
   Map<String, Offset> getPoseLandmarks(Pose pose) {
     final landmarks = <String, Offset>{};
     final Size? imgSize = _lastImageSize;
-    // Helper to normalize and mirror if needed
+    
+    // Helper to normalize and mirror if needed with improved error handling
     Offset _toNormalized(Offset p) {
-      if (imgSize == null || imgSize.width == 0 || imgSize.height == 0) {
-        return p; // Fallback: raw coordinates
+      if (imgSize == null || imgSize.width <= 0 || imgSize.height <= 0) {
+        debugPrint('Warning: Invalid image size for coordinate normalization: $imgSize');
+        return Offset(0.5, 0.5); // Return center point as fallback
       }
-      double nx = p.dx / imgSize.width;
-      double ny = p.dy / imgSize.height;
+      
+      // Ensure coordinates are within valid range
+      double x = p.dx.clamp(0.0, imgSize.width);
+      double y = p.dy.clamp(0.0, imgSize.height);
+      
+      // Normalize to 0.0-1.0 range
+      double nx = x / imgSize.width;
+      double ny = y / imgSize.height;
+      
+      // Mirror horizontally for front camera preview to match camera display
       if (_isFrontCamera) {
-        nx = 1.0 - nx; // Mirror horizontally for front camera preview
+        nx = 1.0 - nx;
       }
+      
       return Offset(nx, ny);
     }
     for (final entry in pose.landmarks.entries) {

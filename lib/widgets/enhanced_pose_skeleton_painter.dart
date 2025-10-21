@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 /// Enhanced pose skeleton painter with improved visualization and performance
+/// 
+/// This painter renders pose landmarks as a skeleton overlay with optimized
+/// repaint logic and proper coordinate scaling. It expects normalized coordinates
+/// (0.0-1.0) and scales them to the provided canvas size.
 class EnhancedPoseSkeletonPainter extends CustomPainter {
   final Map<String, Offset> landmarks;
   final bool showLandmarkLabels;
@@ -211,10 +215,28 @@ class EnhancedPoseSkeletonPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant EnhancedPoseSkeletonPainter oldDelegate) {
-    return oldDelegate.landmarks != landmarks ||
-           oldDelegate.showLandmarkLabels != showLandmarkLabels ||
-           oldDelegate.strokeWidth != strokeWidth ||
-           oldDelegate.pointRadius != pointRadius;
+    // Efficient comparison: only repaint if landmarks actually changed
+    if (oldDelegate.landmarks.length != landmarks.length) {
+      return true;
+    }
+    
+    // Check if any landmark positions have changed (with small tolerance for floating point precision)
+    for (final entry in landmarks.entries) {
+      final oldPoint = oldDelegate.landmarks[entry.key];
+      if (oldPoint == null) return true;
+      
+      // Use small tolerance to avoid unnecessary repaints from minor floating point differences
+      const tolerance = 0.001;
+      if ((entry.value.dx - oldPoint.dx).abs() > tolerance ||
+          (entry.value.dy - oldPoint.dy).abs() > tolerance) {
+        return true;
+      }
+    }
+    
+    // Check if visualization settings changed
+    return oldDelegate.showLandmarkLabels != showLandmarkLabels ||
+           (oldDelegate.strokeWidth - strokeWidth).abs() > 0.1 ||
+           (oldDelegate.pointRadius - pointRadius).abs() > 0.1;
   }
 }
 

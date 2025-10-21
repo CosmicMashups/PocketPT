@@ -15,6 +15,12 @@ class AssessmentData {
   static bool isInjured = false;
   static bool isAssessed = false;
   
+  // Muscle injury assessment fields
+  static List<String> injuredMuscles = [];
+  static Map<String, int> musclePainLevels = {}; // muscle name -> pain level (0-10)
+  static Map<String, String> musclePainCategories = {}; // muscle name -> category (Low/Moderate/Severe)
+  static Map<String, bool> muscleStillPainful = {}; // muscle name -> still experiencing pain (true/false)
+  
   // AI Analysis fields
   static Map<String, dynamic>? aiAnalysisResults;
   static bool hasAIAnalysis = false;
@@ -32,6 +38,12 @@ class AssessmentData {
     painDuration = '';
     isInjured = false;
     isAssessed = false;
+    
+    // Reset muscle injury fields
+    injuredMuscles = [];
+    musclePainLevels = {};
+    musclePainCategories = {};
+    muscleStillPainful = {};
     
     // Reset AI analysis fields
     aiAnalysisResults = null;
@@ -76,6 +88,10 @@ class AssessmentData {
       'painDuration': painDuration,
       'isInjured': isInjured,
       'isAssessed': isAssessed,
+      'injuredMuscles': injuredMuscles,
+      'musclePainLevels': musclePainLevels,
+      'musclePainCategories': musclePainCategories,
+      'muscleStillPainful': muscleStillPainful,
       'isComplete': isComplete,
       'progressPercentage': progressPercentage,
     };
@@ -93,6 +109,10 @@ class AssessmentData {
     print('  Pain Duration: $painDuration');
     print('  Is Injured: $isInjured');
     print('  Is Assessed: $isAssessed');
+    print('  Injured Muscles: $injuredMuscles');
+    print('  Muscle Pain Levels: $musclePainLevels');
+    print('  Muscle Pain Categories: $musclePainCategories');
+    print('  Muscle Still Painful: $muscleStillPainful');
     print('  Is Complete: $isComplete');
     print('  Progress: ${(progressPercentage * 100).toStringAsFixed(1)}%');
   }

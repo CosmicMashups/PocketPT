@@ -83,6 +83,9 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.3.2
   crypto: ^3.0.5
+  
+  # For file system access
+  path_provider: ^2.1.2
 
 # App Icon
 flutter_icons:

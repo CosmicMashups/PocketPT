@@ -87,6 +87,31 @@ class ExerciseDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: 10),
 
+            // Other Muscles Section (only if not empty)
+            if (exercise.otherMuscles.isNotEmpty) ...[
+              Row(
+                children: [
+                  const Icon(
+                    Icons.fitness_center_outlined,
+                    color: Color(0xFF8B2E2E),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Other Muscles: ${exercise.otherMuscles}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: Color(0xFF5B5B5B),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+            ],
+
             // Pain Level Section
             Row(
               children: [

@@ -2,131 +2,231 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/report_providers.dart';
-import '../../data/globals.dart';
 
-class ExerciseCalendarGrid extends ConsumerWidget {
+class ExerciseCalendarGrid extends ConsumerStatefulWidget {
   const ExerciseCalendarGrid({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selectedDate = ref.watch(selectedDateProvider);
-    // Use ExerciseHistory directly instead of provider for real-time data
-    final exerciseRecords = ExerciseHistory.entries.map((entry) => ExerciseRecord(
-      date: entry.date,
-      icdCode: 'REHAB',
-      exerciseId: entry.exerciseId, // Include exercise ID for loading actual exercise data
-      exerciseName: entry.exerciseName,
-      sets: entry.sets,
-      reps: entry.reps,
-      status: entry.status,
-    )).toList();
+  ConsumerState<ExerciseCalendarGrid> createState() => _ExerciseCalendarGridState();
+}
 
-    final daysInMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
-    final firstDayOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
-    final firstWeekday = firstDayOfMonth.weekday;
+class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
+  DateTime selectedDate = DateTime.now();
 
+  @override
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final exerciseRecordsAsync = ref.watch(enhancedExerciseRecordsProvider);
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Exercise Calendar',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF6A5D7B), // Updated to new purple
-                      ),
-                ),
-              ),
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left, size: 20),
-                      color: const Color(0xFF6A5D7B), // Updated to new purple
-                      onPressed: () {
-                        ref.read(selectedDateProvider.notifier).state = DateTime(
-                          selectedDate.year,
-                          selectedDate.month - 1,
-                          1,
-                        );
-                      },
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6A5D7B).withOpacity(0.1), // Updated to new purple
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        DateFormat('MMM yyyy').format(selectedDate),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: const Color(0xFF6A5D7B), // Updated to new purple
-                              fontWeight: FontWeight.w500,
-                            ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right, size: 20),
-                      color: const Color(0xFF6A5D7B), // Updated to new purple
-                      onPressed: () {
-                        ref.read(selectedDateProvider.notifier).state = DateTime(
-                          selectedDate.year,
-                          selectedDate.month + 1,
-                          1,
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildWeekdayHeader(),
-          const SizedBox(height: 8),
-          _buildCalendarGrid(
-            daysInMonth,
-            firstWeekday,
-            selectedDate,
-            exerciseRecords,
-          ),
-        ],
+      child: exerciseRecordsAsync.when(
+        loading: () => _buildLoadingState(context, isDark),
+        error: (error, stackTrace) => _buildErrorState(context, isDark, error.toString()),
+        data: (exerciseRecords) => _buildCalendarContent(context, isDark, exerciseRecords),
       ),
     );
   }
 
-  Widget _buildWeekdayHeader() {
+  Widget _buildLoadingState(BuildContext context, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(context, isDark),
+        const SizedBox(height: 16),
+        const Center(
+          child: CircularProgressIndicator(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, bool isDark, String error) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(context, isDark),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.red.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 32),
+              const SizedBox(height: 8),
+              Text(
+                'Failed to load calendar',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                error,
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCalendarContent(BuildContext context, bool isDark, List<ExerciseRecord> exerciseRecords) {
+    final daysInMonth = DateTime(selectedDate.year, selectedDate.month + 1, 0).day;
+    final firstDayOfMonth = DateTime(selectedDate.year, selectedDate.month, 1);
+    final firstWeekday = firstDayOfMonth.weekday;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(context, isDark),
+        const SizedBox(height: 16),
+        _buildWeekdayHeader(context, isDark),
+        const SizedBox(height: 8),
+        _buildCalendarGrid(
+          context,
+          isDark,
+          daysInMonth,
+          firstWeekday,
+          selectedDate,
+          exerciseRecords,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.calendar_today,
+                color: Color(0xFF8B2E2E),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Exercise Calendar',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF8B2E2E),
+              ),
+            ),
+          ],
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left, size: 20),
+              color: const Color(0xFF8B2E2E),
+              onPressed: () {
+                setState(() {
+                  selectedDate = DateTime(
+                    selectedDate.year,
+                    selectedDate.month - 1,
+                    1,
+                  );
+                });
+              },
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: const Color(0xFF8B2E2E).withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                DateFormat('MMM yyyy').format(selectedDate),
+                style: TextStyle(
+                  color: const Color(0xFF8B2E2E),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right, size: 20),
+              color: const Color(0xFF8B2E2E),
+              onPressed: () {
+                setState(() {
+                  selectedDate = DateTime(
+                    selectedDate.year,
+                    selectedDate.month + 1,
+                    1,
+                  );
+                });
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWeekdayHeader(BuildContext context, bool isDark) {
     const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: weekdays
-          .map((day) => SizedBox(
-                width: 36,
-                child: Text(
-                  day,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF6A5D7B),
-                    fontSize: 14,
+          .map((day) => Container(
+                width: 40,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white10 : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
+                  child: Text(
+                    day,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ))
@@ -135,6 +235,8 @@ class ExerciseCalendarGrid extends ConsumerWidget {
   }
 
   Widget _buildCalendarGrid(
+    BuildContext context,
+    bool isDark,
     int daysInMonth,
     int firstWeekday,
     DateTime selectedDate,
@@ -145,65 +247,80 @@ class ExerciseCalendarGrid extends ConsumerWidget {
 
     // Add empty cells for days before the first of the month
     for (var i = 0; i < offset; i++) {
-      cells.add(const SizedBox(width: 36, height: 36));
+      cells.add(const SizedBox(width: 40, height: 40));
     }
 
     // Add cells for each day of the month
     for (var day = 1; day <= daysInMonth; day++) {
       final date = DateTime(selectedDate.year, selectedDate.month, day);
-      // Use ExerciseHistory to check if user has completed exercises on this date
-      final hasExercises = ExerciseHistory.hasExercisesOnDate(date);
+      
+      // Check if there are exercises on this date using the new data
+      final hasExercises = exerciseRecords.any((record) => 
+          record.date.year == date.year &&
+          record.date.month == date.month &&
+          record.date.day == date.day);
 
       final isToday = date.year == DateTime.now().year &&
           date.month == DateTime.now().month &&
           date.day == DateTime.now().day;
 
+      // Count completed exercises for this date
+      final completedExercises = exerciseRecords.where((record) => 
+          record.date.year == date.year &&
+          record.date.month == date.month &&
+          record.date.day == date.day &&
+          record.status.toLowerCase() == 'completed').length;
+
+      final totalExercises = exerciseRecords.where((record) => 
+          record.date.year == date.year &&
+          record.date.month == date.month &&
+          record.date.day == date.day).length;
+
       cells.add(
         GestureDetector(
           onTap: () {
-            // Handle day selection if needed
+            if (hasExercises) {
+              _showDayDetails(context, date, exerciseRecords, isDark);
+            }
           },
           child: Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: isToday
-                  ? const Color(0xFF6A5D7B).withOpacity(0.2) // Updated to new purple
-                  : hasExercises
-                      ? const Color(0xFF6A5D7B).withOpacity(0.1) // Updated to new purple
-                      : null,
+              color: _getDayColor(isToday, hasExercises, completedExercises, totalExercises),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isToday
-                    ? const Color(0xFF6A5D7B) // Updated to new purple
-                    : Colors.grey.withOpacity(0.2),
-                width: isToday ? 1.5 : 1,
-              ),
+              border: isToday
+                  ? Border.all(color: const Color(0xFF8B2E2E), width: 2)
+                  : null,
+              boxShadow: hasExercises ? [
+                BoxShadow(
+                  color: const Color(0xFF8B2E2E).withOpacity(0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ] : null,
             ),
             child: Stack(
-              alignment: Alignment.center,
               children: [
-                Text(
-                  day.toString(),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: hasExercises || isToday
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    color: hasExercises || isToday
-                        ? const Color(0xFF6A5D7B) // Updated to new purple
-                        : Colors.black87,
+                Center(
+                  child: Text(
+                    day.toString(),
+                    style: TextStyle(
+                      color: _getDayTextColor(isToday, hasExercises, isDark),
+                      fontWeight: hasExercises ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
-                if (hasExercises)
+                if (hasExercises && completedExercises > 0)
                   Positioned(
-                    right: 2,
                     top: 2,
+                    right: 2,
                     child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6A5D7B), // Updated to new purple
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -215,14 +332,157 @@ class ExerciseCalendarGrid extends ConsumerWidget {
       );
     }
 
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 7,
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      childAspectRatio: 1,
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
       children: cells,
+    );
+  }
+
+  Color _getDayColor(bool isToday, bool hasExercises, int completedExercises, int totalExercises) {
+    if (isToday) {
+      return const Color(0xFF8B2E2E).withOpacity(0.1);
+    }
+    
+    if (hasExercises) {
+      if (completedExercises == totalExercises) {
+        return const Color(0xFF10B981).withOpacity(0.2); // All completed - green
+      } else if (completedExercises > 0) {
+        return const Color(0xFFF59E0B).withOpacity(0.2); // Partially completed - orange
+      } else {
+        return const Color(0xFFEF4444).withOpacity(0.2); // No completed - red
+      }
+    }
+    
+    return Colors.transparent;
+  }
+
+  Color _getDayTextColor(bool isToday, bool hasExercises, bool isDark) {
+    if (isToday) {
+      return const Color(0xFF8B2E2E);
+    }
+    
+    if (hasExercises) {
+      return const Color(0xFF8B2E2E);
+    }
+    
+    return isDark ? Colors.white70 : Colors.grey.shade600;
+  }
+
+  void _showDayDetails(BuildContext context, DateTime date, List<ExerciseRecord> exerciseRecords, bool isDark) {
+    final dayRecords = exerciseRecords.where((record) => 
+        record.date.year == date.year &&
+        record.date.month == date.month &&
+        record.date.day == date.day).toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+        title: Text(
+          DateFormat('EEEE, MMMM d, yyyy').format(date),
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF8B2E2E),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (dayRecords.isEmpty)
+                Text(
+                  'No exercises recorded for this day.',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : Colors.grey.shade600,
+                  ),
+                )
+              else
+                ...dayRecords.map((record) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white10 : const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: record.status.toLowerCase() == 'completed'
+                          ? const Color(0xFF10B981).withOpacity(0.3)
+                          : const Color(0xFFF59E0B).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: record.status.toLowerCase() == 'completed'
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFF59E0B),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              record.exerciseName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : const Color(0xFF8B2E2E),
+                              ),
+                            ),
+                            Text(
+                              '${record.sets} sets × ${record.reps} reps',
+                              style: TextStyle(
+                                color: isDark ? Colors.white70 : Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: record.status.toLowerCase() == 'completed'
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFF59E0B),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          record.status.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                color: const Color(0xFF8B2E2E),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -17,28 +17,40 @@ class FirebaseAuthDiagnostics {
     };
 
     try {
+      debugPrint('FirebaseAuthDiagnostics: Starting diagnostics...');
+      
       // Test 1: Authentication Status
+      debugPrint('FirebaseAuthDiagnostics: Testing authentication...');
       results['tests']['authentication'] = await _testAuthentication();
       
       // Test 2: Token Validity
+      debugPrint('FirebaseAuthDiagnostics: Testing token validity...');
       results['tests']['tokenValidity'] = await _testTokenValidity();
       
       // Test 3: Firestore Access
+      debugPrint('FirebaseAuthDiagnostics: Testing Firestore access...');
       results['tests']['firestoreAccess'] = await _testFirestoreAccess();
       
       // Test 4: User Document Access
+      debugPrint('FirebaseAuthDiagnostics: Testing user document access...');
       results['tests']['userDocumentAccess'] = await _testUserDocumentAccess();
       
       // Test 5: Collection Access
+      debugPrint('FirebaseAuthDiagnostics: Testing collection access...');
       results['tests']['collectionAccess'] = await _testCollectionAccess();
       
       // Generate recommendations
+      debugPrint('FirebaseAuthDiagnostics: Generating recommendations...');
       results['recommendations'] = _generateRecommendations(results['tests']);
       
       // Determine overall status
+      debugPrint('FirebaseAuthDiagnostics: Determining overall status...');
       results['overallStatus'] = _determineOverallStatus(results['tests']);
       
+      debugPrint('FirebaseAuthDiagnostics: Diagnostics completed with status: ${results['overallStatus']}');
+      
     } catch (e) {
+      debugPrint('FirebaseAuthDiagnostics: Error during diagnostics: $e');
       results['error'] = e.toString();
       results['overallStatus'] = 'error';
     }
@@ -52,6 +64,12 @@ class FirebaseAuthDiagnostics {
       final user = _auth.currentUser;
       final isAuthenticated = user != null;
       
+      debugPrint('FirebaseAuthDiagnostics: Authentication test - User authenticated: $isAuthenticated');
+      if (user != null) {
+        debugPrint('FirebaseAuthDiagnostics: User ID: ${user.uid}');
+        debugPrint('FirebaseAuthDiagnostics: Email verified: ${user.emailVerified}');
+      }
+      
       return {
         'passed': isAuthenticated,
         'userId': user?.uid,
@@ -63,6 +81,7 @@ class FirebaseAuthDiagnostics {
         'message': isAuthenticated ? 'User is authenticated' : 'No authenticated user found',
       };
     } catch (e) {
+      debugPrint('FirebaseAuthDiagnostics: Authentication test failed: $e');
       return {
         'passed': false,
         'error': e.toString(),
@@ -76,6 +95,7 @@ class FirebaseAuthDiagnostics {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        debugPrint('FirebaseAuthDiagnostics: No authenticated user for token test');
         return {
           'passed': false,
           'message': 'No authenticated user to test token',
@@ -91,6 +111,8 @@ class FirebaseAuthDiagnostics {
       final isExpired = expirationTime != null && now.isAfter(expirationTime);
       final timeUntilExpiry = expirationTime?.difference(now);
       
+      debugPrint('FirebaseAuthDiagnostics: Token test - Expired: $isExpired, Time until expiry: ${timeUntilExpiry?.inMinutes} minutes');
+      
       return {
         'passed': !isExpired,
         'isExpired': isExpired,
@@ -101,6 +123,7 @@ class FirebaseAuthDiagnostics {
         'message': isExpired ? 'Token is expired' : 'Token is valid',
       };
     } catch (e) {
+      debugPrint('FirebaseAuthDiagnostics: Token validity test failed: $e');
       return {
         'passed': false,
         'error': e.toString(),
@@ -114,6 +137,7 @@ class FirebaseAuthDiagnostics {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        debugPrint('FirebaseAuthDiagnostics: No authenticated user for Firestore test');
         return {
           'passed': false,
           'message': 'No authenticated user to test Firestore access',
@@ -121,10 +145,13 @@ class FirebaseAuthDiagnostics {
       }
 
       // Try to read a test document
+      debugPrint('FirebaseAuthDiagnostics: Testing Firestore access with test document...');
       final testDoc = await _firestore
           .collection('_test')
           .doc('test')
           .get();
+
+      debugPrint('FirebaseAuthDiagnostics: Firestore access test completed - Document exists: ${testDoc.exists}');
 
       return {
         'passed': true,
@@ -132,6 +159,7 @@ class FirebaseAuthDiagnostics {
         'message': 'Firestore access test completed',
       };
     } catch (e) {
+      debugPrint('FirebaseAuthDiagnostics: Firestore access test failed: $e');
       return {
         'passed': false,
         'error': e.toString(),
@@ -146,6 +174,7 @@ class FirebaseAuthDiagnostics {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        debugPrint('FirebaseAuthDiagnostics: No authenticated user for user document test');
         return {
           'passed': false,
           'message': 'No authenticated user to test user document access',
@@ -153,12 +182,15 @@ class FirebaseAuthDiagnostics {
       }
 
       final userId = user.uid;
+      debugPrint('FirebaseAuthDiagnostics: Testing user document access for user: $userId');
       
       // Try to read user document
       final userDoc = await _firestore
           .collection('users')
           .doc(userId)
           .get();
+
+      debugPrint('FirebaseAuthDiagnostics: User document access test completed - Document exists: ${userDoc.exists}');
 
       return {
         'passed': true,
@@ -167,6 +199,7 @@ class FirebaseAuthDiagnostics {
         'message': 'User document access test completed',
       };
     } catch (e) {
+      debugPrint('FirebaseAuthDiagnostics: User document access test failed: $e');
       return {
         'passed': false,
         'error': e.toString(),
@@ -181,6 +214,7 @@ class FirebaseAuthDiagnostics {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        debugPrint('FirebaseAuthDiagnostics: No authenticated user for collection access test');
         return {
           'passed': false,
           'message': 'No authenticated user to test collection access',
@@ -189,6 +223,8 @@ class FirebaseAuthDiagnostics {
 
       final userId = user.uid;
       final results = <String, dynamic>{};
+      
+      debugPrint('FirebaseAuthDiagnostics: Testing collection access for user: $userId');
       
       // Test access to various collections
       final collections = [
@@ -202,6 +238,7 @@ class FirebaseAuthDiagnostics {
 
       for (final collection in collections) {
         try {
+          debugPrint('FirebaseAuthDiagnostics: Testing access to collection: $collection');
           final doc = await _firestore
               .collection(collection)
               .doc(userId)
@@ -211,7 +248,9 @@ class FirebaseAuthDiagnostics {
             'accessible': true,
             'exists': doc.exists,
           };
+          debugPrint('FirebaseAuthDiagnostics: Collection $collection accessible, document exists: ${doc.exists}');
         } catch (e) {
+          debugPrint('FirebaseAuthDiagnostics: Collection $collection access failed: $e');
           results[collection] = {
             'accessible': false,
             'error': e.toString(),
@@ -221,6 +260,7 @@ class FirebaseAuthDiagnostics {
       }
 
       final allAccessible = results.values.every((result) => result['accessible'] == true);
+      debugPrint('FirebaseAuthDiagnostics: Collection access test completed - All accessible: $allAccessible');
       
       return {
         'passed': allAccessible,
@@ -228,6 +268,7 @@ class FirebaseAuthDiagnostics {
         'message': allAccessible ? 'All collections accessible' : 'Some collections not accessible',
       };
     } catch (e) {
+      debugPrint('FirebaseAuthDiagnostics: Collection access test failed: $e');
       return {
         'passed': false,
         'error': e.toString(),
@@ -321,32 +362,45 @@ class FirebaseAuthDiagnostics {
     };
 
     try {
+      debugPrint('FirebaseAuthDiagnostics: Attempting quick fix...');
       final user = _auth.currentUser;
       
       if (user == null) {
+        debugPrint('FirebaseAuthDiagnostics: No authenticated user found for quick fix');
         results['actions'].add('No authenticated user found. User needs to log in.');
         return results;
       }
 
+      debugPrint('FirebaseAuthDiagnostics: Quick fix for user: ${user.uid}');
+
       // Try to refresh the token
       try {
+        debugPrint('FirebaseAuthDiagnostics: Refreshing authentication token...');
         await user.getIdToken(true);
         results['actions'].add('Authentication token refreshed successfully.');
         results['success'] = true;
+        debugPrint('FirebaseAuthDiagnostics: Token refresh successful');
       } catch (e) {
+        debugPrint('FirebaseAuthDiagnostics: Token refresh failed: $e');
         results['actions'].add('Failed to refresh authentication token: $e');
       }
 
       // Try to reload user data
       try {
+        debugPrint('FirebaseAuthDiagnostics: Reloading user data...');
         await user.reload();
         results['actions'].add('User data reloaded successfully.');
         results['success'] = true;
+        debugPrint('FirebaseAuthDiagnostics: User data reload successful');
       } catch (e) {
+        debugPrint('FirebaseAuthDiagnostics: User data reload failed: $e');
         results['actions'].add('Failed to reload user data: $e');
       }
 
+      debugPrint('FirebaseAuthDiagnostics: Quick fix completed - Success: ${results['success']}');
+
     } catch (e) {
+      debugPrint('FirebaseAuthDiagnostics: Quick fix error: $e');
       results['error'] = e.toString();
     }
 

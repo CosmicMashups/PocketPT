@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'c_painduration.dart';
+import 'd_muscle.dart';
 import 'e_summary.dart';
 import 'assessment_data.dart';
 // Sync removed for assessment (local-only)
@@ -232,23 +233,44 @@ class _AssessHistoryState extends State<AssessHistory> {
                       onPressed: () {
                         debugPrint('🔍 AssessHistory: Complete Assessment button pressed');
                         debugPrint('📊 AssessHistory: UserAssess.isInjured = ${UserAssess.isInjured}');
-                        debugPrint('🗺️ AssessHistory: Navigating to AssessSummary');
-                        Navigator.push(
-                          context,
-                          PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => const AssessSummary(),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                              const begin = Offset(1.0, 0.0);
-                              const end = Offset.zero;
-                              const curve = Curves.easeInOut;
+                        
+                        if (UserAssess.isInjured) {
+                          debugPrint('🗺️ AssessHistory: User has injuries, navigating to muscle assessment');
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => const AssessMuscle(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
 
-                              var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                              var offsetAnimation = animation.drive(tween);
+                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
 
-                              return SlideTransition(position: offsetAnimation, child: child);
-                            },
-                          ),
-                        );
+                                return SlideTransition(position: offsetAnimation, child: child);
+                              },
+                            ),
+                          );
+                        } else {
+                          debugPrint('🗺️ AssessHistory: User has no injuries, navigating directly to summary');
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => const AssessSummary(),
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                const begin = Offset(1.0, 0.0);
+                                const end = Offset.zero;
+                                const curve = Curves.easeInOut;
+
+                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                var offsetAnimation = animation.drive(tween);
+
+                                return SlideTransition(position: offsetAnimation, child: child);
+                              },
+                            ),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,

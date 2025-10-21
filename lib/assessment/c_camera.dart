@@ -40,12 +40,17 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   Timer? _throttleTimer;
   int? _lastProcessedTime; // ms timestamp for throttling
   
+  // Performance monitoring
+  int _frameCount = 0;
+  int _lastFpsTime = 0;
+  double _currentFps = 0.0;
+  
   // Current assessment result from modular services
   AssessmentResult? _currentAssessmentResult;
 
-  // New: Skeleton visualization state
+  // Skeleton visualization state - improved for better synchronization
   bool _showSkeleton = false;
-  Map<String, Offset>? _currentLandmarks;
+  Map<String, Offset>? _currentLandmarks; // Always updated regardless of toggle state
   SkeletonOverlayConfig _skeletonConfig = const SkeletonOverlayConfig();
 
   // Start recording video while maintaining pose detection
@@ -161,24 +166,48 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         return;
       }
       _lastProcessedTime = nowMs;
+      
+      // Performance monitoring: calculate FPS
+      _frameCount++;
+      if (_lastFpsTime == 0) {
+        _lastFpsTime = nowMs;
+      } else if (nowMs - _lastFpsTime >= 1000) {
+        _currentFps = _frameCount * 1000.0 / (nowMs - _lastFpsTime);
+        _frameCount = 0;
+        _lastFpsTime = nowMs;
+        
+        // Log performance metrics
+        if (_currentFps < 8.0) {
+          debugPrint('Warning: Low FPS detected: ${_currentFps.toStringAsFixed(1)}');
+        }
+      }
 
       _processingFrame = true;
       try {
         final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
         if (poses.isNotEmpty) {
-          final landmarks = _poseService.getPoseLandmarks(poses.first);
+          try {
+            final landmarks = _poseService.getPoseLandmarks(poses.first);
+            
+            // Validate landmarks before processing
+            if (landmarks.isEmpty) {
+              debugPrint('Warning: Empty landmarks detected, skipping frame');
+              return;
+            }
+            
+            // Additional validation: check for reasonable landmark count
+            if (landmarks.length < 5) {
+              debugPrint('Warning: Insufficient landmarks detected (${landmarks.length}), skipping frame');
+              return;
+            }
           
-          // Validate landmarks before processing
-          if (landmarks.isEmpty) {
-            return;
-          }
+          // Store landmarks for skeleton visualization (always update regardless of toggle state)
+          _currentLandmarks = landmarks;
+          debugPrint('Pose detected: ${landmarks.length} landmarks'); // Debug output
           
-          // Store landmarks for skeleton visualization
-          if (_showSkeleton) {
-            _currentLandmarks = landmarks;
-            debugPrint('Pose detected: ${landmarks.length} landmarks'); // Debug output
-            // Force UI update to show skeleton
-            if (mounted) setState(() {});
+          // Only trigger UI update if skeleton is visible to avoid unnecessary repaints
+          if (_showSkeleton && mounted) {
+            setState(() {});
           }
           
           // Perform ROM assessment using modular services
@@ -201,6 +230,10 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
             }
           } catch (e) {
             debugPrint('Assessment failed: $e');
+          }
+          } catch (e) {
+            debugPrint('Landmark processing error: $e');
+            // Continue processing even if landmark extraction fails
           }
         }
       } catch (e) {
@@ -232,11 +265,27 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
               try {
                 final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
                 if (poses.isNotEmpty) {
-                  final landmarks = _poseService.getPoseLandmarks(poses.first);
-                  if (landmarks.isEmpty) return;
-                  if (_showSkeleton) {
-                    _currentLandmarks = landmarks;
-                    if (mounted) setState(() {});
+                  try {
+                    final landmarks = _poseService.getPoseLandmarks(poses.first);
+                    
+                    // Validate landmarks before processing
+                    if (landmarks.isEmpty) {
+                      debugPrint('Warning: Empty landmarks detected in retry, skipping frame');
+                      return;
+                    }
+                    
+                    // Additional validation: check for reasonable landmark count
+                    if (landmarks.length < 5) {
+                      debugPrint('Warning: Insufficient landmarks detected in retry (${landmarks.length}), skipping frame');
+                      return;
+                    }
+                  
+                  // Store landmarks for skeleton visualization (always update regardless of toggle state)
+                  _currentLandmarks = landmarks;
+                  
+                  // Only trigger UI update if skeleton is visible to avoid unnecessary repaints
+                  if (_showSkeleton && mounted) {
+                    setState(() {});
                   }
                   // Perform ROM assessment using modular services
                   try {
@@ -257,7 +306,11 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                       });
                     }
                   } catch (e) {
-                    debugPrint('Assessment failed: $e');
+                    debugPrint('Assessment failed in retry: $e');
+                  }
+                  } catch (e) {
+                    debugPrint('Landmark processing error in retry: $e');
+                    // Continue processing even if landmark extraction fails
                   }
                 }
               } finally {
@@ -295,6 +348,8 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
       _isCameraInitialized = false;
       _selectedCameraIndex = next;
       _isStreaming = false;
+      // Clear landmarks when switching cameras to prevent stale data
+      _currentLandmarks = null;
     });
     await _initializeCamera();
   }
@@ -406,9 +461,15 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                 DropdownMenuItem(value: 'Triceps', child: Text('Triceps')),
                 DropdownMenuItem(value: 'Shoulders', child: Text('Shoulders')),
                 DropdownMenuItem(value: 'Hamstrings', child: Text('Hamstrings')),
+                DropdownMenuItem(value: 'Gluteals', child: Text('Gluteals')),
                 DropdownMenuItem(value: 'Calf', child: Text('Calf')),
                 DropdownMenuItem(value: 'Chest', child: Text('Chest')),
                 DropdownMenuItem(value: 'Biceps', child: Text('Biceps')),
+                DropdownMenuItem(value: 'Quadriceps', child: Text('Quadriceps')),
+                DropdownMenuItem(value: 'Abdominals', child: Text('Abdominals')),
+                DropdownMenuItem(value: 'Obliques', child: Text('Obliques')),
+                DropdownMenuItem(value: 'Lower Back', child: Text('Lower Back')),
+                DropdownMenuItem(value: 'Multifidus', child: Text('Multifidus')),
               ],
               onChanged: (val) {
                 if (val == null) return;
@@ -484,10 +545,16 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                 Switch(
                   value: _showSkeleton,
                   activeColor: const Color(0xFF8B2E2E),
-                  onChanged: (val) => setState(() {
-                    _showSkeleton = val;
-                    if (!val) _currentLandmarks = null;
-                  }),
+                  onChanged: (val) {
+                    setState(() {
+                      _showSkeleton = val;
+                      // Don't clear landmarks when toggling off - keep them for assessment
+                      // Only clear if explicitly requested or on camera switch
+                    });
+                    
+                    // Log toggle state for debugging
+                    debugPrint('Skeleton overlay toggled: $_showSkeleton');
+                  },
                 ),
                 if (_showSkeleton) ...[
                   const SizedBox(width: 4),
@@ -780,7 +847,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                   ),
                 ),
 
-                // Enhanced pose skeleton overlay
+                // Enhanced pose skeleton overlay with improved positioning
                 if (_showSkeleton && _currentLandmarks != null)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -793,6 +860,11 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                           borderRadius: BorderRadius.circular(18),
                           child: LayoutBuilder(
                             builder: (context, constraints) {
+                              // Ensure we have valid constraints
+                              if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+                                return const SizedBox.shrink();
+                              }
+                              
                               return CustomPaint(
                                 painter: EnhancedPoseSkeletonPainter(
                                   landmarks: _currentLandmarks!,

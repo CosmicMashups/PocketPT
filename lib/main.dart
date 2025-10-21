@@ -784,7 +784,7 @@ class _HomePageState extends State<HomePage> {
   // List: Pages (for Navigation) - const for better performance
   static const List<Widget> _pages = [
     DashboardPage(),
-    ExerciseManagerPage(),
+    EditPlanPage(),
     PreRecordPage(),
     ReportPage(),
     ProfilePage(),

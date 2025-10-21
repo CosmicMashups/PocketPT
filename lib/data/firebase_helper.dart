@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'firebase_auth_diagnostics.dart';
 
 /// Helper class to manage Firebase collections and ensure they exist
 class FirebaseHelper {
@@ -415,6 +414,38 @@ class FirebaseHelper {
     }
   }
 
+  /// Ensure custom exercises collection exists (customExercises/{userId}/exercises/{exerciseId})
+  static Future<void> ensureCustomExercisesCollection() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        print('FirebaseHelper: No authenticated user found');
+        throw Exception('No authenticated user found');
+      }
+
+      final String userId = currentUser.uid;
+      
+      // Check if custom exercises collection exists
+      final QuerySnapshot customExercisesSnapshot = await _firestore
+          .collection('customExercises')
+          .doc(userId)
+          .collection('exercises')
+          .limit(1)
+          .get();
+
+      if (customExercisesSnapshot.docs.isEmpty) {
+        print('FirebaseHelper: Custom exercises collection is empty (this is normal for new users)');
+      } else {
+        print('FirebaseHelper: Custom exercises collection exists with ${customExercisesSnapshot.docs.length} documents');
+      }
+      
+      print('FirebaseHelper: Custom exercises collection verified successfully');
+    } catch (e) {
+      print('FirebaseHelper: Error ensuring custom exercises collection: $e');
+      rethrow;
+    }
+  }
+
   /// Ensure rehabilitation collection exists (flat structure: rehabilitation/{userId})
   static Future<void> ensureRehabilitationCollection() async {
     try {
@@ -469,6 +500,7 @@ class FirebaseHelper {
       await ensureUserSettingsCollection();
       await ensurePainHistoryCollection();
       await ensureExerciseHistoryCollection();
+      await ensureCustomExercisesCollection();
       
       print('FirebaseHelper: All user collections initialized successfully');
     } catch (e) {

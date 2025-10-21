@@ -524,7 +524,16 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           }
         });
     
-    final currentExerciseRef = ExerciseHistory.getCurrentExercise();
+    // Get current exercise directly from rehabilitation plans
+    final rehabilitationPlans = UserDataNotifier.instance.rehabPlans.isNotEmpty 
+        ? UserDataNotifier.instance.rehabPlans 
+        : UserRehabilitation.instance.rehabPlans;
+    
+    ExerciseReference? currentExerciseRef;
+    if (rehabilitationPlans.isNotEmpty && rehabilitationPlans.first.exerciseReferences.isNotEmpty) {
+      currentExerciseRef = rehabilitationPlans.first.exerciseReferences.first;
+    }
+    
     double progress = ExerciseHistory.calculateTodaysProgressPercentage();
 
     return Scaffold(
@@ -696,7 +705,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                                       );
                                     }
                                     
-                                    final exercise = snapshot.data ?? currentExerciseRef;
+                                    final exercise = snapshot.data;
                                     return Text(
                                       exercise?.exerciseName ?? 'No Exercise',
                                       style: GoogleFonts.poppins(
@@ -1619,6 +1628,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           sets: exerciseRef.sets,
           imageUrl: exercise.imageUrl,
           videoUrl: exercise.videoUrl,
+          otherMuscles: exercise.otherMuscles,
         ));
       }
     }

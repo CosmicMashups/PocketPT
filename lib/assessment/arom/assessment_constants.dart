@@ -29,6 +29,22 @@ class AssessmentConstants {
   // Biceps ROM thresholds
   static const double bicepsSevereThreshold = 150.0;  // Angle > 150° -> Severe (Extended)
   static const double bicepsModerateThreshold = 90.0; // 90° < Angle <= 150° -> Moderate
+  
+  // Quadriceps ROM thresholds
+  static const double quadricepsSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended)
+  static const double quadricepsModerateThreshold = 100.0; // 100° <= Angle < 160° -> Moderate
+  
+  // Gluteal ROM thresholds
+  static const double glutealSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended)
+  static const double glutealModerateThreshold = 100.0; // 100° <= Angle < 160° -> Moderate
+  
+  // Enhanced Hamstring ROM thresholds (for hip-knee-ankle assessment)
+  static const double hamstringEnhancedSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended)
+  static const double hamstringEnhancedModerateThreshold = 100.0; // 100° <= Angle < 160° -> Moderate
+  
+  // Trunk ROM thresholds (for unified trunk muscle assessment)
+  static const double trunkSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended/Upright)
+  static const double trunkModerateThreshold = 60.0; // 60° <= Angle < 160° -> Moderate
 }
 
 /// Standardized pain scale mapping

@@ -133,6 +133,16 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
     
+    // Custom exercises collection - User-specific custom exercises
+    match /customExercises/{userId}/exercises/{exerciseId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow update: if isOwner(userId) && 
+        isValidUserId(request.resource.data.userId);
+      allow delete: if isOwner(userId);
+    }
+    
     // Deny all other access by default
     match /{document=**} {
       allow read, write: if false;

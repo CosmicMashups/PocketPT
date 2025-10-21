@@ -226,6 +226,12 @@ class _AssessSummaryState extends State<AssessSummary> {
                   _buildSummaryRow(Icons.bolt, "Pain Type", UserAssess.painType),
                   _buildSummaryRow(Icons.schedule, "Pain Duration", UserAssess.painDuration),
                   _buildSummaryRow(Icons.health_and_safety, "Injury Status", isInjured ? "Yes" : "No"),
+                  
+                  // Muscle Assessment Data
+                  if (UserAssess.injuredMuscles.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _buildMuscleAssessmentSection(),
+                  ],
                 ],
               ),
             ),
@@ -423,5 +429,109 @@ class _AssessSummaryState extends State<AssessSummary> {
         ],
       ),
     );
+  }
+
+  Widget _buildMuscleAssessmentSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF0F9FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE0F2FE),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: mainColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.fitness_center, size: 20, color: mainColor),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                "Muscle Injury Assessment",
+                style: GoogleFonts.ptSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: mainColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...UserAssess.injuredMuscles.map((muscle) {
+            final painLevel = UserAssess.musclePainLevels[muscle] ?? 0;
+            final painCategory = UserAssess.musclePainCategories[muscle] ?? 'Low';
+            final painColor = _getPainColor(painLevel);
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: painColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: painColor.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.fitness_center,
+                    size: 16,
+                    color: painColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      muscle,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: mainColor,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: painColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      "Level $painLevel ($painCategory)",
+                      style: GoogleFonts.ptSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: painColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Color _getPainColor(int level) {
+    if (level <= 2) return const Color(0xFF10B981);
+    if (level <= 4) return const Color(0xFFF59E0B);
+    if (level <= 6) return const Color(0xFFC24A4A);
+    if (level <= 8) return const Color(0xFF8B2E2E);
+    return const Color(0xFFEF4444);
   }
 }

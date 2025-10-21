@@ -1,0 +1,381 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../data/globals.dart';
+import '../../data/rehabilitation_plan.dart';
+import '../../data/data_persistence_service.dart';
+import '../../data/firebase_helper.dart';
+
+/// Repository for reports data with Hive and Firebase integration
+class ReportsRepository {
+  static final ReportsRepository _instance = ReportsRepository._internal();
+  static ReportsRepository get instance => _instance;
+  ReportsRepository._internal();
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// Get rehabilitation plans from local storage with Firebase sync
+  Future<List<RehabilitationPlan>> getRehabilitationPlans() async {
+    try {
+      debugPrint('ReportsRepository: Loading rehabilitation plans...');
+      
+      // Try to load from local storage first
+      await DataPersistenceService.loadAllDataFromHive();
+      
+      final userRehab = UserRehabilitation.instance;
+      final plans = userRehab.rehabPlans;
+      
+      debugPrint('ReportsRepository: Loaded ${plans.length} rehabilitation plans from local storage');
+      
+      // Attempt Firebase sync in background
+      _syncRehabPlansToFirebase(plans).catchError((e) {
+        debugPrint('ReportsRepository: Firebase sync failed: $e');
+      });
+      
+      return plans;
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error loading rehabilitation plans: $e');
+      rethrow;
+    }
+  }
+
+  /// Get exercise history from local storage with Firebase sync
+  Future<List<ExerciseRecordEntry>> getExerciseHistory() async {
+    try {
+      debugPrint('ReportsRepository: Loading exercise history...');
+      
+      // Load from Hive
+      await ExerciseHistory.loadFromHive();
+      final history = ExerciseHistory.entries;
+      
+      debugPrint('ReportsRepository: Loaded ${history.length} exercise history entries');
+      
+      // Attempt Firebase sync in background
+      _syncExerciseHistoryToFirebase(history).catchError((e) {
+        debugPrint('ReportsRepository: Firebase sync failed: $e');
+      });
+      
+      return history;
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error loading exercise history: $e');
+      rethrow;
+    }
+  }
+
+  /// Get pain history from local storage with Firebase sync
+  Future<List<PainRecordEntry>> getPainHistory() async {
+    try {
+      debugPrint('ReportsRepository: Loading pain history...');
+      
+      // Load from Hive
+      await PainHistory.loadFromHive();
+      final history = PainHistory.entries;
+      
+      debugPrint('ReportsRepository: Loaded ${history.length} pain history entries');
+      
+      // Attempt Firebase sync in background
+      _syncPainHistoryToFirebase(history).catchError((e) {
+        debugPrint('ReportsRepository: Firebase sync failed: $e');
+      });
+      
+      return history;
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error loading pain history: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user progress data
+  Future<UserProgressData> getUserProgress() async {
+    try {
+      debugPrint('ReportsRepository: Loading user progress...');
+      
+      await UserProgress.loadFromHive();
+      
+      return UserProgressData(
+        title: UserProgress.title,
+        streak: UserProgress.streak,
+        totalDays: UserProgress.totalDays,
+        totalExercises: UserProgress.totalExercises,
+        totalMinutes: UserProgress.totalMinutes,
+        notes: UserProgress.notes,
+        lastExerciseDate: UserProgress.lastExerciseDate,
+      );
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error loading user progress: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user assessment data
+  Future<UserAssessmentData> getUserAssessment() async {
+    try {
+      debugPrint('ReportsRepository: Loading user assessment...');
+      
+      await UserAssess.loadFromHive();
+      
+      return UserAssessmentData(
+        specificMuscle: UserAssess.specificMuscle,
+        painDuration: UserAssess.painDuration,
+        painLevel: UserAssess.painLevel,
+        rehabGoal: UserAssess.rehabGoal,
+        painType: UserAssess.painType,
+      );
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error loading user assessment: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user details
+  Future<UserDetailsData> getUserDetails() async {
+    try {
+      debugPrint('ReportsRepository: Loading user details...');
+      
+      await UserDetails.loadFromHive();
+      
+      return UserDetailsData(
+        firstName: UserDetails.firstName,
+        lastName: UserDetails.lastName,
+        email: UserDetails.email,
+        isGuest: UserDetails.isGuest,
+        hasCompletedAssessment: UserDetails.hasCompletedAssessment,
+        lastModified: UserDetails.lastModified,
+      );
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error loading user details: $e');
+      rethrow;
+    }
+  }
+
+  /// Sync rehabilitation plans to Firebase
+  Future<void> _syncRehabPlansToFirebase(List<RehabilitationPlan> plans) async {
+    final user = _auth.currentUser;
+    if (user == null || UserDetails.isGuest) return;
+
+    try {
+      debugPrint('ReportsRepository: Syncing rehabilitation plans to Firebase...');
+      
+      await FirebaseHelper.initializeUserCollections();
+      
+      // Convert plans to serializable format
+      final plansData = plans.map((plan) => {
+        'weekNumber': plan.weekNumber,
+        'isActive': plan.isActive,
+        'createdAt': plan.createdAt.toIso8601String(),
+        'exerciseReferences': plan.exerciseReferences.map((ref) => {
+          'exerciseId': ref.exerciseId,
+          'sets': ref.sets,
+          'repetitions': ref.repetitions,
+        }).toList(),
+        'daily': plan.daily.map((daily) => {
+          'date': daily.date.toIso8601String(),
+          'completedExercises': daily.completedExercises,
+        }).toList(),
+      }).toList();
+      
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('rehabilitation_plans')
+          .doc('plans')
+          .set({
+        'plans': plansData,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'version': '1.0',
+      });
+      
+      debugPrint('ReportsRepository: Successfully synced rehabilitation plans to Firebase');
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error syncing rehabilitation plans to Firebase: $e');
+      rethrow;
+    }
+  }
+
+  /// Sync exercise history to Firebase
+  Future<void> _syncExerciseHistoryToFirebase(List<ExerciseRecordEntry> history) async {
+    final user = _auth.currentUser;
+    if (user == null || UserDetails.isGuest) return;
+
+    try {
+      debugPrint('ReportsRepository: Syncing exercise history to Firebase...');
+      
+      await FirebaseHelper.initializeUserCollections();
+      
+      // Convert history to serializable format
+      final historyData = history.map((entry) => {
+        'date': entry.date.toIso8601String(),
+        'exerciseId': entry.exerciseId,
+        'exerciseName': entry.exerciseName,
+        'sets': entry.sets,
+        'reps': entry.reps,
+        'durationSeconds': entry.durationSeconds,
+        'status': entry.status,
+      }).toList();
+      
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('exercise_history')
+          .doc('history')
+          .set({
+        'entries': historyData,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'version': '1.0',
+      });
+      
+      debugPrint('ReportsRepository: Successfully synced exercise history to Firebase');
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error syncing exercise history to Firebase: $e');
+      rethrow;
+    }
+  }
+
+  /// Sync pain history to Firebase
+  Future<void> _syncPainHistoryToFirebase(List<PainRecordEntry> history) async {
+    final user = _auth.currentUser;
+    if (user == null || UserDetails.isGuest) return;
+
+    try {
+      debugPrint('ReportsRepository: Syncing pain history to Firebase...');
+      
+      await FirebaseHelper.initializeUserCollections();
+      
+      // Convert history to serializable format
+      final historyData = history.map((entry) => {
+        'date': entry.date.toIso8601String(),
+        'painScale': entry.painScale,
+        'painLevel': entry.painLevel,
+      }).toList();
+      
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('pain_history')
+          .doc('history')
+          .set({
+        'entries': historyData,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'version': '1.0',
+      });
+      
+      debugPrint('ReportsRepository: Successfully synced pain history to Firebase');
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error syncing pain history to Firebase: $e');
+      rethrow;
+    }
+  }
+
+  /// Force refresh all data from Firebase
+  Future<void> refreshFromFirebase() async {
+    final user = _auth.currentUser;
+    if (user == null || UserDetails.isGuest) return;
+
+    try {
+      debugPrint('ReportsRepository: Refreshing data from Firebase...');
+      
+      await FirebaseHelper.initializeUserCollections();
+      
+      // Load data from Firebase
+      await UserDetails.loadFromFirebase();
+      await UserRehabilitation.instance.loadPlansFromFirebase();
+      await ExerciseHistory.loadFromFirebase();
+      await PainHistory.loadFromFirebase();
+      
+      // Save to local storage
+      await DataPersistenceService.saveAllDataToHive();
+      
+      debugPrint('ReportsRepository: Successfully refreshed data from Firebase');
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error refreshing data from Firebase: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if data is stale and needs refresh
+  bool isDataStale({Duration maxAge = const Duration(hours: 1)}) {
+    try {
+      if (!Hive.isBoxOpen('rehabBox')) return true;
+      
+      final box = Hive.box('rehabBox');
+      final lastSaveTimestamp = box.get('lastSaveTimestamp');
+      
+      if (lastSaveTimestamp == null) return true;
+      
+      final lastSave = DateTime.parse(lastSaveTimestamp);
+      return DateTime.now().difference(lastSave) > maxAge;
+      
+    } catch (e) {
+      debugPrint('ReportsRepository: Error checking data staleness: $e');
+      return true;
+    }
+  }
+}
+
+/// Data models for reports
+class UserProgressData {
+  final String title;
+  final int streak;
+  final int totalDays;
+  final int totalExercises;
+  final int totalMinutes;
+  final String? notes;
+  final DateTime? lastExerciseDate;
+
+  UserProgressData({
+    required this.title,
+    required this.streak,
+    required this.totalDays,
+    required this.totalExercises,
+    required this.totalMinutes,
+    this.notes,
+    this.lastExerciseDate,
+  });
+}
+
+class UserAssessmentData {
+  final String specificMuscle;
+  final String painDuration;
+  final String painLevel;
+  final String rehabGoal;
+  final String painType;
+
+  UserAssessmentData({
+    required this.specificMuscle,
+    required this.painDuration,
+    required this.painLevel,
+    required this.rehabGoal,
+    required this.painType,
+  });
+}
+
+class UserDetailsData {
+  final String firstName;
+  final String lastName;
+  final String email;
+  final bool isGuest;
+  final bool hasCompletedAssessment;
+  final DateTime? lastModified;
+
+  UserDetailsData({
+    required this.firstName,
+    required this.lastName,
+    required this.email,
+    required this.isGuest,
+    required this.hasCompletedAssessment,
+    this.lastModified,
+  });
+}

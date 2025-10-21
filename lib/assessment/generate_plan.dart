@@ -80,8 +80,18 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
       // Only generate plan if condition is not met
       if (selectedPainLevel != "Severe" || selectedPainDuration != "Less than 48 hours ago") {
         print('GeneratePlan: Generating rehabilitation plan from CSV');
-        plan = await generateRehabilitationPlanFromCSV();
+        plan = await generateRehabilitationPlanFromCSV(context);
         print('GeneratePlan: Plan generated: ${plan != null ? "Success" : "Failed"}');
+        
+        // Handle case where user cancelled the muscle injury dialog
+        if (plan == null) {
+          print('GeneratePlan: Plan generation cancelled by user, showing appropriate message');
+          setState(() {
+            _error = "Plan generation was cancelled. You can return to the assessment to modify your muscle injury information or try again.";
+            _isLoading = false;
+          });
+          return;
+        }
       } else {
         print('GeneratePlan: Skipping plan generation due to severe pain/recent injury');
       }
