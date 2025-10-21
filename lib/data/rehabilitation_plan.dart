@@ -13,6 +13,7 @@ import 'firebase_helper.dart';
 import '../assessment/services/muscle_injury_dialog_service.dart';
 import '../assessment/models/muscle_injury_choice.dart';
 import '../data/user_data_notifier.dart';
+import 'custom_exercise_service.dart';
 
 // Service to handle CSV data retrieval
 class ExerciseDataService {
@@ -332,13 +333,41 @@ class ExerciseDataService {
         }
       }
 
+      // Load custom exercises and merge with default exercises
+      try {
+        print('ExerciseDataService: [CUSTOM] Loading custom exercises...');
+        final customExercises = await CustomExerciseService.loadCustomExercises();
+        
+        // Convert custom exercises to the same format as default exercises
+        final convertedCustomExercises = customExercises.map((customEx) => Exercise(
+          exerciseId: customEx.id,
+          exerciseName: customEx.name,
+          description: customEx.description,
+          muscle: customEx.muscle,
+          painLevel: customEx.painLevel,
+          goal: customEx.goal,
+          repetitions: customEx.rep,
+          sets: customEx.set,
+          imageUrl: customEx.imageUrl,
+          videoUrl: customEx.videoUrl,
+          otherMuscles: customEx.otherMuscles,
+        )).toList();
+        
+        // Merge custom exercises with default exercises
+        exercises.addAll(convertedCustomExercises);
+        print('ExerciseDataService: [CUSTOM] Loaded ${convertedCustomExercises.length} custom exercises');
+      } catch (e) {
+        print('ExerciseDataService: [CUSTOM] Error loading custom exercises: $e');
+        // Continue with default exercises only if custom exercises fail to load
+      }
+
       _cachedExercises = exercises;
       _lastCacheUpdate = DateTime.now();
       _isCacheStale = false;
       final loadTime = stopwatch.elapsedMilliseconds;
       _loadTimes.add(loadTime);
       
-      print('ExerciseDataService: [SUCCESS] Loaded ${exercises.length} valid exercises from CSV in ${loadTime}ms');
+      print('ExerciseDataService: [SUCCESS] Loaded ${exercises.length} total exercises (default + custom) in ${loadTime}ms');
       print('ExerciseDataService: [STATS] Valid rows: $validRows, Invalid rows: $invalidRows');
       print('ExerciseDataService: [PERF] Load time: ${loadTime}ms, Average: ${_getAverageLoadTime()}ms, Cache hit rate: ${_getCacheHitRate()}%');
       print('ExerciseDataService: [CACHE] Cache updated at ${_lastCacheUpdate}');

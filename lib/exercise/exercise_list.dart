@@ -3,6 +3,7 @@ import 'package:csv/csv.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'exercise_detail.dart';
 import '../core/medical_design_system.dart';
+import '../data/custom_exercise_service.dart';
 
 class Exercise {
   final String id;
@@ -114,7 +115,20 @@ class _ExercisesPageState extends State<ExercisesPage> {
       print('First exercise: ${defaultExercises.isNotEmpty ? defaultExercises.first.name : "No exercises"}');
       print('CSV data sample: ${csvData.length > 1 ? csvData[1] : "No data"}');
 
-      print('Total exercises loaded: ${defaultExercises.length}');
+      // Load custom exercises
+      try {
+        final customExercises = await CustomExerciseService.loadCustomExercises();
+        print('Loaded ${customExercises.length} custom exercises');
+        
+        // Merge custom exercises with default exercises
+        defaultExercises.addAll(customExercises);
+        print('Total exercises loaded: ${defaultExercises.length} (${defaultExercises.length - customExercises.length} default + ${customExercises.length} custom)');
+      } catch (e) {
+        print('Error loading custom exercises: $e');
+        // Continue with default exercises only if custom exercises fail to load
+        print('Total exercises loaded: ${defaultExercises.length} (default only)');
+      }
+
       return defaultExercises;
     } catch (e) {
       print('Error loading exercise data: $e');
@@ -151,7 +165,7 @@ class _ExercisesPageState extends State<ExercisesPage> {
               shadowColor: MedicalDesignSystem.primaryBrand.withOpacity(0.3),
               flexibleSpace: FlexibleSpaceBar(
                 title: const Text(
-                  'Medical Exercise Library',
+                  'Exercise Library',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontWeight: FontWeight.bold,
@@ -183,15 +197,6 @@ class _ExercisesPageState extends State<ExercisesPage> {
                             MedicalIcons.fitnessCenter,
                             color: Colors.white,
                             size: 32,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Professional Rehabilitation Exercises',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
                           ),
                         ],
                       ),
@@ -386,143 +391,156 @@ class _ExerciseCardContent extends StatelessWidget {
                 ? Border.all(color: MedicalDesignSystem.primaryBrand, width: 2)
                 : null,
           ),
-          child: Row(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Medical Exercise Image
-              Hero(
-                tag: 'exercise_${exercise.id}',
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  ),
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          MedicalDesignSystem.primaryBrand.withOpacity(0.1),
-                          MedicalDesignSystem.primaryLight.withOpacity(0.05),
-                        ],
-                      ),
-                    ),
-                    child: (exercise.imageUrl.trim().isNotEmpty)
-                        ? Image.asset(
-                            imagePath,
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: MedicalDesignSystem.primaryBrand.withOpacity(0.1),
+              // Exercise Header with Image and Title
+              Row(
+                children: [
+                  // Medical Exercise Image
+                  Hero(
+                    tag: 'exercise_${exercise.id}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              MedicalDesignSystem.primaryBrand.withOpacity(0.1),
+                              MedicalDesignSystem.primaryLight.withOpacity(0.05),
+                            ],
+                          ),
+                        ),
+                        child: (exercise.imageUrl.trim().isNotEmpty)
+                            ? Image.asset(
+                                imagePath,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: MedicalDesignSystem.primaryBrand.withOpacity(0.1),
+                                    child: Icon(
+                                      MedicalIcons.fitnessCenter,
+                                      color: MedicalDesignSystem.primaryBrand,
+                                      size: 28,
+                                    ),
+                                  );
+                                },
+                              )
+                            : Container(
+                                width: 80,
+                                height: 80,
+                                color: MedicalDesignSystem.primaryBrand.withOpacity(0.08),
                                 child: Icon(
                                   MedicalIcons.fitnessCenter,
                                   color: MedicalDesignSystem.primaryBrand,
-                                  size: 32,
+                                  size: 28,
                                 ),
-                              );
-                            },
-                          )
-                        : Container(
-                            width: 100,
-                            height: 100,
-                            color: MedicalDesignSystem.primaryBrand.withOpacity(0.08),
-                            child: Icon(
-                              MedicalIcons.fitnessCenter,
-                              color: MedicalDesignSystem.primaryBrand,
-                              size: 32,
-                            ),
-                          ),
+                              ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              // Exercise Details
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Medical Exercise Name
-                      Text(
-                        exercise.name,
-                        style: MedicalDesignSystem.subheaderStyle.copyWith(
-                          color: MedicalDesignSystem.primaryBrand,
-                          fontSize: 16,
+                  const SizedBox(width: 12),
+                  // Exercise Name and Basic Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Medical Exercise Name
+                        Text(
+                          exercise.name,
+                          style: MedicalDesignSystem.subheaderStyle.copyWith(
+                            color: MedicalDesignSystem.primaryBrand,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      // Medical Exercise Information
-                      Row(
-                        children: [
-                          MedicalDesignSystem.medicalStatusBadge(
-                            text: exercise.muscle,
-                            status: MedicalStatus.info,
-                          ),
-                          const SizedBox(width: 6),
-                          MedicalDesignSystem.medicalStatusBadge(
-                            text: exercise.painLevel,
-                            status: MedicalStatus.warning,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      
-                      // Exercise Details
-                      Row(
-                        children: [
-                          Icon(
-                            MedicalIcons.timer,
-                            color: MedicalDesignSystem.textSecondary,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${exercise.rep} reps',
-                            style: MedicalDesignSystem.labelStyle,
-                          ),
-                          const SizedBox(width: 12),
-                          Icon(
-                            MedicalIcons.schedule,
-                            color: MedicalDesignSystem.textSecondary,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${exercise.set} sets',
-                            style: MedicalDesignSystem.labelStyle,
-                          ),
-                        ],
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        // Exercise Details Row
+                        Row(
+                          children: [
+                            Icon(
+                              MedicalIcons.timer,
+                              color: MedicalDesignSystem.textSecondary,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${exercise.rep} reps',
+                              style: MedicalDesignSystem.labelStyle.copyWith(
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Icon(
+                              MedicalIcons.schedule,
+                              color: MedicalDesignSystem.textSecondary,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${exercise.set} sets',
+                              style: MedicalDesignSystem.labelStyle.copyWith(
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              
+              // Medical Exercise Information Badges
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  MedicalDesignSystem.medicalStatusBadge(
+                    text: exercise.muscle,
+                    status: MedicalStatus.info,
+                  ),
+                  MedicalDesignSystem.medicalStatusBadge(
+                    text: exercise.painLevel,
+                    status: MedicalStatus.warning,
+                  ),
+                  if (exercise.goal.isNotEmpty)
+                    MedicalDesignSystem.medicalStatusBadge(
+                      text: exercise.goal,
+                      status: MedicalStatus.success,
+                    ),
+                ],
               ),
               
-              // Medical Selection Button
-              if (isSelecting)
-                Padding(
-                  padding: const EdgeInsets.only(right: 16),
+              // Select Button (if in selection mode)
+              if (isSelecting) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.pop(context, exercise);
                     },
-                    icon: const Icon(MedicalIcons.checkCircle, size: 18),
-                    label: const Text('Select'),
+                    icon: const Icon(MedicalIcons.checkCircle, size: 20),
+                    label: const Text('Select Exercise'),
                     style: MedicalDesignSystem.primaryMedicalButton.copyWith(
                       padding: MaterialStateProperty.all(
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
                     ),
                   ),
                 ),
+              ],
             ],
           ),
         ),

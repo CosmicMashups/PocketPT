@@ -1,57 +1,65 @@
 ## ADDED Requirements
 
-### Requirement: Custom Exercise Creation
-The system SHALL provide the ability for users to create custom exercises with complete metadata that are not available in the predefined exercise database.
+### Requirement: Custom Exercise Creation Form
+The system SHALL provide a comprehensive form for users to create custom exercises with all necessary metadata fields.
 
 #### Scenario: User creates custom exercise
-- **WHEN** user selects "Create Custom Exercise" from the Add Exercise options
-- **THEN** a form dialog is displayed with all required fields for exercise metadata
+- **WHEN** user selects "Create Custom Exercise" from the add exercise options
+- **THEN** a form dialog appears with fields for exercise name, description, muscle group, pain level, functional goal, repetitions, sets, image filename, video URL, and other muscles
+- **AND** all required fields are marked with validation indicators
+- **AND** the form provides dropdown selections for standardized values (muscle groups, pain levels, goals)
 
-#### Scenario: Custom exercise form validation
-- **WHEN** user attempts to save a custom exercise with incomplete or invalid data
-- **THEN** appropriate validation messages are shown and the exercise is not saved
+#### Scenario: Form validation prevents invalid submissions
+- **WHEN** user attempts to submit the form with missing required fields
+- **THEN** validation errors are displayed for each invalid field
+- **AND** the submit button remains disabled until all validation passes
+- **AND** specific error messages guide the user to correct the issues
 
-#### Scenario: Custom exercise persistence
-- **WHEN** user successfully creates a custom exercise
-- **THEN** the exercise is saved to local storage and immediately available in exercise lists
+### Requirement: Custom Exercise Persistence
+The system SHALL save custom exercises locally using CSV format and make them available in the exercise selection interface.
 
-### Requirement: Enhanced Exercise Selection
-The system SHALL provide multiple options for adding exercises to rehabilitation plans, including both predefined and custom exercises.
+#### Scenario: Custom exercise is saved successfully
+- **WHEN** user submits a valid custom exercise form
+- **THEN** the exercise is saved to a local CSV file (exercises_custom.csv)
+- **AND** a success message is displayed to the user
+- **AND** the form dialog closes automatically
+- **AND** the custom exercise becomes immediately available in the exercise list
 
-#### Scenario: Exercise selection options
-- **WHEN** user taps "Add New Exercise" in the Exercise Manager
-- **THEN** a modal bottom sheet displays two options: "Select from Existing Exercises" and "Create Custom Exercise"
+#### Scenario: Custom exercises persist across app sessions
+- **WHEN** the app is restarted after creating custom exercises
+- **THEN** custom exercises remain available in the exercise selection
+- **AND** they are merged with default exercises in the exercise list
+- **AND** no data loss occurs during app restarts
 
-#### Scenario: Custom exercise integration
-- **WHEN** user creates a custom exercise
-- **THEN** the exercise appears in the exercise selection list alongside predefined exercises
+### Requirement: Exercise Selection Integration
+The system SHALL integrate custom exercises seamlessly with the existing exercise selection workflow.
 
-### Requirement: Custom Exercise Data Management
-The system SHALL manage custom exercise data using local CSV storage with proper error handling and data validation.
+#### Scenario: Custom exercises appear in exercise list
+- **WHEN** user navigates to the exercise selection page
+- **THEN** custom exercises are displayed alongside default exercises
+- **AND** custom exercises are clearly identifiable (e.g., with a custom badge or icon)
+- **AND** all exercise properties are properly displayed
 
-#### Scenario: Custom exercise data structure
-- **WHEN** custom exercises are created
-- **THEN** they follow the same data structure as predefined exercises with unique IDs
+#### Scenario: Custom exercises can be added to rehabilitation plans
+- **WHEN** user selects a custom exercise from the exercise list
+- **THEN** the exercise can be added to their rehabilitation plan
+- **AND** it behaves identically to default exercises in the plan
+- **AND** all exercise metadata is preserved in the plan
 
-#### Scenario: Custom exercise loading
-- **WHEN** the exercise list is loaded
-- **THEN** both predefined and custom exercises are displayed together
+### Requirement: Add Exercise Options Modal
+The system SHALL provide a modal interface that allows users to choose between selecting existing exercises or creating custom ones.
 
-#### Scenario: File system error handling
-- **WHEN** custom exercise file operations fail
-- **THEN** appropriate error messages are shown to the user without crashing the application
+#### Scenario: User sees exercise creation options
+- **WHEN** user taps the "Add Exercise" button in the plan manager
+- **THEN** a modal bottom sheet appears with two options
+- **AND** option 1: "Select from Existing Exercises" (navigates to exercise list)
+- **AND** option 2: "Create Custom Exercise" (opens custom exercise form)
+- **AND** the modal has a clean, accessible design with clear icons and labels
 
-### Requirement: Custom Exercise Firebase Sync
-The system SHALL sync custom exercises to Firebase for cross-device access while maintaining local storage for offline functionality.
-
-#### Scenario: Custom exercise Firebase sync
-- **WHEN** user creates a custom exercise
-- **THEN** the exercise is saved to both local storage and Firebase
-
-#### Scenario: Custom exercise cross-device access
-- **WHEN** user accesses the app on a different device
-- **THEN** custom exercises created on other devices are available
-
-#### Scenario: Firebase sync failure handling
-- **WHEN** Firebase sync fails during custom exercise creation
-- **THEN** the exercise is saved locally and sync is retried when connectivity is restored
+#### Scenario: Modal navigation works correctly
+- **WHEN** user selects "Select from Existing Exercises"
+- **THEN** the modal closes and navigates to the exercise list page
+- **AND** the existing exercise selection workflow continues normally
+- **WHEN** user selects "Create Custom Exercise"
+- **THEN** the modal closes and opens the custom exercise creation form
+- **AND** the form is properly initialized and ready for input

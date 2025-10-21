@@ -5,6 +5,7 @@ import '../data/treatment.dart';
 import '../assessment/generate_treatment.dart';
 import '../data/globals.dart';
 import '../core/medical_design_system.dart';
+import '../data/custom_exercise_service.dart';
 import 'exercise_list.dart' as exList;
 
 class EditPlanPage extends StatefulWidget {
@@ -669,7 +670,8 @@ class _EditPlanPageState extends State<EditPlanPage> {
   }
 
   Future<void> _replaceExercise(int index) async {
-    final currentExercise = UserRehabilitation.instance.rehabPlans.first.exerciseReferences[index];
+    final currentExerciseRef = UserRehabilitation.instance.rehabPlans.first.exerciseReferences[index];
+    final currentExerciseName = _getExerciseName(currentExerciseRef.exerciseId);
 
     // Show confirmation dialog
     final bool? confirm = await showDialog<bool>(
@@ -677,7 +679,7 @@ class _EditPlanPageState extends State<EditPlanPage> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Replace Exercise'),
-          content: Text('Are you sure you want to replace "${_getExerciseName(currentExercise.exerciseId)}"?'),
+          content: Text('Are you sure you want to replace "$currentExerciseName"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -700,19 +702,32 @@ class _EditPlanPageState extends State<EditPlanPage> {
 
     // Proceed with replacement
     try {
+      // Get current exercise details to use for replacement criteria
+      exList.Exercise? currentExerciseDetails;
+      if (_exercises != null) {
+        try {
+          currentExerciseDetails = _exercises!.firstWhere(
+            (ex) => ex.id == currentExerciseRef.exerciseId,
+          );
+        } catch (e) {
+          // Exercise not found in loaded exercises, use defaults
+          currentExerciseDetails = null;
+        }
+      }
+
       final newExercise = await generateRandomExercise(
-        muscle: 'general', // Default muscle
-        painLevel: 'moderate', // Default pain level
+        muscle: currentExerciseDetails?.muscle ?? (UserRehabilitation.instance.selectedMuscle.isNotEmpty ? UserRehabilitation.instance.selectedMuscle : 'general'),
+        painLevel: currentExerciseDetails?.painLevel ?? (UserRehabilitation.instance.selectedPainLevel.isNotEmpty ? UserRehabilitation.instance.selectedPainLevel : 'moderate'),
         painDuration: UserRehabilitation.instance.selectedPainDuration,
-        goal: 'rehabilitation', // Default goal
+        goal: currentExerciseDetails?.goal ?? 'rehabilitation',
       );
 
       if (newExercise != null) {
         setState(() {
           final replacementExercise = ExerciseReference(
             exerciseId: newExercise.exerciseId,
-            repetitions: newExercise.repetitions,
-            sets: newExercise.sets,
+            repetitions: currentExerciseRef.repetitions, // Keep original reps/sets
+            sets: currentExerciseRef.sets,
           );
           UserRehabilitation.instance.rehabPlans.first.exerciseReferences[index] = replacementExercise;
         });
@@ -720,7 +735,7 @@ class _EditPlanPageState extends State<EditPlanPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Replaced with ${_getExerciseName(newExercise.exerciseId)}'),
+            content: Text('✅ Replaced with ${newExercise.exerciseName}'),
             backgroundColor: subColor,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -825,11 +840,11 @@ class _EditPlanPageState extends State<EditPlanPage> {
   Widget _buildAddExerciseButtons() {
     return Column(
       children: [
-        // Advanced Add Exercise Button
+        // Add Exercise Button with Options
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: _addExerciseFromList,
+            onPressed: () => _showExerciseOptionDialog(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: subColor,
               foregroundColor: Colors.white,
@@ -842,7 +857,7 @@ class _EditPlanPageState extends State<EditPlanPage> {
             ),
             icon: const Icon(Icons.add_rounded, size: 20),
             label: const Text(
-                  "Add New Exercise (Advanced)",
+                  "Add Exercise",
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -853,6 +868,397 @@ class _EditPlanPageState extends State<EditPlanPage> {
         ),
         const SizedBox(height: 12),
       ],
+    );
+  }
+
+  void _showExerciseOptionDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Title
+            Text(
+              'Add Exercise',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.titleLarge?.color,
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Option 1: Select from Existing
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: mainColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.library_add, color: mainColor),
+              ),
+              title: const Text(
+                "Select from Existing Exercises",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text("Choose from pre-loaded exercises"),
+              onTap: () {
+                Navigator.pop(context);
+                _addExerciseFromList();
+              },
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Option 2: Create Custom
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: subColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.create, color: subColor),
+              ),
+              title: const Text(
+                "Create Custom Exercise",
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text("Design your own exercise"),
+              onTap: () {
+                Navigator.pop(context);
+                _showCustomExerciseDialog(context);
+              },
+            ),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCustomExerciseDialog(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final imageController = TextEditingController(text: 'exercise.jpg');
+    final videoController = TextEditingController();
+    final otherMusclesController = TextEditingController();
+    
+    String selectedMuscle = 'Deltoids';
+    String selectedPainLevel = 'Low';
+    String selectedGoal = 'Alleviate Pain';
+    int repetitions = 10;
+    int sets = 3;
+    bool isLoading = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.create, color: subColor),
+              const SizedBox(width: 8),
+              const Text('Create Custom Exercise'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Exercise Name
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Exercise Name *',
+                      hintText: 'Enter exercise name',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Exercise name is required';
+                      }
+                      if (value.trim().length < 3) {
+                        return 'Name must be at least 3 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Description
+                  TextFormField(
+                    controller: descriptionController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Description *',
+                      hintText: 'Describe how to perform the exercise',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Description is required';
+                      }
+                      if (value.trim().length < 10) {
+                        return 'Description must be at least 10 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Muscle Group
+                  DropdownButtonFormField<String>(
+                    value: selectedMuscle,
+                    decoration: const InputDecoration(
+                      labelText: 'Muscle Group *',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      'Deltoids', 'Biceps', 'Triceps', 'Chest', 'Back',
+                      'Abdominals', 'Obliques', 'Quadriceps', 'Hamstrings',
+                      'Gluteals', 'Calf', 'Ankle', 'Cervical Muscle',
+                      'Lower Back', 'Multifidus'
+                    ].map((muscle) => DropdownMenuItem(
+                      value: muscle,
+                      child: Text(muscle),
+                    )).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedMuscle = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Pain Level
+                  DropdownButtonFormField<String>(
+                    value: selectedPainLevel,
+                    decoration: const InputDecoration(
+                      labelText: 'Pain Level *',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const ['Low', 'Moderate', 'Severe'].map((level) => DropdownMenuItem(
+                      value: level,
+                      child: Text(level),
+                    )).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedPainLevel = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Functional Goal
+                  DropdownButtonFormField<String>(
+                    value: selectedGoal,
+                    decoration: const InputDecoration(
+                      labelText: 'Functional Goal *',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const ['Alleviate Pain', 'Strengthen', 'Improve', 'Maintain'].map((goal) => DropdownMenuItem(
+                      value: goal,
+                      child: Text(goal),
+                    )).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedGoal = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Repetitions and Sets
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          initialValue: repetitions.toString(),
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Repetitions *',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            repetitions = int.tryParse(value) ?? 10;
+                          },
+                          validator: (value) {
+                            final reps = int.tryParse(value ?? '');
+                            if (reps == null || reps < 1) {
+                              return 'Must be at least 1';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          initialValue: sets.toString(),
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Sets *',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            sets = int.tryParse(value) ?? 3;
+                          },
+                          validator: (value) {
+                            final setCount = int.tryParse(value ?? '');
+                            if (setCount == null || setCount < 1) {
+                              return 'Must be at least 1';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Image Filename
+                  TextFormField(
+                    controller: imageController,
+                    decoration: const InputDecoration(
+                      labelText: 'Image Filename',
+                      hintText: 'exercise.jpg',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Video URL
+                  TextFormField(
+                    controller: videoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Video URL',
+                      hintText: 'https://example.com/video.mp4',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Other Muscles
+                  TextFormField(
+                    controller: otherMusclesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Other Muscles',
+                      hintText: 'Comma-separated list of other muscles involved',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading ? null : () async {
+                if (formKey.currentState!.validate()) {
+                  setState(() {
+                    isLoading = true;
+                  });
+
+                  try {
+                    final customExercise = exList.Exercise(
+                      id: 'CUSTOM_${DateTime.now().millisecondsSinceEpoch}',
+                      name: nameController.text.trim(),
+                      description: descriptionController.text.trim(),
+                      muscle: selectedMuscle,
+                      painLevel: selectedPainLevel,
+                      goal: selectedGoal,
+                      rep: repetitions,
+                      set: sets,
+                      imageUrl: imageController.text.trim().isEmpty ? 'exercise.jpg' : imageController.text.trim(),
+                      videoUrl: videoController.text.trim(),
+                      otherMuscles: otherMusclesController.text.trim(),
+                    );
+
+                    await CustomExerciseService.saveExercise(customExercise);
+                    
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('✅ Custom exercise "${customExercise.name}" created successfully!'),
+                          backgroundColor: subColor,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                      
+                      // Refresh the exercise list
+                      _loadExercises();
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('❌ Error creating exercise: $e'),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) {
+                      setState(() {
+                        isLoading = false;
+                      });
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: subColor,
+                foregroundColor: Colors.white,
+              ),
+              child: isLoading 
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text('Create Exercise'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1108,20 +1514,37 @@ class _EditPlanPageState extends State<EditPlanPage> {
     );
   }
 
-  Future<ExerciseReference?> generateRandomExercise({
+  Future<Exercise?> generateRandomExercise({
     required String muscle,
     required String painLevel,
     required String painDuration,
     required String goal,
   }) async {
     try {
-      // Create a simple random exercise for replacement
-      final exerciseId = 'exercise_${_random.nextInt(100)}_${muscle}_${goal}';
-      return ExerciseReference(
-        exerciseId: exerciseId,
-        repetitions: 10 + _random.nextInt(10), // 10-19 reps
-        sets: 2 + _random.nextInt(3), // 2-4 sets
-      );
+      // Load all available exercises to find a suitable replacement
+      final allExercises = await ExerciseDataService.loadAllExercises();
+      
+      if (allExercises.isEmpty) {
+        debugPrint('No exercises available for replacement');
+        return null;
+      }
+
+      // Filter exercises by muscle group and pain level if possible
+      List<Exercise> suitableExercises = allExercises.where((exercise) {
+        return exercise.muscle.toLowerCase().contains(muscle.toLowerCase()) ||
+               muscle.toLowerCase().contains(exercise.muscle.toLowerCase()) ||
+               exercise.painLevel.toLowerCase() == painLevel.toLowerCase();
+      }).toList();
+
+      // If no specific matches, use all exercises
+      if (suitableExercises.isEmpty) {
+        suitableExercises = allExercises;
+      }
+
+      // Select a random exercise from suitable candidates
+      final selectedExercise = suitableExercises[_random.nextInt(suitableExercises.length)];
+      
+      return selectedExercise;
     } catch (e) {
       debugPrint('Error generating random exercise: $e');
       return null;

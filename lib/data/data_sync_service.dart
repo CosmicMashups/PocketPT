@@ -7,6 +7,7 @@ import 'rehabilitation_plan.dart';
 import 'data_persistence_service.dart';
 import 'firebase_helper.dart';
 import 'sync_queue.dart';
+import 'custom_exercise_service.dart';
 
 /// Service to manage comprehensive data synchronization between Hive and Firebase
 class DataSyncService {
@@ -334,6 +335,9 @@ class DataSyncService {
       // Load settings data from Firebase
       await UserSettings.loadFromFirebase();
       await UserAssess.loadFromFirebase();
+      
+      // Load custom exercises from Firebase
+      await _loadCustomExercisesFromFirebase();
       
       // Load other data from Hive (as fallback)
       await DataPersistenceService.loadAllDataFromHive();
@@ -907,6 +911,21 @@ class DataSyncService {
         durationSeconds: m['durationSeconds'] ?? 0,
         status: m['status'] ?? 'completed',
       ));
+    }
+  }
+
+  /// Load custom exercises from Firebase
+  static Future<void> _loadCustomExercisesFromFirebase() async {
+    try {
+      debugPrint('DataSyncService: Loading custom exercises from Firebase...');
+      
+      // Use CustomExerciseService to sync from Firebase
+      await CustomExerciseService.loadCustomExercises();
+      
+      debugPrint('DataSyncService: Custom exercises loaded from Firebase');
+    } catch (e) {
+      debugPrint('DataSyncService: Error loading custom exercises from Firebase: $e');
+      // Don't rethrow - custom exercises are optional
     }
   }
 }

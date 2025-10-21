@@ -328,3 +328,49 @@ class HiveTreatmentIds extends HiveObject {
     required this.treatmentIds,
   });
 }
+
+@HiveType(typeId: 13)
+class HiveCustomExercise extends HiveObject {
+  @HiveField(0)
+  String id;
+  @HiveField(1)
+  String name;
+  @HiveField(2)
+  String description;
+  @HiveField(3)
+  String muscle;
+  @HiveField(4)
+  String painLevel;
+  @HiveField(5)
+  String goal;
+  @HiveField(6)
+  int rep;
+  @HiveField(7)
+  int set;
+  @HiveField(8)
+  String imageUrl;
+  @HiveField(9)
+  String videoUrl;
+  @HiveField(10)
+  String otherMuscles;
+  @HiveField(11)
+  DateTime createdAt;
+  @HiveField(12)
+  DateTime lastModified;
+
+  HiveCustomExercise({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.muscle,
+    required this.painLevel,
+    required this.goal,
+    required this.rep,
+    required this.set,
+    required this.imageUrl,
+    required this.videoUrl,
+    required this.otherMuscles,
+    required this.createdAt,
+    required this.lastModified,
+  });
+}

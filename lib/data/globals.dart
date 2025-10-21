@@ -1310,28 +1310,83 @@ class PainHistory {
 
   // Hive persistence methods - Simplified using List of Maps
   static Future<void> saveToHive() async {
-    try {
-      if (!Hive.isBoxOpen('rehabBox')) {
-        debugPrint('PainHistory.saveToHive: Hive box not open, attempting to open...');
-        await openRehabBox();
+    int retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        // Validate data before saving
+        if (!_validatePainHistoryData()) {
+          throw Exception('Pain history data validation failed');
+        }
+        
+        if (!Hive.isBoxOpen('rehabBox')) {
+          debugPrint('PainHistory.saveToHive: Hive box not open, attempting to open...');
+          await openRehabBox();
+        }
+        final box = Hive.box('rehabBox');
+        
+        // Save pain history as a simple List of Maps
+        final painHistoryList = entries.map((entry) => {
+          'date': entry.date.millisecondsSinceEpoch,
+          'painScale': entry.painScale,
+          'painLevel': entry.painLevel,
+        }).toList();
+        
+        await box.put('painHistory', painHistoryList);
+        debugPrint('Saved ${entries.length} pain history entries to Hive');
+        
+        // Verify the save was successful
+        final savedData = box.get('painHistory');
+        if (savedData == null || (savedData as List).length != entries.length) {
+          throw Exception('Data verification failed after save');
+        }
+        
+        // Trigger auto-save
+        DataPersistenceService.instance.triggerSave(reason: 'Pain history updated');
+        return; // Success, exit retry loop
+        
+      } catch (e) {
+        retryCount++;
+        debugPrint('PainHistory.saveToHive: Attempt $retryCount failed: $e');
+        
+        if (retryCount >= maxRetries) {
+          debugPrint('PainHistory.saveToHive: All retry attempts failed');
+          rethrow;
+        }
+        
+        // Wait before retry (exponential backoff)
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }
-      final box = Hive.box('rehabBox');
-      
-      // Save pain history as a simple List of Maps
-      final painHistoryList = entries.map((entry) => {
-        'date': entry.date.millisecondsSinceEpoch,
-        'painScale': entry.painScale,
-        'painLevel': entry.painLevel,
-      }).toList();
-      
-      await box.put('painHistory', painHistoryList);
-      debugPrint('Saved ${entries.length} pain history entries to Hive');
-      
-      // Trigger auto-save
-      DataPersistenceService.instance.triggerSave(reason: 'Pain history updated');
+    }
+  }
+  
+  // Validate pain history data integrity
+  static bool _validatePainHistoryData() {
+    try {
+      for (final entry in entries) {
+        // Validate pain scale is within valid range (0-10)
+        if (entry.painScale < 0 || entry.painScale > 10) {
+          debugPrint('PainHistory validation failed: Invalid pain scale ${entry.painScale}');
+          return false;
+        }
+        
+        // Validate pain level is not empty
+        if (entry.painLevel.isEmpty) {
+          debugPrint('PainHistory validation failed: Empty pain level');
+          return false;
+        }
+        
+        // Validate date is not in the future
+        if (entry.date.isAfter(DateTime.now())) {
+          debugPrint('PainHistory validation failed: Future date ${entry.date}');
+          return false;
+        }
+      }
+      return true;
     } catch (e) {
-      debugPrint('Error saving pain history to Hive: $e');
-      rethrow;
+      debugPrint('PainHistory validation error: $e');
+      return false;
     }
   }
 
@@ -1517,32 +1572,105 @@ class ExerciseHistory {
 
   // Hive persistence methods - Simplified using List of Maps
   static Future<void> saveToHive() async {
-    try {
-      if (!Hive.isBoxOpen('rehabBox')) {
-        debugPrint('ExerciseHistory.saveToHive: Hive box not open, attempting to open...');
-        await openRehabBox();
+    int retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        // Validate data before saving
+        if (!_validateExerciseHistoryData()) {
+          throw Exception('Exercise history data validation failed');
+        }
+        
+        if (!Hive.isBoxOpen('rehabBox')) {
+          debugPrint('ExerciseHistory.saveToHive: Hive box not open, attempting to open...');
+          await openRehabBox();
+        }
+        final box = Hive.box('rehabBox');
+        
+        // Save exercise history as a simple List of Maps
+        final exerciseHistoryList = entries.map((entry) => {
+          'date': entry.date.millisecondsSinceEpoch,
+          'exerciseId': entry.exerciseId,
+          'exerciseName': entry.exerciseName,
+          'sets': entry.sets,
+          'reps': entry.reps,
+          'durationSeconds': entry.durationSeconds,
+          'status': entry.status,
+        }).toList();
+        
+        await box.put('exerciseHistory', exerciseHistoryList);
+        debugPrint('Saved ${entries.length} exercise history entries to Hive');
+        
+        // Verify the save was successful
+        final savedData = box.get('exerciseHistory');
+        if (savedData == null || (savedData as List).length != entries.length) {
+          throw Exception('Data verification failed after save');
+        }
+        
+        // Trigger auto-save
+        DataPersistenceService.instance.triggerSave(reason: 'Exercise history updated');
+        return; // Success, exit retry loop
+        
+      } catch (e) {
+        retryCount++;
+        debugPrint('ExerciseHistory.saveToHive: Attempt $retryCount failed: $e');
+        
+        if (retryCount >= maxRetries) {
+          debugPrint('ExerciseHistory.saveToHive: All retry attempts failed');
+          rethrow;
+        }
+        
+        // Wait before retry (exponential backoff)
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }
-      final box = Hive.box('rehabBox');
-      
-      // Save exercise history as a simple List of Maps
-      final exerciseHistoryList = entries.map((entry) => {
-        'date': entry.date.millisecondsSinceEpoch,
-        'exerciseId': entry.exerciseId,
-        'exerciseName': entry.exerciseName,
-        'sets': entry.sets,
-        'reps': entry.reps,
-        'durationSeconds': entry.durationSeconds,
-        'status': entry.status,
-      }).toList();
-      
-      await box.put('exerciseHistory', exerciseHistoryList);
-      debugPrint('Saved ${entries.length} exercise history entries to Hive');
-      
-      // Trigger auto-save
-      DataPersistenceService.instance.triggerSave(reason: 'Exercise history updated');
+    }
+  }
+  
+  // Validate exercise history data integrity
+  static bool _validateExerciseHistoryData() {
+    try {
+      for (final entry in entries) {
+        // Validate exercise ID is not empty
+        if (entry.exerciseId.isEmpty) {
+          debugPrint('ExerciseHistory validation failed: Empty exercise ID');
+          return false;
+        }
+        
+        // Validate exercise name is not empty
+        if (entry.exerciseName.isEmpty) {
+          debugPrint('ExerciseHistory validation failed: Empty exercise name');
+          return false;
+        }
+        
+        // Validate sets and reps are positive
+        if (entry.sets <= 0 || entry.reps <= 0) {
+          debugPrint('ExerciseHistory validation failed: Invalid sets (${entry.sets}) or reps (${entry.reps})');
+          return false;
+        }
+        
+        // Validate duration is not negative
+        if (entry.durationSeconds < 0) {
+          debugPrint('ExerciseHistory validation failed: Negative duration ${entry.durationSeconds}');
+          return false;
+        }
+        
+        // Validate status is valid
+        if (!['completed', 'incomplete', 'skipped'].contains(entry.status.toLowerCase())) {
+          debugPrint('ExerciseHistory validation failed: Invalid status ${entry.status}');
+          return false;
+        }
+        
+        // Validate date is not in the future
+        if (entry.date.isAfter(DateTime.now())) {
+          debugPrint('ExerciseHistory validation failed: Future date ${entry.date}');
+          return false;
+        }
+      }
+      return true;
     } catch (e) {
-      debugPrint('Error saving exercise history to Hive: $e');
-      rethrow;
+      debugPrint('ExerciseHistory validation error: $e');
+      return false;
     }
   }
 

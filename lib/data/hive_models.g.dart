@@ -567,3 +567,73 @@ class HiveTreatmentIdsAdapter extends TypeAdapter<HiveTreatmentIds> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+class HiveCustomExerciseAdapter extends TypeAdapter<HiveCustomExercise> {
+  @override
+  final int typeId = 13;
+
+  @override
+  HiveCustomExercise read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return HiveCustomExercise(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      description: fields[2] as String,
+      muscle: fields[3] as String,
+      painLevel: fields[4] as String,
+      goal: fields[5] as String,
+      rep: fields[6] as int,
+      set: fields[7] as int,
+      imageUrl: fields[8] as String,
+      videoUrl: fields[9] as String,
+      otherMuscles: fields[10] as String,
+      createdAt: fields[11] as DateTime,
+      lastModified: fields[12] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, HiveCustomExercise obj) {
+    writer
+      ..writeByte(13)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.description)
+      ..writeByte(3)
+      ..write(obj.muscle)
+      ..writeByte(4)
+      ..write(obj.painLevel)
+      ..writeByte(5)
+      ..write(obj.goal)
+      ..writeByte(6)
+      ..write(obj.rep)
+      ..writeByte(7)
+      ..write(obj.set)
+      ..writeByte(8)
+      ..write(obj.imageUrl)
+      ..writeByte(9)
+      ..write(obj.videoUrl)
+      ..writeByte(10)
+      ..write(obj.otherMuscles)
+      ..writeByte(11)
+      ..write(obj.createdAt)
+      ..writeByte(12)
+      ..write(obj.lastModified);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HiveCustomExerciseAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}

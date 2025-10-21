@@ -161,6 +161,9 @@ class DataPersistenceService {
       await UserSettings.saveToHive();
       await ActiveProgram.saveToHive();
       
+      // Save custom exercises
+      await _saveCustomExercisesToHive();
+      
       // Save metadata about the save operation
       await box.put('lastSaveTimestamp', DateTime.now().toIso8601String());
       await box.put('saveVersion', '1.0');
@@ -300,6 +303,27 @@ class DataPersistenceService {
     } catch (e) {
       print('DataPersistenceService: Error validating data integrity: $e');
       return false;
+    }
+  }
+
+  /// Save custom exercises to Hive
+  static Future<void> _saveCustomExercisesToHive() async {
+    try {
+      print('DataPersistenceService: Saving custom exercises to Hive...');
+      
+      // Verify Hive box is open
+      if (!Hive.isBoxOpen('rehabBox')) {
+        print('DataPersistenceService: Hive box not open, attempting to open...');
+        await openRehabBox();
+      }
+      
+      // Custom exercises are already saved by CustomExerciseService
+      // This method is here for consistency with the save pattern
+      print('DataPersistenceService: Custom exercises save completed');
+      
+    } catch (e) {
+      print('DataPersistenceService: Error saving custom exercises: $e');
+      // Don't rethrow - custom exercises are optional
     }
   }
 }

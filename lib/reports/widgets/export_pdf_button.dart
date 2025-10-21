@@ -327,6 +327,41 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
               ),
               pw.SizedBox(height: 20),
               
+              // Data freshness section
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Data Freshness',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      'Report generated: ${DateFormat('MMMM d, yyyy at h:mm a').format(now)}',
+                      style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
+                    ),
+                    pw.Text(
+                      'Data last updated: ${DateFormat('MMMM d, yyyy at h:mm a').format(reportsData.lastUpdated)}',
+                      style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
+                    ),
+                    pw.Text(
+                      'Total records: ${reportsData.painHistory.length} pain entries, ${reportsData.exerciseHistory.length} exercise entries',
+                      style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              
               // Summary section
               pw.Text(
                 'Summary',
@@ -437,6 +472,66 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
               ),
               pw.SizedBox(height: 20),
               
+              // Pain History Trends section
+              pw.Text(
+                'Pain Level Trends',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 10),
+              if (reportsData.painHistory.isEmpty)
+                pw.Text(
+                  'No pain records found.',
+                  style: pw.TextStyle(color: PdfColors.grey600),
+                )
+              else
+                pw.Table(
+                  border: pw.TableBorder.all(color: PdfColors.grey300),
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(100),
+                    1: const pw.FixedColumnWidth(60),
+                    2: const pw.FlexColumnWidth(2),
+                  },
+                  children: [
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('Date', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('Scale', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('Level', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    ...reportsData.painHistory.take(30).map((record) => pw.TableRow(
+                      children: [
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(DateFormat('MMM d, yyyy').format(record.date)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(record.painScale.toString()),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(record.painLevel),
+                        ),
+                      ],
+                    )).toList(),
+                  ],
+                ),
+              pw.SizedBox(height: 20),
+              
               // Exercise History section
               pw.Text(
                 'Exercise History',
@@ -457,8 +552,10 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                   columnWidths: {
                     0: const pw.FixedColumnWidth(80),
                     1: const pw.FlexColumnWidth(2),
-                    2: const pw.FixedColumnWidth(80),
-                    3: const pw.FixedColumnWidth(80),
+                    2: const pw.FixedColumnWidth(60),
+                    3: const pw.FixedColumnWidth(60),
+                    4: const pw.FixedColumnWidth(80),
+                    5: const pw.FixedColumnWidth(80),
                   },
                   children: [
                     pw.TableRow(
@@ -480,9 +577,17 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                           padding: const pw.EdgeInsets.all(8),
                           child: pw.Text('Reps', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                         ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('Duration', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('Status', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        ),
                       ],
                     ),
-                    ...reportsData.exerciseHistory.take(20).map((record) => pw.TableRow(
+                    ...reportsData.exerciseHistory.take(30).map((record) => pw.TableRow(
                       children: [
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
@@ -499,6 +604,14 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
                           child: pw.Text(record.reps.toString()),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text('${(record.durationSeconds / 60).toStringAsFixed(1)}m'),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Text(record.status),
                         ),
                       ],
                     )).toList(),

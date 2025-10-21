@@ -563,7 +563,7 @@ class _DashboardPageState extends State<DashboardPage>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
           if (mounted) {
             _maybeShowDailyAssessmentDialog(context);
-            _maybeShowDailyPainChangeDialog(context);
+            await _maybeShowDailyPainChangeDialog(context);
             _maybeShowRegeneratePlanDialog(context);
           }
         });
@@ -1497,15 +1497,76 @@ class _DashboardPageState extends State<DashboardPage>
     }
   }
 
-  void _maybeShowDailyPainChangeDialog(BuildContext context) {
+  Future<void> _maybeShowDailyPainChangeDialog(BuildContext context) async {
     if (!UserSettings.isDailyReminder) return;
 
     // Ensure there is a baseline entry for today using current UserAssess state
     if (PainHistory.todaysEntry() == null) {
-      PainHistory.recordToday(
-        painScale: UserAssess.painScale,
-        painLevel: UserAssess.painLevel.isEmpty ? UserAssess.painScale.toString() : UserAssess.painLevel,
-      );
+      try {
+        // Show loading indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Saving pain data...'),
+                ],
+              ),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        
+        await PainHistory.recordTodayAndSave(
+          painScale: UserAssess.painScale,
+          painLevel: UserAssess.painLevel.isEmpty ? UserAssess.painScale.toString() : UserAssess.painLevel,
+        );
+        
+        // Show success feedback
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Pain data saved successfully'),
+                ],
+              ),
+              backgroundColor: Color(0xFF10B981),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        // Show error feedback
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Failed to save pain data: ${e.toString()}')),
+                ],
+              ),
+              backgroundColor: const Color(0xFFEF4444),
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Retry',
+                textColor: Colors.white,
+                onPressed: () => _maybeShowDailyPainChangeDialog(context),
+              ),
+            ),
+          );
+        }
+      }
     }
 
     if (PainHistory.shouldPromptForRetake()) {

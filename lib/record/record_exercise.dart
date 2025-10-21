@@ -236,14 +236,33 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                           final prevIndex = currentIndex - 1;
                           if (prevIndex >= 0) {
                             // Record current exercise as partial if user goes back
-                            ExerciseHistory.recordTodayAndSave(
-                              exerciseId: currentExercise.exerciseId,
-                              exerciseName: currentExercise.exerciseName,
-                              sets: currentExercise.sets,
-                              reps: currentExercise.repetitions,
-                              durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
-                              status: 'partial',
-                            );
+                            try {
+                              // Validate exercise data before saving
+                              if (currentExercise.exerciseId.isEmpty || 
+                                  currentExercise.exerciseName.isEmpty ||
+                                  currentExercise.sets <= 0 ||
+                                  currentExercise.repetitions <= 0) {
+                                throw Exception('Invalid exercise data: missing or invalid fields');
+                              }
+                              
+                              await ExerciseHistory.recordTodayAndSave(
+                                exerciseId: currentExercise.exerciseId,
+                                exerciseName: currentExercise.exerciseName,
+                                sets: currentExercise.sets,
+                                reps: currentExercise.repetitions,
+                                durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                                status: 'partial',
+                              );
+                            } catch (e) {
+                              debugPrint('Failed to save partial exercise data: $e');
+                              // Show error to user but continue navigation
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Warning: Failed to save exercise progress: ${e.toString()}'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            }
 
                             final prevExerciseRef = rehabPlan.exerciseReferences[prevIndex];
                             final prevExercise = await _cacheService.getExerciseById(prevExerciseRef.exerciseId);
@@ -266,16 +285,34 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                     ),
                     _buildCircleButton(
                       icon: Icons.pause,
-                      onTap: () {
-                        // Record current exercise as partial when pausing
-                        ExerciseHistory.recordTodayAndSave(
-                          exerciseId: currentExercise.exerciseId,
-                          exerciseName: currentExercise.exerciseName,
-                          sets: currentExercise.sets,
-                          reps: currentExercise.repetitions,
-                          durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
-                          status: 'partial',
-                        );
+                      onTap: () async {
+                          // Record current exercise as partial when pausing
+                          try {
+                            // Validate exercise data before saving
+                            if (currentExercise.exerciseId.isEmpty || 
+                                currentExercise.exerciseName.isEmpty ||
+                                currentExercise.sets <= 0 ||
+                                currentExercise.repetitions <= 0) {
+                              throw Exception('Invalid exercise data: missing or invalid fields');
+                            }
+                            
+                            await ExerciseHistory.recordTodayAndSave(
+                              exerciseId: currentExercise.exerciseId,
+                              exerciseName: currentExercise.exerciseName,
+                              sets: currentExercise.sets,
+                              reps: currentExercise.repetitions,
+                              durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                              status: 'partial',
+                            );
+                          } catch (e) {
+                            debugPrint('Failed to save partial exercise data: $e');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Warning: Failed to save exercise progress: ${e.toString()}'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
                         
                         StopwatchService.instance.pause();
                         Navigator.push(
@@ -299,14 +336,32 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
                           if (nextIndex < rehabPlan.exerciseReferences.length) {
                             // Record current exercise as completed when proceeding to next
-                            ExerciseHistory.recordTodayAndSave(
-                              exerciseId: currentExercise.exerciseId,
-                              exerciseName: currentExercise.exerciseName,
-                              sets: currentExercise.sets,
-                              reps: currentExercise.repetitions,
-                              durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
-                              status: 'completed',
-                            );
+                            try {
+                              // Validate exercise data before saving
+                              if (currentExercise.exerciseId.isEmpty || 
+                                  currentExercise.exerciseName.isEmpty ||
+                                  currentExercise.sets <= 0 ||
+                                  currentExercise.repetitions <= 0) {
+                                throw Exception('Invalid exercise data: missing or invalid fields');
+                              }
+                              
+                              await ExerciseHistory.recordTodayAndSave(
+                                exerciseId: currentExercise.exerciseId,
+                                exerciseName: currentExercise.exerciseName,
+                                sets: currentExercise.sets,
+                                reps: currentExercise.repetitions,
+                                durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                                status: 'completed',
+                              );
+                            } catch (e) {
+                              debugPrint('Failed to save completed exercise data: $e');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Warning: Failed to save exercise completion: ${e.toString()}'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            }
 
                             final nextExerciseRef = rehabPlan.exerciseReferences[nextIndex];
                             final nextExercise = await _cacheService.getExerciseById(nextExerciseRef.exerciseId);
@@ -333,15 +388,28 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                               final exerciseRef = rehabPlan.exerciseReferences[i];
                               final exercise = await _cacheService.getExerciseById(exerciseRef.exerciseId);
                               if (exercise != null) {
-                                ExerciseHistory.recordTodayAndSave(
-                                  exerciseId: exercise.exerciseId,
-                                  exerciseName: exercise.exerciseName,
-                                  sets: exerciseRef.sets,
-                                  reps: exerciseRef.repetitions,
-                                  durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
-                                  status: 'completed',
-                                  now: now,
-                                );
+                                try {
+                                  // Validate exercise data before saving
+                                  if (exercise.exerciseId.isEmpty || 
+                                      exercise.exerciseName.isEmpty ||
+                                      exerciseRef.sets <= 0 ||
+                                      exerciseRef.repetitions <= 0) {
+                                    throw Exception('Invalid exercise data: missing or invalid fields');
+                                  }
+                                  
+                                  await ExerciseHistory.recordTodayAndSave(
+                                    exerciseId: exercise.exerciseId,
+                                    exerciseName: exercise.exerciseName,
+                                    sets: exerciseRef.sets,
+                                    reps: exerciseRef.repetitions,
+                                    durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                                    status: 'completed',
+                                    now: now,
+                                  );
+                                } catch (e) {
+                                  debugPrint('Failed to save completed exercise data: $e');
+                                  // Continue with other exercises even if one fails
+                                }
                               }
                             }
                             
