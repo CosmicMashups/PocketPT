@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import '../home_dialog.dart';
 import '../data/rehabilitation_plan.dart';
+import '../core/animations.dart';
 import 'pre_record_page.dart';
 import 'confirm_save_page.dart';
 import 'stopwatch_service.dart';
@@ -17,16 +18,27 @@ class RecordExercisePage extends StatefulWidget {
   State<RecordExercisePage> createState() => _RecordExercisePageState();
 }
 
-class _RecordExercisePageState extends State<RecordExercisePage> {
+class _RecordExercisePageState extends State<RecordExercisePage> with TickerProviderStateMixin {
   final CameraService _cameraService = CameraService.instance;
   final ExerciseCacheService _cacheService = ExerciseCacheService.instance;
   bool _isCameraInitialized = false;
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
+    _animationController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
     _initializeCamera();
     StopwatchService.instance.start();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _initializeCamera() async {
@@ -47,12 +59,6 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
     }
   }
 
-  @override
-  void dispose() {
-    // Don't dispose camera service here as it's shared across pages
-    // Only dispose when exiting the entire recording workflow
-    super.dispose();
-  }
 
   Widget _buildCameraPreview(bool isDark) {
     if (_isCameraInitialized && _cameraService.isReady) {
@@ -274,15 +280,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                         StopwatchService.instance.pause();
                         Navigator.push(
                           context,
-                          PageRouteBuilder(
-                            pageBuilder: (context, _, __) => PreRecordPage(),
-                            transitionsBuilder: (context, animation, __, child) {
-                              final offsetAnimation = Tween(
-                                begin: const Offset(1, 0),
-                                end: Offset.zero,
-                              ).chain(CurveTween(curve: Curves.easeInOut)).animate(animation);
-                              return SlideTransition(position: offsetAnimation, child: child);
-                            },
+                          MedicalPageRoute(
+                            child: const PreRecordPage(),
+                            settings: const RouteSettings(name: '/pre-record'),
                           ),
                         );
                       },
@@ -375,14 +375,17 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
 
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => ConfirmSavePage(
+                              MedicalPageRoute(
+                                child: ConfirmSavePage(
                                   onSave: () {
                                     // The progress has already been updated in the main section
                                     // Just navigate to home page
                                     Navigator.pushAndRemoveUntil(
                                       context,
-                                      MaterialPageRoute(builder: (context) => HomePageWithDialog()),
+                                      MedicalPageRoute(
+                                        child: HomePageWithDialog(),
+                                        settings: const RouteSettings(name: '/home'),
+                                      ),
                                       (route) => false,
                                     );
                                   },
@@ -390,6 +393,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> {
                                     Navigator.pop(context); // return to exercise screen
                                   },
                                 ),
+                                settings: const RouteSettings(name: '/confirm-save'),
                               ),
                             );
                           }

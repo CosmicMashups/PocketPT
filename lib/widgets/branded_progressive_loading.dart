@@ -582,3 +582,4 @@ class BrandedLoadingIndicator extends StatelessWidget {
     );
   }
 }
+

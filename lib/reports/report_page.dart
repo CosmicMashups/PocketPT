@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'widgets/rehab_plan_expansion_panel.dart';
 import 'widgets/exercise_calendar_grid.dart';
 import 'widgets/export_pdf_button.dart';
 import '../data/user_data_notifier.dart';
+import '../core/animations.dart';
 import 'services/reports_data_service.dart';
 // removed data wrapper: using direct globals like a_goal1.dart
 class ReportPage extends ConsumerStatefulWidget {
@@ -13,16 +15,23 @@ class ReportPage extends ConsumerStatefulWidget {
   ConsumerState<ReportPage> createState() => _ReportPageState();
 }
 
-class _ReportPageState extends ConsumerState<ReportPage> {
+class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStateMixin {
+  late AnimationController _animationController;
+
   @override
   void initState() {
     super.initState();
+    _animationController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
     // Listen for rehabilitation plan changes
     UserDataNotifier.instance.addListener(_onRehabilitationPlanChanged);
   }
   
   @override
   void dispose() {
+    _animationController.dispose();
     UserDataNotifier.instance.removeListener(_onRehabilitationPlanChanged);
     super.dispose();
   }
@@ -174,25 +183,72 @@ class _ReportPageState extends ConsumerState<ReportPage> {
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: AnimationLimiter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Header Section with improved design
-          _buildHeaderSection(context, reportsData, isDark),
+          AnimationConfiguration.staggeredList(
+            position: 0,
+            duration: PocketPTAnimations.pageTransition,
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: _buildHeaderSection(context, reportsData, isDark),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
 
           // Quick Stats Section
-          _buildQuickStatsSection(context, reportsData, isDark),
+          AnimationConfiguration.staggeredList(
+            position: 1,
+            duration: PocketPTAnimations.pageTransition,
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: _buildQuickStatsSection(context, reportsData, isDark),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
 
           // Reports Content
-          const RehabPlanExpansionPanel(),
+          AnimationConfiguration.staggeredList(
+            position: 2,
+            duration: PocketPTAnimations.pageTransition,
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: const RehabPlanExpansionPanel(),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
-          const ExerciseCalendarGrid(),
+          AnimationConfiguration.staggeredList(
+            position: 3,
+            duration: PocketPTAnimations.pageTransition,
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: const ExerciseCalendarGrid(),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
-          const ExportPDFButton(),
+          AnimationConfiguration.staggeredList(
+            position: 4,
+            duration: PocketPTAnimations.pageTransition,
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: const ExportPDFButton(),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
         ],
+        ),
       ),
     );
   }

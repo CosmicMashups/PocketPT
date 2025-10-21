@@ -244,3 +244,4 @@ class ProgressiveLoadingWidget extends StatefulWidget {
 - Memory usage
 - Loading times
 - Device compatibility
+

@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'exercise_detail.dart';
-import '../data/widget_cache_service.dart';
-import '../data/performance_optimization_service.dart';
-import '../data/custom_exercise_service.dart';
+import '../core/medical_design_system.dart';
 
 class Exercise {
   final String id;
@@ -113,22 +111,11 @@ class _ExercisesPageState extends State<ExercisesPage> {
       List<Exercise> defaultExercises = csvData.skip(1).map((row) => Exercise.fromCsv(row)).toList();
       
       print('Loaded ${defaultExercises.length} default exercises from CSV');
+      print('First exercise: ${defaultExercises.isNotEmpty ? defaultExercises.first.name : "No exercises"}');
+      print('CSV data sample: ${csvData.length > 1 ? csvData[1] : "No data"}');
 
-      // Load custom exercises from local storage (optional)
-      List<Exercise> customExercises = [];
-      try {
-        customExercises = await CustomExerciseService.loadCustomExercisesFromLocal();
-        print('Loaded ${customExercises.length} custom exercises');
-      } catch (e) {
-        // Custom exercises are optional, don't fail if they can't be loaded
-        print('Warning: Could not load custom exercises: $e');
-      }
-
-      // Combine both lists (custom exercises first to show them prominently)
-      final allExercises = [...customExercises, ...defaultExercises];
-      
-      print('Total exercises loaded: ${allExercises.length} (${customExercises.length} custom + ${defaultExercises.length} default)');
-      return allExercises;
+      print('Total exercises loaded: ${defaultExercises.length}');
+      return defaultExercises;
     } catch (e) {
       print('Error loading exercise data: $e');
       throw Exception("Failed to load exercise data: $e");
@@ -150,43 +137,70 @@ class _ExercisesPageState extends State<ExercisesPage> {
               : const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Colors.white, Color(0xFFF5F5F5)],
+                  colors: [MedicalDesignSystem.backgroundClean, MedicalDesignSystem.cardBackground],
                 ),
         ),
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 120.0,
+              expandedHeight: 140.0,
               floating: false,
               pinned: true,
-              backgroundColor: const Color(0xFF8B2E2E),
-              elevation: 4,
-              shadowColor: Colors.black.withOpacity(0.3),
+              backgroundColor: MedicalDesignSystem.primaryBrand,
+              elevation: 8,
+              shadowColor: MedicalDesignSystem.primaryBrand.withOpacity(0.3),
               flexibleSpace: FlexibleSpaceBar(
                 title: const Text(
-                  'Exercises',
+                  'Medical Exercise Library',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 26,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
                     color: Colors.white,
                     letterSpacing: 0.5,
                   ),
                 ),
                 centerTitle: true,
                 background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF8B2E2E), Color(0xFFA03A3A)],
+                  decoration: MedicalDesignSystem.medicalGradientBackground,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          MedicalDesignSystem.primaryBrand,
+                          MedicalDesignSystem.primaryLight,
+                        ],
+                      ),
+                    ),
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: 20),
+                          Icon(
+                            MedicalIcons.fitnessCenter,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Professional Rehabilitation Exercises',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: _buildExerciseList(context, isDark),
-            ),
+            _buildExerciseList(context, isDark),
           ],
         ),
       ),
@@ -206,59 +220,65 @@ class _ExercisesPageState extends State<ExercisesPage> {
         }
         
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32.0),
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
+          return const SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
+                ),
               ),
             ),
           );
         } else if (snapshot.hasError) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading data',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: isDark ? Colors.white70 : Colors.grey.shade700,
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.shade300,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(
+                      'Error loading data',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: isDark ? Colors.white70 : Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.fitness_center_outlined,
-                    size: 64,
-                    color: isDark ? Colors.white54 : Colors.grey.shade400,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No exercises found',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: isDark ? Colors.white70 : Colors.grey.shade700,
+          return SliverToBoxAdapter(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.fitness_center_outlined,
+                      size: 64,
+                      color: isDark ? Colors.white54 : Colors.grey.shade400,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Text(
+                      'No exercises found',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: isDark ? Colors.white70 : Colors.grey.shade700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -266,24 +286,29 @@ class _ExercisesPageState extends State<ExercisesPage> {
 
         List<Exercise> exercises = snapshot.data!;
 
-        return CachedListView(
-          cacheKey: 'exercise_list',
-          itemCount: exercises.length,
+        return SliverPadding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          itemBuilder: (context, index) {
-            final item = exercises[index];
-            return AnimatedOpacity(
-              opacity: 1.0,
-              duration: Duration(milliseconds: 300 + (index * 100)),
-              child: KeyedSubtree(
-                key: ValueKey('exercise_${item.id}_$index'),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final item = exercises[index];
+                return AnimatedOpacity(
+                  opacity: 1.0,
+                  duration: Duration(milliseconds: 300 + (index * 100)),
+                  child: KeyedSubtree(
+                    key: ValueKey('exercise_${item.id}_$index'),
                 child: ExerciseCard(
                   exercise: item,
                   isSelecting: widget.selectingForAddition || widget.selectingForReplacement,
+                  selectingForAddition: widget.selectingForAddition,
+                  selectingForReplacement: widget.selectingForReplacement,
                 ),
-              ),
-            );
-          },
+                  ),
+                );
+              },
+              childCount: exercises.length,
+            ),
+          ),
         );
       },
     );
@@ -293,11 +318,15 @@ class _ExercisesPageState extends State<ExercisesPage> {
 class ExerciseCard extends StatelessWidget {
   final Exercise exercise;
   final bool isSelecting;
+  final bool selectingForAddition;
+  final bool selectingForReplacement;
 
   const ExerciseCard({
     super.key,
     required this.exercise,
     this.isSelecting = false,
+    this.selectingForAddition = false,
+    this.selectingForReplacement = false,
   });
 
   @override
@@ -305,6 +334,8 @@ class ExerciseCard extends StatelessWidget {
     return _ExerciseCardContent(
       exercise: exercise,
       isSelecting: isSelecting,
+      selectingForAddition: selectingForAddition,
+      selectingForReplacement: selectingForReplacement,
     );
   }
 }
@@ -312,58 +343,58 @@ class ExerciseCard extends StatelessWidget {
 class _ExerciseCardContent extends StatelessWidget {
   final Exercise exercise;
   final bool isSelecting;
+  final bool selectingForAddition;
+  final bool selectingForReplacement;
 
   const _ExerciseCardContent({
     required this.exercise,
     required this.isSelecting,
+    required this.selectingForAddition,
+    required this.selectingForReplacement,
   });
 
   @override
   Widget build(BuildContext context) {
     String imagePath = 'assets/images/exercise/${exercise.imageUrl}';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Card(
-      elevation: isDark ? 6 : 8,
-      shadowColor: Colors.black.withOpacity(0.15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      clipBehavior: Clip.antiAlias,
-      color: isDark 
-          ? Theme.of(context).colorScheme.surface.withOpacity(0.9)
-          : Colors.white.withOpacity(0.95),
+      decoration: isSelecting 
+          ? MedicalDesignSystem.medicalCardAccentDecoration
+          : MedicalDesignSystem.medicalCardDecoration,
       child: InkWell(
         onTap: () {
           if (!isSelecting) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ExerciseDetailPage(exercise: exercise),
+                builder: (context) => ExerciseDetailPage(
+                  exercise: exercise,
+                  isSelecting: selectingForAddition || selectingForReplacement,
+                ),
               ),
             );
           }
         },
-        splashColor: const Color(0xFF8B2E2E).withOpacity(0.1),
-        highlightColor: const Color(0xFF8B2E2E).withOpacity(0.05),
-        borderRadius: BorderRadius.circular(20),
+        splashColor: MedicalDesignSystem.primaryBrand.withOpacity(0.1),
+        highlightColor: MedicalDesignSystem.primaryBrand.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             border: isSelecting 
-                ? Border.all(color: const Color(0xFF8B2E2E), width: 2)
+                ? Border.all(color: MedicalDesignSystem.primaryBrand, width: 2)
                 : null,
           ),
           child: Row(
             children: [
-              // Exercise Image with Hero animation
+              // Medical Exercise Image
               Hero(
                 tag: 'exercise_${exercise.id}',
                 child: ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    bottomLeft: Radius.circular(20),
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
                   ),
                   child: Container(
                     width: 100,
@@ -373,31 +404,38 @@ class _ExerciseCardContent extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          const Color(0xFF8B2E2E).withOpacity(0.1),
-                          const Color(0xFF8B2E2E).withOpacity(0.05),
+                          MedicalDesignSystem.primaryBrand.withOpacity(0.1),
+                          MedicalDesignSystem.primaryLight.withOpacity(0.05),
                         ],
                       ),
                     ),
-                    child: PerformanceOptimizationService().buildOptimizedImage(
-                      imagePath: imagePath,
-                      imageKey: 'exercise_thumb_${exercise.id}',
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      placeholder: Container(
-                        color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                        child: Icon(
-                          Icons.fitness_center,
-                          color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
-                          size: 32,
-                        ),
-                      ),
-                      errorWidget: Icon(
-                        Icons.error_outline,
-                        color: Colors.red.shade300,
-                        size: 32,
-                      ),
-                    ),
+                    child: (exercise.imageUrl.trim().isNotEmpty)
+                        ? Image.asset(
+                            imagePath,
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                color: MedicalDesignSystem.primaryBrand.withOpacity(0.1),
+                                child: Icon(
+                                  MedicalIcons.fitnessCenter,
+                                  color: MedicalDesignSystem.primaryBrand,
+                                  size: 32,
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            width: 100,
+                            height: 100,
+                            color: MedicalDesignSystem.primaryBrand.withOpacity(0.08),
+                            child: Icon(
+                              MedicalIcons.fitnessCenter,
+                              color: MedicalDesignSystem.primaryBrand,
+                              size: 32,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -409,113 +447,57 @@ class _ExerciseCardContent extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Exercise Name with Custom Indicator
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              exercise.name,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF8B2E2E),
-                                letterSpacing: 0.3,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (exercise.id.startsWith('CE'))
-                            Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.orange.shade300, width: 1),
-                              ),
-                              child: Text(
-                                'Custom',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.orange.shade800,
-                                ),
-                              ),
-                            ),
-                        ],
+                      // Medical Exercise Name
+                      Text(
+                        exercise.name,
+                        style: MedicalDesignSystem.subheaderStyle.copyWith(
+                          color: MedicalDesignSystem.primaryBrand,
+                          fontSize: 16,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
                       
-                      // Muscle Group
+                      // Medical Exercise Information
                       Row(
                         children: [
-                          Icon(
-                            Icons.fitness_center_rounded,
-                            color: const Color(0xFF8B2E2E).withOpacity(0.8),
-                            size: 16,
+                          MedicalDesignSystem.medicalStatusBadge(
+                            text: exercise.muscle,
+                            status: MedicalStatus.info,
                           ),
                           const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              exercise.muscle,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isDark ? Colors.white70 : Colors.grey.shade700,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          MedicalDesignSystem.medicalStatusBadge(
+                            text: exercise.painLevel,
+                            status: MedicalStatus.warning,
                           ),
                         ],
                       ),
+                      const SizedBox(height: 6),
                       
-                      // Other Muscles (only if not empty)
-                      if (exercise.otherMuscles.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              Icons.fitness_center_outlined,
-                              color: const Color(0xFF8B2E2E).withOpacity(0.6),
-                              size: 14,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'Also: ${exercise.otherMuscles}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? Colors.white60 : Colors.grey.shade600,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 4),
-                      
-                      // Pain Level
+                      // Exercise Details
                       Row(
                         children: [
                           Icon(
-                            Icons.warning_amber_rounded,
-                            color: Colors.orange.shade400,
-                            size: 16,
+                            MedicalIcons.timer,
+                            color: MedicalDesignSystem.textSecondary,
+                            size: 14,
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 4),
                           Text(
-                            'Pain: ${exercise.painLevel}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isDark ? Colors.white60 : Colors.grey.shade600,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            '${exercise.rep} reps',
+                            style: MedicalDesignSystem.labelStyle,
+                          ),
+                          const SizedBox(width: 12),
+                          Icon(
+                            MedicalIcons.schedule,
+                            color: MedicalDesignSystem.textSecondary,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${exercise.set} sets',
+                            style: MedicalDesignSystem.labelStyle,
                           ),
                         ],
                       ),
@@ -524,7 +506,7 @@ class _ExerciseCardContent extends StatelessWidget {
                 ),
               ),
               
-              // Selection Button
+              // Medical Selection Button
               if (isSelecting)
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
@@ -532,15 +514,11 @@ class _ExerciseCardContent extends StatelessWidget {
                     onPressed: () {
                       Navigator.pop(context, exercise);
                     },
-                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    icon: const Icon(MedicalIcons.checkCircle, size: 18),
                     label: const Text('Select'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B2E2E),
-                      foregroundColor: Colors.white,
-                      elevation: 2,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    style: MedicalDesignSystem.primaryMedicalButton.copyWith(
+                      padding: MaterialStateProperty.all(
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
                     ),
                   ),

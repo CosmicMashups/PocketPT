@@ -18,3 +18,4 @@ The current dialog implementations across the application have inconsistent styl
 - Breaking changes to dialog styling require testing across all dialog implementations
 - New responsive patterns require validation on different device sizes
 - Accessibility improvements require testing with screen readers and accessibility tools
+

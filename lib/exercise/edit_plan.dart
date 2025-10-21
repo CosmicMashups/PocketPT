@@ -4,6 +4,7 @@ import '../data/rehabilitation_plan.dart';
 import '../data/treatment.dart';
 import '../assessment/generate_treatment.dart';
 import '../data/globals.dart';
+import '../core/medical_design_system.dart';
 import 'exercise_list.dart' as exList;
 
 class EditPlanPage extends StatefulWidget {
@@ -20,10 +21,10 @@ class _EditPlanPageState extends State<EditPlanPage> {
   bool _isLoadingTreatments = false;
   List<exList.Exercise>? _exercises;
 
-  // Updated color constants based on the provided theme
-  static const mainColor = Color(0xFF8B2E2E);
-  static const subColor = Color(0xFFC1574F);
-  static const detailColor = Color(0xFF6A5D7B);
+  // Medical design system colors
+  static const mainColor = MedicalDesignSystem.primaryBrand;
+  static const subColor = MedicalDesignSystem.brandAccent;
+  static const detailColor = MedicalDesignSystem.textSecondary;
 
   @override
   void initState() {
@@ -262,29 +263,49 @@ class _EditPlanPageState extends State<EditPlanPage> {
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
-              expandedHeight: 120.0,
+              expandedHeight: 140.0,
               floating: false,
               pinned: true,
-              backgroundColor: mainColor,
-              elevation: 4,
-              shadowColor: Colors.black.withOpacity(0.3),
+              backgroundColor: MedicalDesignSystem.primaryBrand,
+              elevation: 8,
+              shadowColor: MedicalDesignSystem.primaryBrand.withOpacity(0.3),
               flexibleSpace: FlexibleSpaceBar(
                 title: const Text(
                   'Plan Manager',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 26,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
                     color: Colors.white,
                     letterSpacing: 0.5,
                   ),
                 ),
                 centerTitle: true,
                 background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF8B2E2E), Color(0xFFA03A3A)],
+                  decoration: MedicalDesignSystem.medicalGradientBackground,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          MedicalDesignSystem.primaryBrand,
+                          MedicalDesignSystem.primaryLight,
+                        ],
+                      ),
+                    ),
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: 20),
+                          Icon(
+                            MedicalIcons.medicalServices,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -293,8 +314,9 @@ class _EditPlanPageState extends State<EditPlanPage> {
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: IconButton(
-                    icon: const Icon(Icons.help_outline, size: 26, color: Colors.white),
+                    icon: const Icon(MedicalIcons.contactSupport, size: 26, color: Colors.white),
                     onPressed: _showHelpDialog,
+                    tooltip: 'Medical Support',
                   ),
                 ),
               ],
@@ -414,82 +436,77 @@ class _EditPlanPageState extends State<EditPlanPage> {
 
 
   Widget _buildPlanStats(RehabilitationPlan plan, bool isDark) {
-    return Card(
-      elevation: isDark ? 6 : 8,
-      shadowColor: Colors.black.withOpacity(0.15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      clipBehavior: Clip.antiAlias,
-      color: isDark 
-          ? Theme.of(context).colorScheme.surface.withOpacity(0.9)
-          : Colors.white.withOpacity(0.95),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              mainColor.withOpacity(0.1),
-              subColor.withOpacity(0.05),
+    return MedicalDesignSystem.medicalCardWithHeader(
+      title: 'Rehabilitation Progress Overview',
+      icon: MedicalIcons.trendingUp,
+      iconColor: MedicalDesignSystem.primaryBrand,
+      content: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildMedicalStatItem(
+                MedicalIcons.fitnessCenter, 
+                'Exercises', 
+                plan.exerciseReferences.length.toString(),
+                MedicalDesignSystem.primaryBrand,
+              ),
+              _buildMedicalStatItem(
+                MedicalIcons.calendarToday, 
+                'Week', 
+                plan.weekNumber.toString(),
+                MedicalDesignSystem.accentTeal,
+              ),
+              _buildMedicalStatItem(
+                MedicalIcons.timer, 
+                'Total Reps', 
+                '${plan.exerciseReferences.fold(0, (sum, e) => sum + e.sets * e.repetitions)}',
+                MedicalDesignSystem.successGreen,
+              ),
             ],
           ),
-      ),
-      child: Padding(
-          padding: const EdgeInsets.all(20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-              _buildStatItem(Icons.fitness_center_rounded, 'Exercises', plan.exerciseReferences.length.toString(), isDark),
-              _buildStatItem(Icons.calendar_today_rounded, 'Week', plan.weekNumber.toString(), isDark),
-            _buildStatItem(
-                Icons.timer_rounded,
-              'Duration',
-              '${plan.exerciseReferences.fold(0, (sum, e) => sum + e.sets * e.repetitions)} reps',
-                isDark,
-            ),
-          ],
+          const SizedBox(height: 16),
+          MedicalDesignSystem.medicalDisclaimerBanner(
+            text: 'Consult your healthcare provider before starting any new exercise program.',
+            isWarning: false,
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatItem(IconData icon, String label, String value, bool isDark) {
+  Widget _buildMedicalStatItem(IconData icon, String label, String value, Color color) {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: mainColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withOpacity(0.3), width: 1),
           ),
-          child: Icon(icon, size: 24, color: mainColor),
+          child: Icon(icon, size: 28, color: color),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
           value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: mainColor,
-            letterSpacing: 0.3,
+          style: MedicalDesignSystem.headerStyle.copyWith(
+            fontSize: 24,
+            color: color,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: isDark ? Colors.white70 : detailColor,
+          style: MedicalDesignSystem.labelStyle.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
     );
   }
+
 
   Widget _buildEmptyState(bool isDark) {
     return Center(
@@ -534,187 +551,111 @@ class _EditPlanPageState extends State<EditPlanPage> {
   }
 
   Widget _buildExerciseCard(ExerciseReference exerciseRef, int index, bool isDark) {
-    return Card(
-      elevation: isDark ? 6 : 8,
-      shadowColor: Colors.black.withOpacity(0.15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      clipBehavior: Clip.antiAlias,
-      color: isDark 
-          ? Theme.of(context).colorScheme.surface.withOpacity(0.9)
-          : Colors.white.withOpacity(0.95),
+      decoration: MedicalDesignSystem.medicalCardAccentDecoration,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         onTap: () {
           // Add exercise detail view
         },
-        splashColor: mainColor.withOpacity(0.1),
-        highlightColor: mainColor.withOpacity(0.05),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                mainColor.withOpacity(0.05),
-                subColor.withOpacity(0.02),
-              ],
-            ),
-          ),
+        splashColor: MedicalDesignSystem.primaryBrand.withOpacity(0.1),
+        highlightColor: MedicalDesignSystem.primaryBrand.withOpacity(0.05),
         child: Padding(
-            padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with basic info
+              // Medical Exercise Header
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Exercise Icon
+                  // Medical Exercise Icon
                   Container(
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            mainColor.withOpacity(0.2),
-                            subColor.withOpacity(0.1),
-                          ],
-                        ),
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          MedicalDesignSystem.primaryBrand.withOpacity(0.2),
+                          MedicalDesignSystem.primaryLight.withOpacity(0.1),
+                        ],
+                      ),
+                      border: Border.all(
+                        color: MedicalDesignSystem.primaryBrand.withOpacity(0.3),
+                        width: 2,
+                      ),
                     ),
                     child: Center(
                       child: Icon(
-                          Icons.fitness_center_rounded,
+                        MedicalIcons.fitnessCenter,
                         size: 36,
-                          color: mainColor,
+                        color: MedicalDesignSystem.primaryBrand,
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   
-                  // Exercise Info
+                  // Exercise Medical Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                            _getExerciseName(exerciseRef.exerciseId),
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            color: mainColor,
-                              letterSpacing: 0.3,
+                          _getExerciseName(exerciseRef.exerciseId),
+                          style: MedicalDesignSystem.subheaderStyle.copyWith(
+                            color: MedicalDesignSystem.primaryBrand,
                           ),
                         ),
-                          const SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: subColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.repeat_rounded, size: 16, color: subColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${exerciseRef.repetitions} reps',
-                                      style: TextStyle(
-                                        color: subColor,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: detailColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.format_list_numbered_rounded, size: 16, color: detailColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${exerciseRef.sets} sets',
-                                      style: TextStyle(
-                                        color: detailColor,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                            MedicalDesignSystem.medicalStatusBadge(
+                              text: '${exerciseRef.repetitions} reps',
+                              status: MedicalStatus.info,
+                            ),
+                            const SizedBox(width: 8),
+                            MedicalDesignSystem.medicalStatusBadge(
+                              text: '${exerciseRef.sets} sets',
+                              status: MedicalStatus.success,
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
                 ],
               ),
               
-                const SizedBox(height: 20),
+              const SizedBox(height: 20),
               
-              // Action Buttons
+              // Medical Action Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Replace Button
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: subColor,
-                        side: BorderSide(color: subColor, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                          vertical: 12,
-                      ),
-                    ),
+                  // Medical Replace Button
+                  ElevatedButton.icon(
+                    style: MedicalDesignSystem.secondaryMedicalButton,
                     onPressed: () => _replaceExercise(index),
-                      icon: const Icon(Icons.autorenew_rounded, size: 18),
+                    icon: const Icon(MedicalIcons.emergency, size: 18),
                     label: const Text('Replace'),
                   ),
                   const SizedBox(width: 12),
                   
-                  // Delete Button
+                  // Medical Delete Button
                   ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade50,
-                        foregroundColor: Colors.red.shade700,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                          vertical: 12,
-                      ),
-                    ),
+                    style: MedicalDesignSystem.warningMedicalButton,
                     onPressed: () => _confirmDeleteExercise(index),
-                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Delete'),
+                    icon: const Icon(MedicalIcons.report, size: 18),
+                    label: const Text('Remove'),
                   ),
                 ],
               ),
             ],
-            ),
           ),
         ),
       ),
@@ -835,29 +776,6 @@ class _EditPlanPageState extends State<EditPlanPage> {
     }
   }
 
-  void _addSimpleExercise() {
-    // Simple exercise selection - in a real implementation, this would show a list
-    final availableExercises = ['exercise1', 'exercise2', 'exercise3']; // Placeholder exercises
-    if (availableExercises.isNotEmpty) {
-      final randomExercise = availableExercises[_random.nextInt(availableExercises.length)];
-      final exerciseRef = ExerciseReference(
-        exerciseId: randomExercise,
-        repetitions: 10,
-        sets: 3,
-      );
-      
-      setState(() {
-        UserRehabilitation.instance.rehabPlans.first.exerciseReferences.add(exerciseRef);
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Added exercise: $randomExercise'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
 
   Future<void> _confirmDeleteExercise(int index) async {
     final exercise = UserRehabilitation.instance.rehabPlans.first.exerciseReferences[index];
@@ -934,30 +852,6 @@ class _EditPlanPageState extends State<EditPlanPage> {
           ),
         ),
         const SizedBox(height: 12),
-        // Simple Add Exercise Button
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _addSimpleExercise,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: mainColor,
-              side: BorderSide(color: mainColor, width: 1.5),
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            icon: const Icon(Icons.add_circle_outline_rounded, size: 20),
-            label: const Text(
-                  "Add Simple Exercise",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-                  ),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -991,7 +885,7 @@ class _EditPlanPageState extends State<EditPlanPage> {
                   )
                 : Icon(Icons.refresh_rounded, size: 18, color: subColor),
               label: Text(
-                _isLoadingTreatments ? 'Loading...' : 'Refresh',
+                _isLoadingTreatments ? 'Loading...' : '',
                 style: TextStyle(
                   color: _isLoadingTreatments ? subColor.withOpacity(0.6) : subColor, 
                   fontSize: 12,
@@ -1023,125 +917,28 @@ class _EditPlanPageState extends State<EditPlanPage> {
   }
 
   Widget _buildTreatmentCard(Treatment treatment) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Card(
-      elevation: isDark ? 6 : 8,
-      shadowColor: Colors.black.withOpacity(0.15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      clipBehavior: Clip.antiAlias,
-      color: isDark 
-          ? Theme.of(context).colorScheme.surface.withOpacity(0.9)
-          : Colors.white.withOpacity(0.95),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              subColor.withOpacity(0.05),
-              detailColor.withOpacity(0.02),
-            ],
+    return MedicalDesignSystem.medicalCardWithHeader(
+      title: treatment.treatmentName,
+      icon: MedicalIcons.medicalServices,
+      iconColor: MedicalDesignSystem.primaryBrand,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            treatment.description,
+            style: MedicalDesignSystem.bodyStyle,
           ),
-        ),
-      child: Padding(
-          padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: subColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.medical_services_rounded,
-                  size: 24,
-                  color: subColor,
-                    ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    treatment.treatmentName,
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      color: mainColor,
-                        letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-              const SizedBox(height: 16),
-            Text(
-              treatment.description,
-              style: TextStyle(
-                fontSize: 14,
-                  color: isDark ? Colors.white70 : Colors.grey.shade700,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-              children: [
-                  _buildTreatmentTag(
-                    Icons.accessibility_new_rounded,
-                  treatment.musclesInvolved,
-                    detailColor,
-                  ),
-                  _buildTreatmentTag(
-                    Icons.health_and_safety_rounded,
-                  treatment.painLevel,
-                    detailColor,
-                  ),
-                  _buildTreatmentTag(
-                    Icons.timer_rounded,
-                    treatment.painDuration,
-                    detailColor,
-                  ),
-                ],
-              ),
-            ],
+          const SizedBox(height: 16),
+          MedicalDesignSystem.medicalStatusBadge(
+            text: 'Pain Level: ${treatment.painLevel}',
+            status: MedicalStatus.warning,
           ),
-        ),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }
 
-  Widget _buildTreatmentTag(IconData icon, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-                const SizedBox(width: 4),
-                Text(
-            text,
-                  style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-      ),
-    );
-  }
 
   Widget _buildNoTreatmentsMessage() {
     return Card(
@@ -1213,53 +1010,45 @@ class _EditPlanPageState extends State<EditPlanPage> {
   }
 
   Widget _buildNotesSection() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Card(
-      elevation: isDark ? 6 : 8,
-      shadowColor: Colors.black.withOpacity(0.15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      clipBehavior: Clip.antiAlias,
-      color: isDark 
-          ? Theme.of(context).colorScheme.surface.withOpacity(0.9)
-          : Colors.white.withOpacity(0.95),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              mainColor.withOpacity(0.05),
-              subColor.withOpacity(0.02),
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: TextField(
-      controller: _notesController,
-      maxLines: 4,
-      onChanged: (value) => _saveNotes(), // Auto-save on change
-            style: TextStyle(
-              fontSize: 14,
-              color: isDark ? Colors.white70 : Colors.grey.shade800,
-              height: 1.4,
-            ),
-      decoration: InputDecoration(
-        hintText: 'Write your progress notes here...',
-              hintStyle: TextStyle(
-                color: isDark ? Colors.white54 : Colors.grey.shade500,
-                fontSize: 14,
+    return MedicalDesignSystem.medicalCardWithHeader(
+      title: 'Medical Progress Notes',
+      icon: MedicalIcons.report,
+      iconColor: MedicalDesignSystem.primaryBrand,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _notesController,
+            maxLines: 4,
+            onChanged: (value) => _saveNotes(),
+            style: MedicalDesignSystem.bodyStyle,
+            decoration: InputDecoration(
+              hintText: 'Document your rehabilitation progress, pain levels, and any concerns...',
+              hintStyle: MedicalDesignSystem.medicalDisclaimerStyle,
+              filled: true,
+              fillColor: MedicalDesignSystem.backgroundClean,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: MedicalDesignSystem.primaryBrand.withOpacity(0.3),
+                ),
               ),
-              filled: false,
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: MedicalDesignSystem.primaryBrand,
+                  width: 2,
+                ),
+              ),
+              contentPadding: const EdgeInsets.all(16),
             ),
           ),
-        ),
+          const SizedBox(height: 12),
+          MedicalDesignSystem.medicalDisclaimerBanner(
+            text: 'These notes are for your personal use. Share relevant information with your healthcare provider.',
+            isWarning: false,
+          ),
+        ],
       ),
     );
   }
@@ -1268,20 +1057,51 @@ class _EditPlanPageState extends State<EditPlanPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Help'),
-        content: const Text(
-          'This page allows you to manage your exercise plans:\n\n'
-          '• Add new exercises to your plans (Advanced or Simple)\n'
-          '• Replace exercises with similar alternatives\n'
-          '• Remove exercises you no longer need\n'
-          '• View recommended treatments\n'
-          '• Add notes about your progress\n\n'
-          'Complete an assessment to generate your initial exercise plans.',
+        title: Row(
+          children: [
+            Icon(MedicalIcons.contactSupport, color: MedicalDesignSystem.primaryBrand),
+            const SizedBox(width: 8),
+            const Text('Medical Support'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Plan Management:\n\n',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const Text(
+              '• Add prescribed exercises to your rehabilitation plan\n'
+              '• Replace exercises with healthcare provider-approved alternatives\n'
+              '• Remove exercises that are no longer appropriate\n'
+              '• Review recommended medical treatments\n'
+              '• Document your progress and pain levels\n\n'
+              'Complete a medical assessment to generate your personalized rehabilitation plan.',
+            ),
+            const SizedBox(height: 16),
+            MedicalDesignSystem.medicalDisclaimerBanner(
+              text: 'Always consult your healthcare provider before making changes to your exercise plan.',
+              isWarning: true,
+            ),
+            const SizedBox(height: 12),
+            MedicalDesignSystem.medicalDisclaimerBanner(
+              text: 'Follow proper form and consult healthcare provider if experiencing pain during exercises.',
+              isWarning: false,
+            ),
+            const SizedBox(height: 12),
+            MedicalDesignSystem.medicalDisclaimerBanner(
+              text: 'Treatment recommendations are for informational purposes only. Consult your healthcare provider before starting any treatment.',
+              isWarning: true,
+            ),
+          ],
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
+            style: MedicalDesignSystem.primaryMedicalButton,
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: const Text('Understood'),
           ),
         ],
       ),

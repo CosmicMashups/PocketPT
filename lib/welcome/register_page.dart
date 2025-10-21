@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../data/simple_auth_service.dart';
+import '../core/animations.dart';
 import '../widgets/progressive_loading_widget.dart';
 import '../widgets/responsive_dialog.dart';
 import '../main.dart';
@@ -16,7 +18,7 @@ class RegisterPage extends StatefulWidget {
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _firstNameController;
   late final TextEditingController _lastNameController;
@@ -29,10 +31,15 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
   String? _errorMessage = '';
   bool _agreedToTerms = false;
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
+    _animationController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
     _firstNameController = TextEditingController();
     _lastNameController = TextEditingController();
     _emailController = TextEditingController();
@@ -42,6 +49,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
+    _animationController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -144,10 +152,17 @@ class _RegisterPageState extends State<RegisterPage> {
         isLoading: _isLoading,
         message: _isLoading ? 'Creating account...' : null,
         child: SingleChildScrollView(
-          child: Column(
-            children: [
+          child: AnimationLimiter(
+            child: Column(
+              children: [
               // Professional Header Section
-              Container(
+              AnimationConfiguration.staggeredList(
+                position: 0,
+                duration: PocketPTAnimations.pageTransition,
+                child: SlideAnimation(
+                  verticalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: Container(
                 height: screenHeight * 0.35,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -234,9 +249,18 @@ class _RegisterPageState extends State<RegisterPage> {
                   ],
                 ),
               ),
+                    ),
+                  ),
+                ),
 
               // Main Form Section
-              Container(
+              AnimationConfiguration.staggeredList(
+                position: 1,
+                duration: PocketPTAnimations.pageTransition,
+                child: SlideAnimation(
+                  verticalOffset: 50.0,
+                  child: FadeInAnimation(
+                    child: Container(
                 padding: const EdgeInsets.all(32.0),
                 decoration: BoxDecoration(
                   color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
@@ -621,8 +645,12 @@ class _RegisterPageState extends State<RegisterPage> {
                     ],
                   ),
                 ),
+                    ),
+                  ),
+                ),
             ],
           ),
+        ),
         ),
       ),
     );

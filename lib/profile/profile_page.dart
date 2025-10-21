@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../data/globals.dart';
+import '../core/animations.dart';
 import '../welcome/login_page.dart';
 import '../data/functions.dart';
 import '../data/data_management_widget.dart';
@@ -21,7 +23,7 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
   // Professional healthcare color scheme
   static const mainColor = Color(0xFF8B2E2E); // Muscular maroon
   static const backgroundColor = Color(0xFFF8FAFC); // Light background
@@ -29,6 +31,22 @@ class _ProfilePageState extends State<ProfilePage> {
   static const errorColor = Color(0xFFEF4444); // Red
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -71,22 +89,59 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
+        child: AnimationLimiter(
+          child: Column(
+            children: [
                 // Profile Picture and Info Section
-                _buildProfileSection(data),
+                AnimationConfiguration.staggeredList(
+                  position: 0,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: _buildProfileSection(data),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 
                 // Settings Section
-                _buildSettingsSection(data),
+                AnimationConfiguration.staggeredList(
+                  position: 1,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: _buildSettingsSection(data),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 
                 // Account Actions Section
-                _buildAccountActionsSection(isGuest),
+                AnimationConfiguration.staggeredList(
+                  position: 2,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: _buildAccountActionsSection(isGuest),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 
                 // Data & Export Section
-                _buildDataExportSection(),
+                AnimationConfiguration.staggeredList(
+                  position: 3,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: _buildDataExportSection(),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 
                 // Security Section
@@ -98,6 +153,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
+        ),
         );
       },
     );

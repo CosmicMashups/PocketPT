@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../../data/user_data_notifier.dart';
+import '../../core/animations.dart';
 import '../services/reports_data_service.dart';
 
 class ExportPDFButton extends ConsumerStatefulWidget {
@@ -14,19 +15,25 @@ class ExportPDFButton extends ConsumerStatefulWidget {
   ConsumerState<ExportPDFButton> createState() => _ExportPDFButtonState();
 }
 
-class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> {
+class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerProviderStateMixin {
   bool _isExporting = false;
   String? _exportError;
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
+    _animationController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
     // Listen for rehabilitation plan changes
     UserDataNotifier.instance.addListener(_onRehabilitationPlanChanged);
   }
   
   @override
   void dispose() {
+    _animationController.dispose();
     UserDataNotifier.instance.removeListener(_onRehabilitationPlanChanged);
     super.dispose();
   }
@@ -243,10 +250,18 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> {
               child: ElevatedButton.icon(
                 onPressed: _isExporting ? null : () => _exportPDF(context, reportsData),
                 icon: _isExporting 
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    ? AnimatedBuilder(
+                        animation: _animationController,
+                        builder: (context, child) {
+                          return Transform.rotate(
+                            angle: _animationController.value * 2 * 3.14159,
+                            child: const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        },
                       )
                     : const Icon(Icons.picture_as_pdf, size: 18),
                 label: Text(_isExporting ? 'Exporting...' : 'Export PDF Report'),
@@ -272,6 +287,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> {
       _isExporting = true;
       _exportError = null;
     });
+    _animationController.repeat();
 
     try {
       final pdf = pw.Document();
@@ -515,6 +531,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> {
       });
     } finally {
       if (mounted) {
+        _animationController.stop();
         setState(() {
           _isExporting = false;
         });
