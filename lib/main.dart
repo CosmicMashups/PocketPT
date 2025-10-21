@@ -37,6 +37,8 @@ import 'record/pre_record_page.dart';
 import 'profile/profile_page.dart';
 import 'reports/report_page.dart';
 import 'test_persistence_page.dart';
+import 'widgets/responsive_loading_screen.dart';
+import 'core/animations.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 import 'data/hive_models.dart';
@@ -497,61 +499,11 @@ class _LoadingScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? Theme.of(context).colorScheme.surface : Colors.white;
-    final titleColor = isDark ? Colors.white : kTextHeading;
-    final bodyColor = isDark ? Colors.white70 : kTextNormal;
-
-    return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : kBackgroundColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(kMainColor),
-                    strokeWidth: 3,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: titleColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.ptSans(
-                      fontSize: 14,
-                      color: bodyColor,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return ResponsiveLoadingScreen(
+      title: title,
+      subtitle: subtitle,
+      showLogo: true,
+      showProgress: false,
     );
   }
 }
@@ -561,77 +513,12 @@ class _FallbackScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? Theme.of(context).colorScheme.surface : Colors.white;
-    final titleColor = isDark ? Colors.white : kTextHeading;
-    final bodyColor = isDark ? Colors.white70 : kTextNormal;
-
-    return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : kBackgroundColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: cardColor,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: kWarningColor,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Welcome to PocketPT',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: titleColor,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Initializing your rehabilitation experience...',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: bodyColor,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      // Try to restart the initialization
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (context) => const MyApp()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kMainColor,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Continue'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return ResponsiveLoadingScreen(
+      title: 'Welcome to PocketPT',
+      subtitle: 'Initializing your rehabilitation experience...',
+      showLogo: true,
+      showProgress: false,
+      isError: false,
     );
   }
 }
@@ -895,19 +782,9 @@ class _HomePageState extends State<HomePage> {
             // Use pushReplacement to completely navigate to PreRecordPage
             Navigator.push(
               context,
-              PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) => const PreRecordPage(),
-                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                  // SlideTransition
-                  const begin = Offset(1.0, 0.0);
-                  const end = Offset.zero;
-                  const curve = Curves.easeInOut;
-
-                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                  var offsetAnimation = animation.drive(tween);
-
-                  return SlideTransition(position: offsetAnimation, child: child);
-                },
+              MedicalPageRoute(
+                child: const PreRecordPage(),
+                settings: const RouteSettings(name: '/pre-record'),
               ),
             );
           } else {
@@ -943,8 +820,9 @@ class _HomePageState extends State<HomePage> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const TestPersistencePage(),
+            MedicalPageRoute(
+              child: const TestPersistencePage(),
+              settings: const RouteSettings(name: '/test-persistence'),
             ),
           );
         },

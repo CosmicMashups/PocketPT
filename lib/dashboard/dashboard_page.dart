@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import '../record/pre_record_page.dart';
 import '../data/globals.dart';
 import '../data/rehabilitation_plan.dart';
@@ -10,6 +11,9 @@ import '../assessment/generate_plan.dart';
 import '../data/user_data_notifier.dart';
 import '../data/data_persistence_service.dart';
 import '../data/local_notifications_service.dart';
+import '../widgets/responsive_dialog.dart';
+import '../core/animations.dart';
+import '../main.dart';
 // import '../demo/cnn_poseDemo.dart'; // Commented out until file exists
 
 class DashboardPage extends StatefulWidget {
@@ -32,11 +36,13 @@ class NotificationItem {
   });
 }
 
-class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
+class _DashboardPageState extends State<DashboardPage> 
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   List<String> notifications = [];
   List<NotificationItem> _computedNotifications = [];
   bool _isLoading = true;
   String? _loadError;
+  late AnimationController _animationController;
 
   @override
   bool get wantKeepAlive => true;
@@ -44,6 +50,10 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   @override
   void initState() {
     super.initState();
+    _animationController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
     // Trigger lazy load of full dataset for Dashboard only
     _loadData();
     // Listen for rehabilitation plan changes
@@ -52,6 +62,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   
   @override
   void dispose() {
+    _animationController.dispose();
     UserDataNotifier.instance.removeListener(_onRehabilitationPlanChanged);
     // Unload full dataset when leaving Dashboard to reduce memory usage
     DataPersistenceService.instance.unloadUserData();
@@ -161,56 +172,89 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFFF1F1F1),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              const Icon(Icons.notifications, color: Color(0xFF557A95)),
-              const SizedBox(width: 8),
-              Text('Notifications', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
-            ],
-          ),
+        return ResponsiveDialog(
+          title: 'Notifications',
+          icon: Icons.notifications,
           content: (_computedNotifications.isEmpty && notifications.isEmpty)
-              ? Text('No new notifications', style: GoogleFonts.poppins())
-              : SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      // Dynamic notifications (clickable)
-                      ..._computedNotifications.map((notification) => _buildNotificationCard(
-                        notification: notification,
-                        context: context,
-                      )),
-                      // Static notifications (non-clickable)
-                      ...notifications.map((notification) => Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black12,
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                )
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.campaign, color: Color(0xFF557A95)),
-                                const SizedBox(width: 10),
-                                Expanded(child: Text(notification, style: GoogleFonts.poppins(fontSize: 15))),
-                              ],
-                            ),
-                          )),
-                    ],
+              ? Text(
+                  'No new notifications',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 16,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white70 
+                        : kTextNormal,
                   ),
+                  textAlign: TextAlign.center,
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Dynamic notifications (clickable)
+                    ..._computedNotifications.map((notification) => _buildNotificationCard(
+                      notification: notification,
+                      context: context,
+                    )),
+                    // Static notifications (non-clickable)
+                    ...notifications.map((notification) => Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Theme.of(context).colorScheme.surface.withOpacity(0.5)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.white.withOpacity(0.1)
+                                  : Colors.grey.withOpacity(0.3),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              )
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.campaign, 
+                                color: Theme.of(context).brightness == Brightness.dark 
+                                    ? Colors.white70 
+                                    : const Color(0xFF557A95),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  notification, 
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 15,
+                                    color: Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.white70 
+                                        : kTextNormal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                  ],
                 ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Close', style: GoogleFonts.poppins()),
+              style: TextButton.styleFrom(
+                foregroundColor: kTextNormal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: Text(
+                'Close',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ],
         );
@@ -541,9 +585,10 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: AnimationLimiter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // Profile Header
               Container(
                 padding: const EdgeInsets.all(16),
@@ -1198,6 +1243,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                       }).toList(),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -1384,29 +1430,43 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFFF8F6F4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              const Icon(Icons.assignment, color: Color(0xFF800020)),
-              const SizedBox(width: 8),
-              Text('Daily Re-Assessment Required', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Text(
-              'Please complete today\'s quick pain re-assessment.',
-              style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+        return ResponsiveDialog(
+          title: 'Daily Re-Assessment Required',
+          icon: Icons.assignment,
+          content: Text(
+            'Please complete today\'s quick pain re-assessment.',
+            style: GoogleFonts.ptSans(
+              fontSize: 16,
+              color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.white70 
+                  : kTextNormal,
+              height: 1.5,
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: Text('Later', style: GoogleFonts.poppins(color: Colors.grey[700])),
+              style: TextButton.styleFrom(
+                foregroundColor: kTextNormal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: Text(
+                'Later',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kMainColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
               onPressed: () {
                 Navigator.of(ctx).pop();
                 Navigator.push(
@@ -1414,7 +1474,13 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                   MaterialPageRoute(builder: (context) => const InstructionVideoPage()),
                 );
               },
-              child: Text('Start', style: GoogleFonts.poppins(color: Colors.white)),
+              child: Text(
+                'Start',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         );
@@ -1448,27 +1514,43 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         context: context,
         barrierDismissible: false,
         builder: (ctx) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFFF8F6F4),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                const Icon(Icons.health_and_safety, color: Color(0xFF800020)),
-                const SizedBox(width: 8),
-                Text('Daily Pain Check', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
-              ],
-            ),
+          return ResponsiveDialog(
+            title: 'Daily Pain Check',
+            icon: Icons.health_and_safety,
             content: Text(
               'Your pain level seems different today. Would you like to retake the quick pain assessment now?',
-              style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+              style: GoogleFonts.ptSans(
+                fontSize: 16,
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white70 
+                    : kTextNormal,
+                height: 1.5,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: Text('Later', style: GoogleFonts.poppins(color: Colors.grey[700])),
+                style: TextButton.styleFrom(
+                  foregroundColor: kTextNormal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                child: Text(
+                  'Later',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kMainColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 onPressed: () {
                   Navigator.of(ctx).pop();
                   Navigator.push(
@@ -1484,7 +1566,13 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                     ),
                   );
                 },
-                child: Text('Retake Now', style: GoogleFonts.poppins(color: Colors.white)),
+                child: Text(
+                  'Retake Now',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           );
@@ -1498,31 +1586,50 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFFF8F6F4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              const Icon(Icons.autorenew, color: Color(0xFF800020)),
-              const SizedBox(width: 8),
-              Text('Regenerate Plan?', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
-            ],
-          ),
+        return ResponsiveDialog(
+          title: 'Regenerate Plan?',
+          icon: Icons.autorenew,
           content: Text(
             'Your pain level has been unchanged for 7 days. Would you like to regenerate a new rehabilitation plan and treatments?',
-            style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+            style: GoogleFonts.ptSans(
+              fontSize: 16,
+              color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.white70 
+                  : kTextNormal,
+              height: 1.5,
+            ),
           ),
           actions: [
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[600]),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[600],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
               onPressed: () {
                 PainHistory.markPromptedToday();
                 Navigator.of(ctx).pop();
               },
-              child: Text('Not Now', style: GoogleFonts.poppins(color: Colors.white)),
+              child: Text(
+                'Not Now',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kMainColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
               onPressed: () async {
                 Navigator.of(ctx).pop();
                 _archiveCurrentProgram();
@@ -1533,7 +1640,13 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                   );
                 }
               },
-              child: Text('Regenerate', style: GoogleFonts.poppins(color: Colors.white)),
+              child: Text(
+                'Regenerate',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         );
@@ -1554,32 +1667,51 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         context: context,
         barrierDismissible: false, // Make it persistent
         builder: (ctx) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFFF8F6F4),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
-              children: [
-                const Icon(Icons.autorenew, color: Color(0xFF800020)),
-                const SizedBox(width: 8),
-                Text('Regenerate Plan?', style: GoogleFonts.poppins(fontWeight: FontWeight.w800)),
-              ],
-            ),
+          return ResponsiveDialog(
+            title: 'Regenerate Plan?',
+            icon: Icons.autorenew,
             content: Text(
               'Your pain level has been unchanged for 7 days. Would you like to regenerate a new rehabilitation plan and treatments?',
-              style: GoogleFonts.ptSans(fontSize: 16, color: const Color(0xFF3A3A3A)),
+              style: GoogleFonts.ptSans(
+                fontSize: 16,
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white70 
+                    : kTextNormal,
+                height: 1.5,
+              ),
             ),
             actions: [
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[600]),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 onPressed: () {
                   // Mark as dismissed for today
                   PainHistory.markPromptedToday();
                   Navigator.of(ctx).pop();
                 },
-                child: Text('Not Now', style: GoogleFonts.poppins(color: Colors.white)),
+                child: Text(
+                  'Not Now',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800020)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kMainColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
                 onPressed: () async {
                   Navigator.of(ctx).pop();
                   _archiveCurrentProgram();
@@ -1591,7 +1723,13 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                     );
                   }
                 },
-                child: Text('Regenerate', style: GoogleFonts.poppins(color: Colors.white)),
+                child: Text(
+                  'Regenerate',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           );

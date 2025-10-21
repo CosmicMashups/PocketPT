@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'dart:async';
 import '../data/simple_auth_service.dart';
 import '../data/guest_mode_service.dart';
 import '../data/optimized_data_service.dart';
 import '../widgets/progressive_loading_widget.dart';
+import '../widgets/hero_elements.dart';
+import '../core/animations.dart';
 import 'email_verification_page.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
@@ -384,8 +387,9 @@ class _LoginPageState extends State<LoginPage> {
         message: _isLoading ? _loadingMessage : null,
         progress: _isLoading ? _loadingProgress : null,
         child: SingleChildScrollView(
-          child: Column(
-            children: [
+          child: AnimationLimiter(
+            child: Column(
+              children: [
               // Professional Header Section
               Container(
                 height: screenHeight * 0.4,
@@ -422,23 +426,32 @@ class _LoginPageState extends State<LoginPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                          AnimationConfiguration.staggeredList(
+                            position: 0,
+                            duration: PocketPTAnimations.pageTransition,
+                            child: SlideAnimation(
+                              verticalOffset: 50.0,
+                              child: FadeInAnimation(
+                                child: Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: HeroElements.animatedLogo(
+                                    heroTag: HeroElements.logoHeroTag,
+                                    size: 120.0,
+                                    showGlow: true,
+                                  ),
                                 ),
-                              ],
-                            ),
-                            child: Image.asset(
-                              'assets/images/logo.png',
-                              width: 120,
-                              height: 120,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 24),
@@ -880,6 +893,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),

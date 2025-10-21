@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/gestures.dart';
 import '../data/simple_auth_service.dart';
 import '../widgets/progressive_loading_widget.dart';
+import '../widgets/responsive_dialog.dart';
+import '../main.dart';
 import 'email_verification_page.dart';
 import 'login_page.dart';
 import '../assessment/preliminary.dart';
@@ -631,21 +633,44 @@ class _RegisterPageState extends State<RegisterPage> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(title),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: content.map((text) => Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Text(text),
-              )).toList(),
-            ),
+        return ResponsiveDialog(
+          title: title,
+          icon: Icons.description,
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: content.map((text) => Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Text(
+                text,
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white70 
+                      : const Color(0xFF6B7280),
+                  height: 1.5,
+                ),
+              ),
+            )).toList(),
           ),
           actions: [
-            TextButton(
+            ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kMainColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Close',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         );

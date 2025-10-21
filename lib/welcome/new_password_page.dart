@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import '../data/forgot_password_service.dart';
 import '../widgets/progressive_loading_widget.dart';
+import '../widgets/responsive_dialog.dart';
 import '../main.dart';
 /// New password reset page
 class NewPasswordPage extends StatefulWidget {
@@ -82,80 +83,73 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+        return ResponsiveDialog(
+          title: 'Password Reset Successful!',
+          icon: Icons.check_circle,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withOpacity(0.1),
+                  color: kSuccessColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(50),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.check_circle,
                   size: 60,
-                  color: Color(0xFF16A34A),
+                  color: kSuccessColor,
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Password Reset Successful!',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1F2937),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
               Text(
                 'A password reset email has been sent to your email address. Please check your inbox and follow the instructions to complete the password reset.',
                 style: GoogleFonts.ptSans(
-                  fontSize: 14,
-                  color: const Color(0xFF6B7280),
+                  fontSize: 16,
+                  color: Theme.of(context).brightness == Brightness.dark 
+                      ? Colors.white70 
+                      : kTextNormal,
+                  height: 1.5,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+            ],
+          ),
+          actions: [
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [kMainColor, kSubColor],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _navigateToLogin();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _navigateToLogin();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    'Back to Login',
-                    style: GoogleFonts.ptSans(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                ),
+                child: Text(
+                  'Back to Login',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );

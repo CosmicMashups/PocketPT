@@ -5,9 +5,11 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../data/ai_media_processing_service.dart';
 import '../data/globals.dart';
+import '../data/pose_detection_service.dart';
 import 'assessment_data.dart';
 import 'c_painlevel.dart';
 import 'c_video.dart';
+import 'c_preview.dart';
 
 class AssessUpload extends StatefulWidget {
   const AssessUpload({super.key});
@@ -27,6 +29,7 @@ class _AssessUploadState extends State<AssessUpload> {
   // Media capture state
   final ImagePicker _picker = ImagePicker();
   final AIMediaProcessingService _aiService = AIMediaProcessingService();
+  final PoseDetectionService _poseService = PoseDetectionService();
   File? _capturedImage;
   File? _selectedVideo;
   bool _isProcessing = false;
@@ -37,6 +40,47 @@ class _AssessUploadState extends State<AssessUpload> {
     super.initState();
     print('AssessUpload: initState() called');
     print('AssessUpload: initState() completed');
+  }
+
+  /// Determine assessment algorithm based on UserAssess.specificMuscle
+  /// Reuses the same logic from camera assessment
+  String _getAssessmentMode() {
+    final muscle = UserAssess.specificMuscle;
+    if (muscle.isEmpty) {
+      debugPrint('Warning: No muscle selected, using default (triceps)');
+      return 'triceps';
+    }
+    
+    // Use the same muscle-to-algorithm mapping from camera assessment
+    const Map<String, String> muscleToAlgorithm = {
+      // Upper Body
+      'Deltoids': 'shoulders',
+      'Biceps': 'biceps',
+      'Triceps': 'triceps',
+      'Cervical Muscle': 'shoulders',
+      
+      // Lower Body
+      'Quadriceps': 'quadriceps',
+      'Hamstrings': 'hamstrings',
+      'Calf': 'calves',
+      'Ankle': 'calves',
+      'Gluteals': 'gluteals',
+      
+      // Core
+      'Abdominals': 'abdominals',
+      'Obliques': 'obliques',
+      'Lower Back': 'lower back',
+      'Multifidus': 'multifidus'
+    };
+    
+    final mode = muscleToAlgorithm[muscle];
+    if (mode == null) {
+      debugPrint('Warning: Unknown muscle group: $muscle, using default (triceps)');
+      return 'triceps';
+    }
+    
+    debugPrint('Selected muscle: $muscle -> Assessment mode: $mode');
+    return mode;
   }
 
   @override
@@ -479,19 +523,13 @@ class _AssessUploadState extends State<AssessUpload> {
       );
 
       if (photo != null) {
+        final photoFile = File(photo.path);
         setState(() {
-          _capturedImage = File(photo.path);
+          _capturedImage = photoFile;
         });
         
-        // TODO: Trigger AI model processing for the captured photo
-        _processCapturedMedia(_capturedImage!);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Photo captured successfully!'),
-            backgroundColor: successColor,
-          ),
-        );
+        // Process photo with pose detection and assessment
+        await _processPhotoWithAssessment(photoFile);
       }
     } catch (e) {
       debugPrint('Error taking photo: $e');
@@ -505,6 +543,93 @@ class _AssessUploadState extends State<AssessUpload> {
       setState(() {
         _isProcessing = false;
       });
+    }
+  }
+
+  /// Process photo with pose detection and assessment
+  /// Navigates to preview page with results
+  Future<void> _processPhotoWithAssessment(File photoFile) async {
+    try {
+      // Show processing indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text('Processing photo for assessment...'),
+            ],
+          ),
+          backgroundColor: mainColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      // Get assessment parameters
+      final muscleGroup = _getAssessmentMode();
+      final side = 'Right'; // Default side, could be made configurable
+      
+      // Process photo with pose detection
+      final result = await _poseService.processPhotoForAssessment(
+        photoFile: photoFile,
+        muscleGroup: muscleGroup,
+        side: side,
+      );
+
+      if (result['success'] == true) {
+        // Navigate to preview page with results
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => AssessPhotoPreview(
+                photoFile: photoFile,
+                assessmentResult: result['assessmentResult'],
+                landmarks: result['landmarks'],
+                muscleGroup: UserAssess.specificMuscle,
+                side: side,
+              ),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(1.0, 0.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOut;
+                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                var offsetAnimation = animation.drive(tween);
+                return SlideTransition(position: offsetAnimation, child: child);
+              },
+            ),
+          );
+        }
+      } else {
+        // Handle processing failure
+        final errorMessage = result['error'] ?? 'Failed to process photo';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _takePhoto(),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error processing photo with assessment: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error processing photo: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -568,19 +693,13 @@ class _AssessUploadState extends State<AssessUpload> {
         );
 
         if (photo != null) {
+          final photoFile = File(photo.path);
           setState(() {
-            _capturedImage = File(photo.path);
+            _capturedImage = photoFile;
           });
           
-          // TODO: Trigger AI model processing for the selected photo
-          _processCapturedMedia(_capturedImage!);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Photo selected successfully!'),
-              backgroundColor: successColor,
-            ),
-          );
+          // Process photo with pose detection and assessment
+          await _processPhotoWithAssessment(photoFile);
         }
       } else if (mediaType == 'video') {
         final XFile? video = await _picker.pickVideo(

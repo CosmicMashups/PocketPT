@@ -8,6 +8,7 @@ import '../data/globals.dart';
 import '../main.dart';
 import '../data/pose_detection_service.dart';
 import '../widgets/enhanced_pose_skeleton_painter.dart';
+import '../widgets/assessment_help_dialog.dart';
 import 'assessment_data.dart';
 import 'arom/assessment_service.dart';
 import 'arom/assessment_result.dart';
@@ -32,8 +33,31 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   // New: pose estimation and camera switching state
   int _selectedCameraIndex = 0;
-  String _mode = 'Triceps'; // 'Triceps' or 'Shoulders' (matching Jupyter focus)
   String _selectedSide = 'Right'; // 'Left' or 'Right' side to assess
+  
+  /// Muscle-to-algorithm mapping for automatic detection
+  /// Maps muscle groups selected in previous screens to appropriate AROM assessment algorithms
+  /// Used to eliminate manual muscle selection redundancy in camera assessment
+  static const Map<String, String> _muscleToAlgorithm = {
+    // Upper Body
+    'Deltoids': 'shoulders',
+    'Biceps': 'biceps',
+    'Triceps': 'triceps',
+    'Cervical Muscle': 'shoulders',
+    
+    // Lower Body
+    'Quadriceps': 'quadriceps',
+    'Hamstrings': 'hamstrings',
+    'Calf': 'calves',
+    'Ankle': 'calves',
+    'Gluteals': 'gluteals',
+    
+    // Core
+    'Abdominals': 'abdominals',
+    'Obliques': 'obliques',
+    'Lower Back': 'lower back',
+    'Multifidus': 'multifidus'
+  };
   final PoseDetectionService _poseService = PoseDetectionService();
   bool _isStreaming = false;
   bool _processingFrame = false;
@@ -52,6 +76,36 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   bool _showSkeleton = false;
   Map<String, Offset>? _currentLandmarks; // Always updated regardless of toggle state
   SkeletonOverlayConfig _skeletonConfig = const SkeletonOverlayConfig();
+
+  /// Determine assessment algorithm based on UserAssess.specificMuscle
+  /// 
+  /// This method automatically selects the appropriate AROM assessment algorithm
+  /// based on the muscle group selected by the user in previous assessment screens.
+  /// 
+  /// Returns:
+  /// - The appropriate algorithm name for the selected muscle
+  /// - 'triceps' as fallback for unknown or empty muscle selections
+  /// 
+  /// Example:
+  /// ```dart
+  /// final mode = _getAssessmentMode(); // Returns 'hamstrings' if UserAssess.specificMuscle = 'Hamstrings'
+  /// ```
+  String _getAssessmentMode() {
+    final muscle = UserAssess.specificMuscle;
+    if (muscle.isEmpty) {
+      debugPrint('Warning: No muscle selected, using default (triceps)');
+      return 'triceps';
+    }
+    
+    final mode = _muscleToAlgorithm[muscle];
+    if (mode == null) {
+      debugPrint('Warning: Unknown muscle group: $muscle, using default (triceps)');
+      return 'triceps';
+    }
+    
+    debugPrint('Selected muscle: $muscle -> Assessment mode: $mode');
+    return mode;
+  }
 
   // Start recording video while maintaining pose detection
   Future<XFile?> _startRecording() async {
@@ -212,7 +266,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           
           // Perform ROM assessment using modular services
           try {
-            final assessmentResult = AssessmentService.assess(_mode, landmarks, _selectedSide);
+            final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
             
             if (mounted) {
               setState(() {
@@ -289,7 +343,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                   }
                   // Perform ROM assessment using modular services
                   try {
-                    final assessmentResult = AssessmentService.assess(_mode, landmarks, _selectedSide);
+                    final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
                     
                     if (mounted) {
                       setState(() {
@@ -427,7 +481,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
               ),
             ),
             Text(
-              "${_mode} (${_selectedSide} Side)",
+              "${UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'Muscle Assessment'} (${_selectedSide} Side)",
               style: GoogleFonts.ptSans(
                 fontWeight: FontWeight.w500,
                 fontSize: 14,
@@ -438,10 +492,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         ),
         centerTitle: true,
         actions: [
-          // Assessment mode dropdown
+          // Help button
           Container(
             margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -454,34 +507,10 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                 ),
               ],
             ),
-            child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _mode,
-              items: const [
-                DropdownMenuItem(value: 'Triceps', child: Text('Triceps')),
-                DropdownMenuItem(value: 'Shoulders', child: Text('Shoulders')),
-                DropdownMenuItem(value: 'Hamstrings', child: Text('Hamstrings')),
-                DropdownMenuItem(value: 'Gluteals', child: Text('Gluteals')),
-                DropdownMenuItem(value: 'Calf', child: Text('Calf')),
-                DropdownMenuItem(value: 'Chest', child: Text('Chest')),
-                DropdownMenuItem(value: 'Biceps', child: Text('Biceps')),
-                DropdownMenuItem(value: 'Quadriceps', child: Text('Quadriceps')),
-                DropdownMenuItem(value: 'Abdominals', child: Text('Abdominals')),
-                DropdownMenuItem(value: 'Obliques', child: Text('Obliques')),
-                DropdownMenuItem(value: 'Lower Back', child: Text('Lower Back')),
-                DropdownMenuItem(value: 'Multifidus', child: Text('Multifidus')),
-              ],
-              onChanged: (val) {
-                if (val == null) return;
-                setState(() => _mode = val);
-              },
-                style: GoogleFonts.ptSans(
-                  fontSize: 14,
-                  color: const Color(0xFF1F2937),
-                  fontWeight: FontWeight.w500,
-            ),
-                icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF6B7280)),
-          ),
+            child: IconButton(
+              icon: const Icon(Icons.help_outline, color: Color(0xFF8B2E2E), size: 20),
+              onPressed: _showHelpDialog,
+              tooltip: 'Assessment Help',
             ),
           ),
           // Side selection dropdown
@@ -669,22 +698,27 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
             child: Stack(
               children: [
 
-                // Camera preview with cleaner design
+                // Camera preview with enhanced professional design
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE5E7EB), width: 2),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3), width: 3),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
+                        color: const Color(0xFF8B2E2E).withOpacity(0.15),
+                        blurRadius: 25,
+                        offset: const Offset(0, 10),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
                       ),
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(21),
                     child: _isCameraInitialized
                         ? Stack(
                             children: [
@@ -809,17 +843,23 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                       
                       const Spacer(),
                       
-                      // Pain score indicator - more prominent
+                      // Pain score indicator - enhanced professional design
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: _getScoreColor(UserAssess.painScale).withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                            BoxShadow(
+                              color: _getScoreColor(UserAssess.painScale).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 1),
                             ),
                           ],
                         ),
@@ -882,22 +922,27 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                     ),
                   ),
 
-                // Clean instructions overlay
+                // Enhanced instructions overlay with professional styling
                 Positioned(
                   bottom: 120,
                   left: 16,
                   right: 16,
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3), width: 1),
+                      color: Colors.black.withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.5), width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.2),
+                          blurRadius: 15,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
@@ -956,20 +1001,25 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                   ),
                 ),
 
-                // Compact assessment results
+                // Enhanced assessment results panel
                 Positioned(
                   top: 12,
                   left: 12,
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 200),
-                    padding: const EdgeInsets.all(12),
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+                      color: Colors.white.withOpacity(0.98),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.2), width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -1049,7 +1099,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                           ],
                         ] else ...[
                           Text(
-                            '${_mode}: Not assessed',
+                            '${UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'Muscle'}: Not assessed',
                             style: GoogleFonts.ptSans(
                               fontSize: 11,
                               color: Colors.grey,
@@ -1065,31 +1115,46 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
             ),
           ),
 
-          // Clean bottom action buttons
+          // Enhanced bottom action buttons with professional styling
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+              border: Border(
+                top: BorderSide(color: const Color(0xFF8B2E2E).withOpacity(0.1), width: 2),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, -8),
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 25,
+                  offset: const Offset(0, -10),
+                ),
+                BoxShadow(
+                  color: const Color(0xFF8B2E2E).withOpacity(0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, -5),
                 ),
               ],
             ),
             child: Row(
               children: [
-                // Upload button
+                // Enhanced upload button
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3), width: 2),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: ElevatedButton.icon(
                       onPressed: () async {
@@ -1127,7 +1192,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                 ),
                 const SizedBox(width: 16),
                 
-                // Record button
+                // Enhanced record button
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
@@ -1139,12 +1204,29 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                               end: Alignment.centerRight,
                             ),
                       color: _isRecording ? Colors.grey : null,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: _isRecording ? null : [
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _isRecording 
+                            ? Colors.grey.withOpacity(0.3)
+                            : const Color(0xFF8B2E2E).withOpacity(0.3), 
+                        width: 2
+                      ),
+                      boxShadow: _isRecording ? [
                         BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.3),
+                          color: Colors.grey.withOpacity(0.2),
                           blurRadius: 8,
-                          offset: const Offset(0, 4),
+                          offset: const Offset(0, 2),
+                        ),
+                      ] : [
+                        BoxShadow(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.2),
+                          blurRadius: 20,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
@@ -1222,7 +1304,30 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   // ROM Display Update Methods - moved to modular services
 
   String _getModeInstructions() {
-    return AssessmentService.getInstructions(_mode, _selectedSide);
+    return AssessmentService.getInstructions(_getAssessmentMode(), _selectedSide);
+  }
+
+  /// Show comprehensive help dialog for muscle-specific assessment guidance
+  /// 
+  /// Displays detailed instructions, positioning tips, and troubleshooting
+  /// information specific to the selected muscle group and side.
+  /// 
+  /// The dialog includes:
+  /// - Overview of what the assessment measures
+  /// - Step-by-step instructions for proper positioning and movement
+  /// - Positioning tips for optimal camera capture
+  /// - Information about what measurements are taken
+  /// - Troubleshooting tips for common issues
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AssessmentHelpDialog(
+          muscleGroup: UserAssess.specificMuscle,
+          side: _selectedSide,
+        );
+      },
+    );
   }
 
   void _showSkeletonConfigDialog(BuildContext context) {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 import 'package:camera/camera.dart';
+import '../assessment/arom/assessment_service.dart';
 
 class PoseDetectionService {
   static final PoseDetectionService _instance = PoseDetectionService._internal();
@@ -109,6 +110,62 @@ class PoseDetectionService {
         'overallPainScore': 5,
         'painDescription': 'Processing error',
         'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+    }
+  }
+
+  /// Process photo for ROM assessment and return AssessmentResult
+  /// This method is specifically designed for photo-based assessments
+  /// and integrates with the existing muscle assessment algorithms
+  Future<Map<String, dynamic>> processPhotoForAssessment({
+    required File photoFile,
+    required String muscleGroup,
+    required String side,
+  }) async {
+    try {
+      debugPrint('Processing photo for assessment: muscle=$muscleGroup, side=$side');
+      
+      // Detect poses in the photo
+      final poses = await detectFromImageFile(photoFile);
+      if (poses.isEmpty) {
+        return {
+          'success': false,
+          'error': 'No poses detected in photo. Please ensure the person is clearly visible and well-lit.',
+          'assessmentResult': null,
+          'landmarks': null,
+        };
+      }
+
+      // Extract landmarks from the most confident pose
+      final landmarks = getPoseLandmarks(poses.first);
+      if (landmarks.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Unable to extract pose landmarks. Please ensure the person is in a clear, unobstructed position.',
+          'assessmentResult': null,
+          'landmarks': null,
+        };
+      }
+
+      // Perform muscle assessment using the existing AssessmentService
+      final assessmentResult = AssessmentService.assess(muscleGroup, landmarks, side);
+      
+      debugPrint('Photo assessment completed: ${assessmentResult.displayLabel}');
+      
+      return {
+        'success': true,
+        'error': null,
+        'assessmentResult': assessmentResult,
+        'landmarks': landmarks,
+        'confidence': 0.8, // Default confidence score
+      };
+    } catch (e) {
+      debugPrint('Error processing photo for assessment: $e');
+      return {
+        'success': false,
+        'error': 'Failed to process photo: ${e.toString()}',
+        'assessmentResult': null,
+        'landmarks': null,
       };
     }
   }

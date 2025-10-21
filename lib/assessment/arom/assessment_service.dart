@@ -60,38 +60,38 @@ class AssessmentService {
       group.toLowerCase() == muscleGroup.toLowerCase());
   }
 
-  /// Get assessment instructions for a muscle group
+  /// Get detailed assessment instructions for a muscle group
   static String getInstructions(String muscleGroup, String side) {
     final sideLower = side.toLowerCase();
     
     switch (muscleGroup.toLowerCase()) {
       case 'triceps':
-        return "Extend your $sideLower arm fully (elbow straight) for triceps assessment";
+        return "Raise your $sideLower arm overhead, then slowly bend your elbow behind your head. Hold for 3 seconds, then straighten your arm. Move slowly and controlled.";
       case 'shoulders':
-        return "Raise your $sideLower arm overhead or to T-pose for shoulder assessment";
+        return "Slowly raise your $sideLower arm to the side, lifting as high as possible. Keep your arm straight and don't shrug your shoulder. Hold at the top for 3 seconds.";
       case 'calf':
       case 'calves':
-        return "Stand side-on to camera, perform knee-to-wall motion with your $sideLower leg for calf assessment";
+        return "Stand side-on to camera. Step forward with your $sideLower foot, keeping your heel down. Lean forward from your ankle until you feel a stretch. Hold for 3 seconds.";
       case 'hamstrings':
-        return "Raise your $sideLower thigh to 90° then extend your leg for hamstring assessment";
+        return "Lift your $sideLower leg to 90° at the hip, then slowly straighten your knee as much as possible. Keep your back straight and hold for 3 seconds.";
       case 'gluteals':
-        return "Extend your $sideLower leg backward for gluteal assessment";
+        return "Extend your $sideLower leg straight back behind you, keeping your knee straight. Lift as high as comfortable while maintaining good posture. Hold for 3 seconds.";
       case 'chest':
-        return "Raise your $sideLower arm forward and upward for chest ROM assessment";
+        return "Raise your $sideLower arm forward and upward, lifting as high as possible. Keep your arm straight and don't lean backward. Hold at the top for 3 seconds.";
       case 'biceps':
-        return "Flex your $sideLower arm at the elbow for biceps assessment";
+        return "Slowly bend your $sideLower elbow, bringing your hand toward your shoulder. Keep your upper arm still and move in a controlled manner. Hold for 3 seconds.";
       case 'quadriceps':
-        return "Raise your $sideLower thigh to 90° then extend your leg for quadriceps assessment";
+        return "Lift your $sideLower thigh to 90° at the hip, then slowly extend your knee as much as possible. Keep your back straight and hold for 3 seconds.";
       case 'abdominals':
-        return "Perform trunk flexion and extension movements for abdominal assessment";
+        return "Place your hands on your hips and slowly bend forward from your waist. Reach toward the ground while keeping your knees straight. Hold for 3 seconds.";
       case 'obliques':
-        return "Perform lateral trunk movements for oblique assessment";
+        return "Place your hands on your hips and slowly bend to the $side. Keep your shoulders aligned and don't rotate your torso. Hold for 3 seconds.";
       case 'lower back':
-        return "Perform trunk extension movements for lower back assessment";
+        return "Place your hands on your lower back and slowly bend backward, arching your back gently. Don't force the movement. Hold for 3 seconds.";
       case 'multifidus':
-        return "Perform controlled trunk movements for multifidus assessment";
+        return "Place your hands on your hips and slowly rotate your torso to the $side. Keep your hips facing forward and don't force the rotation. Hold for 3 seconds.";
       default:
-        return "Follow the on-screen instructions";
+        return "Follow the detailed instructions in the help dialog for proper positioning and movement technique.";
     }
   }
 }

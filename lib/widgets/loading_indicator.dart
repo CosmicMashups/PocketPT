@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'branded_progressive_loading.dart';
+import '../main.dart';
 
 /// A specialized loading indicator widget for showing data loading states
 class LoadingIndicator extends StatelessWidget {
@@ -7,6 +10,7 @@ class LoadingIndicator extends StatelessWidget {
   final Color? color;
   final bool showMessage;
   final bool isInline;
+  final bool showLogo;
   
   const LoadingIndicator({
     super.key,
@@ -15,65 +19,18 @@ class LoadingIndicator extends StatelessWidget {
     this.color,
     this.showMessage = true,
     this.isInline = false,
+    this.showLogo = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final indicatorColor = color ?? const Color(0xFF8B2E2E);
-    final indicatorSize = size ?? (isInline ? 20.0 : 40.0);
-    
-    if (isInline) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: indicatorSize,
-            height: indicatorSize,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
-            ),
-          ),
-          if (showMessage) ...[
-            const SizedBox(width: 8),
-            Text(
-              message,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? Colors.white70 : const Color(0xFF6B7280),
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-    
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: indicatorSize,
-            height: indicatorSize,
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
-            ),
-          ),
-          if (showMessage) ...[
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: TextStyle(
-                fontSize: 16,
-                color: isDark ? Colors.white70 : const Color(0xFF6B7280),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ],
-      ),
+    return BrandedLoadingIndicator(
+      message: message,
+      size: size,
+      color: color,
+      showMessage: showMessage,
+      isInline: isInline,
+      showLogo: showLogo,
     );
   }
 }
@@ -84,6 +41,7 @@ class ProgressIndicator extends StatelessWidget {
   final String message;
   final Color? color;
   final bool showPercentage;
+  final bool showLogo;
   
   const ProgressIndicator({
     super.key,
@@ -91,17 +49,59 @@ class ProgressIndicator extends StatelessWidget {
     this.message = 'Loading...',
     this.color,
     this.showPercentage = true,
+    this.showLogo = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final indicatorColor = color ?? const Color(0xFF8B2E2E);
+    final indicatorColor = color ?? kMainColor;
     
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Logo
+          if (showLogo) ...[
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [kMainColor, kSubColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: kMainColor.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  child: Image.asset(
+                    'assets/images/pocketpt.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.medical_services,
+                        color: Colors.white,
+                        size: 30,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
+          // Progress Circle
           SizedBox(
             width: 60,
             height: 60,
@@ -127,9 +127,9 @@ class ProgressIndicator extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: TextStyle(
+            style: GoogleFonts.ptSans(
               fontSize: 16,
-              color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+              color: isDark ? Colors.white70 : kTextNormal,
             ),
             textAlign: TextAlign.center,
           ),
@@ -137,7 +137,7 @@ class ProgressIndicator extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               '${(progress * 100).toInt()}%',
-              style: TextStyle(
+              style: GoogleFonts.ptSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: indicatorColor,
@@ -156,6 +156,7 @@ class SkeletonLoader extends StatefulWidget {
   final double height;
   final BorderRadius? borderRadius;
   final Color? color;
+  final bool showLogo;
   
   const SkeletonLoader({
     super.key,
@@ -163,68 +164,23 @@ class SkeletonLoader extends StatefulWidget {
     required this.height,
     this.borderRadius,
     this.color,
+    this.showLogo = false,
   });
 
   @override
   State<SkeletonLoader> createState() => _SkeletonLoaderState();
 }
 
-class _SkeletonLoaderState extends State<SkeletonLoader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _animationController;
-  late final Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _animationController.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
+class _SkeletonLoaderState extends State<SkeletonLoader> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = widget.color ?? 
-        (isDark ? Colors.grey[800] : Colors.grey[300]);
-    final highlightColor = isDark ? Colors.grey[700] : Colors.grey[100];
-    
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: widget.borderRadius ?? BorderRadius.circular(8),
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                baseColor!,
-                highlightColor!,
-                baseColor,
-              ],
-              stops: [
-                0.0,
-                _animation.value,
-                1.0,
-              ],
-            ),
-          ),
-        );
-      },
+    return BrandedSkeletonLoader(
+      width: widget.width,
+      height: widget.height,
+      borderRadius: widget.borderRadius,
+      color: widget.color,
+      showLogo: widget.showLogo,
     );
   }
 }

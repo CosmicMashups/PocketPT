@@ -1,6 +1,7 @@
 // Import packages
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import '../welcome/login_page.dart';
 import '../data/functions.dart';
@@ -9,6 +10,8 @@ import '../data/data_persistence_service.dart';
 import '../data/auth_persistence_service.dart';
 import '../data/user_data_notifier.dart';
 import '../data/guest_mode_service.dart';
+import '../widgets/responsive_dialog.dart';
+import '../main.dart';
 // removed loader: using direct global data like a_goal1.dart
 
 class ProfilePage extends StatefulWidget {
@@ -21,7 +24,6 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   // Professional healthcare color scheme
   static const mainColor = Color(0xFF8B2E2E); // Muscular maroon
-  static const detailColor = Color(0xFF6B7280); // Gray
   static const backgroundColor = Color(0xFFF8FAFC); // Light background
   static const successColor = Color(0xFF10B981); // Green
   static const errorColor = Color(0xFFEF4444); // Red
@@ -617,19 +619,53 @@ class _ProfilePageState extends State<ProfilePage> {
         context: context,
         builder: (BuildContext context) {
           final isGuest = UserDetails.isGuest;
-          return AlertDialog(
-            title: Text(isGuest ? 'Exit Guest Mode' : 'Logout'),
-            content: Text(isGuest 
-              ? 'Are you sure you want to exit guest mode? Your progress will be saved locally.'
-              : 'Are you sure you want to logout? All unsaved data will be saved automatically.'),
+          return ResponsiveDialog(
+            title: isGuest ? 'Exit Guest Mode' : 'Logout',
+            icon: isGuest ? Icons.exit_to_app : Icons.logout,
+            content: Text(
+              isGuest 
+                ? 'Are you sure you want to exit guest mode? Your progress will be saved locally.'
+                : 'Are you sure you want to logout? All unsaved data will be saved automatically.',
+              style: GoogleFonts.ptSans(
+                fontSize: 16,
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white70 
+                    : kTextNormal,
+                height: 1.5,
+              ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+                style: TextButton.styleFrom(
+                  foregroundColor: kTextNormal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
-              TextButton(
+              ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: Text(isGuest ? 'Exit' : 'Logout', style: const TextStyle(color: Colors.red)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kErrorColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  isGuest ? 'Exit' : 'Logout',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           );
@@ -639,12 +675,38 @@ class _ProfilePageState extends State<ProfilePage> {
       if (shouldLogout != true) return;
 
       // Show loading indicator
+      final isGuest = UserDetails.isGuest;
       showDialog(
-            context: context,
+        context: context,
         barrierDismissible: false,
         builder: (BuildContext context) {
-          return const Center(
-            child: CircularProgressIndicator(),
+          return ResponsiveDialog(
+            title: isGuest ? 'Exiting Guest Mode' : 'Logging Out',
+            icon: Icons.hourglass_empty,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 16),
+                const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(kMainColor),
+                  strokeWidth: 3,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  isGuest 
+                    ? 'Saving your progress...'
+                    : 'Saving your data...',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 16,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white70 
+                        : kTextNormal,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: const [],
           );
         },
       );
@@ -713,14 +775,9 @@ class _ProfilePageState extends State<ProfilePage> {
     final String? selectedPicture = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Select Profile Picture',
-                    style: TextStyle(
-                      color: mainColor,
-                fontWeight: FontWeight.w600,
-            ),
-          ),
+        return ResponsiveDialog(
+          title: 'Select Profile Picture',
+          icon: Icons.person,
           content: Container(
             width: double.maxFinite,
             child: GridView.builder(
@@ -742,18 +799,18 @@ class _ProfilePageState extends State<ProfilePage> {
                     Navigator.of(context).pop(picture);
                   },
                   child: Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-                        color: isSelected ? mainColor : Colors.grey.withOpacity(0.3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? kMainColor : Colors.grey.withOpacity(0.3),
                         width: isSelected ? 3 : 1,
-        ),
+                      ),
                       boxShadow: isSelected ? [
                         BoxShadow(
-                          color: mainColor.withOpacity(0.3),
+                          color: kMainColor.withOpacity(0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 4),
-      ),
+                        ),
                       ] : null,
                     ),
                     child: ClipRRect(
@@ -781,9 +838,16 @@ class _ProfilePageState extends State<ProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: kTextNormal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
               child: Text(
                 'Cancel',
-                style: TextStyle(color: detailColor),
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
