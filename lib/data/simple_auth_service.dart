@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'simple_data_sync_service.dart';
 
 /// Simplified authentication service with unified error handling
@@ -13,7 +14,14 @@ class SimpleAuthService {
   SimpleAuthService._internal();
   
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final GoogleSignIn _googleSignIn = GoogleSignIn();
+  static final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // Add web client ID for web platform
+    clientId: kIsWeb ? '679886971863-85d1ahqil53vbn97mfe52i69if2ofv61.apps.googleusercontent.com' : null,
+    // Specify scopes for better user experience
+    scopes: ['email', 'profile'],
+    // Enable server auth code for better security
+    serverClientId: '679886971863-85d1ahqil53vbn97mfe52i69if2ofv61.apps.googleusercontent.com',
+  );
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   // Unified timeout duration
@@ -122,8 +130,31 @@ class SimpleAuthService {
     }
   }
   
-  /// Sign in with Google
-  Future<AuthResult> signInWithGoogle() async {
+  /// Sign in with Google with retry logic
+  Future<AuthResult> signInWithGoogle({int maxRetries = 3}) async {
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        final result = await _performGoogleSignIn();
+        if (result.success) return result;
+        
+        if (i < maxRetries - 1) {
+          // Exponential backoff: wait 2, 4, 6 seconds
+          await Future.delayed(Duration(seconds: 2 * (i + 1)));
+          print('SimpleAuthService: Retrying Google sign-in attempt ${i + 2} of $maxRetries');
+        }
+      } catch (e) {
+        if (i == maxRetries - 1) {
+          return AuthResult.error('Google sign-in failed after $maxRetries attempts. Please try again later.');
+        }
+        // Wait before retry
+        await Future.delayed(Duration(seconds: 2 * (i + 1)));
+      }
+    }
+    return AuthResult.error('Google sign-in failed. Please try again.');
+  }
+
+  /// Perform the actual Google Sign-In operation
+  Future<AuthResult> _performGoogleSignIn() async {
     try {
       print('SimpleAuthService: Starting Google sign in...');
       
@@ -155,6 +186,12 @@ class SimpleAuthService {
       
       print('SimpleAuthService: Google authentication successful');
       
+      // Handle account linking check for existing users
+      final linkingResult = await _handleAccountLinking(googleUser.email);
+      if (!linkingResult.success) {
+        return linkingResult;
+      }
+      
       // Handle new user creation
       if (userCredential.additionalUserInfo?.isNewUser == true) {
         await _createNewUserDocument(userCredential.user!, googleUser);
@@ -178,6 +215,31 @@ class SimpleAuthService {
     }
   }
   
+  /// Handle account linking for existing email/password users
+  Future<AuthResult> _handleAccountLinking(String email) async {
+    try {
+      // Check if user exists with email/password
+      final existingUser = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+      
+      if (existingUser.docs.isNotEmpty) {
+        // User exists with email/password, provide guidance
+        return AuthResult.error(
+          'An account already exists with this email using email/password authentication. '
+          'Please sign in with your email and password, or contact support to link your Google account.'
+        );
+      }
+      
+      return AuthResult.success();
+    } catch (e) {
+      print('SimpleAuthService: Error checking account linking: $e');
+      return AuthResult.success(); // Continue with Google Sign-In if check fails
+    }
+  }
+
   /// Create user document in Firestore
   Future<void> _createUserDocument(
     User user, {
@@ -285,13 +347,23 @@ class SimpleAuthService {
   String _getGoogleSignInErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'account-exists-with-different-credential':
-        return 'An account already exists with this email';
+        return 'An account already exists with this email. Please sign in with your original method first.';
       case 'invalid-credential':
-        return 'Invalid Google credentials';
+        return 'Invalid Google credentials. Please try again.';
       case 'operation-not-allowed':
-        return 'Google Sign-In is not enabled';
+        return 'Google Sign-In is not enabled. Please contact support.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection and try again.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please wait a moment and try again.';
+      case 'user-disabled':
+        return 'This Google account has been disabled. Please contact support.';
+      case 'user-not-found':
+        return 'No Google account found. Please try again or create a new account.';
+      case 'wrong-password':
+        return 'Invalid Google authentication. Please try again.';
       default:
-        return e.message ?? 'An error occurred during Google Sign-In';
+        return 'Google sign-in failed. Please try again or use email/password.';
     }
   }
 

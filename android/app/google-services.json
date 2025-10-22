@@ -14,15 +14,15 @@
       },
       "oauth_client": [
         {
-          "client_id": "679886971863-85d1ahqil53vbn97mfe52i69if2ofv61.apps.googleusercontent.com",
+          "client_id": "679886971863-mv1besfmon0iif7qgtelhu76838jl2it.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.pocketpt",
-            "certificate_hash": "sha1"
+            "certificate_hash": "d8f47556e3014c2c30362ec18b9a1203adb20a47"
           }
         },
         {
-          "client_id": "679886971863-85d1ahqil53vbn97mfe52i69if2ofv61.apps.googleusercontent.com",
+          "client_id": "679886971863-9rod0jl9c7uklkaio5a2suj4ijokb32k.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
@@ -33,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "679886971863-9rod0jl9c7uklkaio5a2suj4ijokb32k.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "679886971863-85d1ahqil53vbn97mfe52i69if2ofv61.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.pocketpt"
+              }
+            }
+          ]
         }
       }
     }

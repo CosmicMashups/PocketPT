@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import 'assessment_data.dart';
-import '../data/functions.dart';
 import 'c_camera.dart';
 import 'c_painlevel.dart';
 import 'c_upload.dart';
+import 'dynamic_video_player.dart';
 
 class AssessPainVideo extends StatefulWidget {
   const AssessPainVideo({super.key});
@@ -232,6 +232,9 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
   }
 
   Widget _buildVideoSection() {
+    // Get the selected muscle with fallback logic
+    final selectedMuscle = _getSelectedMuscle();
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -262,27 +265,30 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
             ],
           ),
           const SizedBox(height: 16),
-          Container(
-            height: 200, // Fixed height to prevent size issues
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: LocalVideoPlayer(videoPath: 'assets/videos/arom_elbow.mp4'),
-            ),
+          MuscleVideoPlayer(
+            muscleName: selectedMuscle,
+            height: 200,
+            showMuscleInfo: false, // Info is already shown in the question section
           ),
         ],
       ),
     );
+  }
+
+  /// Get the selected muscle with proper fallback logic
+  String _getSelectedMuscle() {
+    // Try UserAssess first (most recent selection)
+    if (UserAssess.specificMuscle.isNotEmpty) {
+      return UserAssess.specificMuscle;
+    }
+    
+    // Fallback to AssessmentData
+    if (AssessmentData.specificMuscle.isNotEmpty) {
+      return AssessmentData.specificMuscle;
+    }
+    
+    // Final fallback to a default muscle
+    return 'Deltoids';
   }
 
   Widget _buildActionButtons(BuildContext context) {
