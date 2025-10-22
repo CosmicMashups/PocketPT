@@ -3,8 +3,8 @@
 
 Write-Host "Building Flutter web application..." -ForegroundColor Green
 
-# Build the web application in debug mode (as per your working method)
-flutter build web --debug
+# Build the web application in debug mode with correct base href for GitHub Pages
+flutter build web --debug --base-href /pocketpt/
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Web build completed successfully!" -ForegroundColor Green
@@ -15,16 +15,19 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "Deploying using git subtree method..." -ForegroundColor Cyan
         
         # Execute the git subtree commands
-        Write-Host "1. Creating subtree branch..." -ForegroundColor White
+        Write-Host "1. Adding web build files to git..." -ForegroundColor White
+        git add -f build/web/
+        
+        Write-Host "2. Creating subtree branch..." -ForegroundColor White
         git subtree split --prefix build/web -b gh-pages-temp
         
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "2. Pushing to gh-pages branch..." -ForegroundColor White
-            git push origin gh-pages-temp:gh-pages --force
-            
             if ($LASTEXITCODE -eq 0) {
-                Write-Host "3. Cleaning up temporary branch..." -ForegroundColor White
-                git branch -D gh-pages-temp
+                Write-Host "3. Pushing to gh-pages branch..." -ForegroundColor White
+                git push origin gh-pages-temp:gh-pages --force
+                
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "4. Cleaning up temporary branch..." -ForegroundColor White
+                    git branch -D gh-pages-temp
                 
                 Write-Host "Deployment completed successfully!" -ForegroundColor Green
                 Write-Host "Your web app should be available at: https://yourusername.github.io/pocketpt" -ForegroundColor Cyan

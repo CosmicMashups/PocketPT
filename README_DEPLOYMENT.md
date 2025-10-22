@@ -33,12 +33,26 @@ Execute the following commands manually:
    flutter build web --debug
    ```
 
-2. Deploy using git subtree:
+2. Add web build files to git (required due to .gitignore):
+   ```bash
+   git add -f build/web/
+   ```
+
+3. Deploy using git subtree:
    ```bash
    git subtree split --prefix build/web -b gh-pages-temp
    git push origin gh-pages-temp:gh-pages --force
    git branch -D gh-pages-temp
    ```
+
+## Important: Base Href Configuration
+
+For GitHub Pages deployment, the web app must be built with the correct base href:
+```bash
+flutter build web --debug --base-href /pocketpt/
+```
+
+This ensures all assets and routes work correctly on GitHub Pages.
 
 ### Method 3: GitHub Pages Setup
 
@@ -82,10 +96,15 @@ build/web/
 - Check for any compilation errors in the console
 - Verify that all assets are properly referenced
 
+### Git Issues
+- **"The paths are ignored by .gitignore"**: Use `git add -f build/web/` to force add the web build files
+- **"build/web is ignored"**: This is expected behavior. The deployment scripts handle this automatically with `git add -f`
+- **Subtree split fails**: Ensure the web build exists and contains files before running the subtree command
+
 ### Deployment Issues
-- Check GitHub Actions logs for build errors
 - Ensure GitHub Pages is enabled in repository settings
-- Verify the workflow file is in the correct location (`.github/workflows/`)
+- Verify the gh-pages branch exists after deployment
+- Check that the web build files are properly included in the subtree
 
 ### Web App Issues
 - Check browser console for JavaScript errors
