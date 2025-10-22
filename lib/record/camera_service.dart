@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'design_system.dart';
 
 /// Centralized camera service for managing camera lifecycle across all record pages
 /// Implements singleton pattern to prevent multiple camera controllers and resource conflicts
@@ -137,6 +138,142 @@ class CameraService {
   Widget? getCameraPreview() {
     if (!isReady) return null;
     return CameraPreview(_controller!);
+  }
+
+  /// Get enhanced camera preview widget with modern medical styling
+  Widget? getEnhancedCameraPreview(BuildContext context) {
+    if (!isReady) return null;
+    
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusXL),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.1),
+            Colors.white.withOpacity(0.05),
+          ],
+        ),
+        boxShadow: RecordingDesignSystem.medicalShadow,
+        border: Border.all(
+          color: RecordingDesignSystem.primaryMedical.withOpacity(0.2),
+          width: 1.5,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusXL),
+        child: AspectRatio(
+          aspectRatio: _controller!.value.aspectRatio,
+          child: CameraPreview(_controller!),
+        ),
+      ),
+    );
+  }
+
+  /// Get professional loading indicator for camera initialization
+  Widget getLoadingIndicator(BuildContext context) {
+    
+    return Container(
+      padding: const EdgeInsets.all(RecordingDesignSystem.spacingXXL),
+      decoration: BoxDecoration(
+        color: RecordingDesignSystem.getSurfaceColor(context),
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusXL),
+        boxShadow: RecordingDesignSystem.medicalShadow,
+        border: Border.all(
+          color: RecordingDesignSystem.getBorderColor(context),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 4,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                RecordingDesignSystem.primaryMedical,
+              ),
+            ),
+          ),
+          const SizedBox(height: RecordingDesignSystem.spacingM),
+          Text(
+            'Initializing camera...',
+            style: RecordingDesignSystem.bodyLarge.copyWith(
+              color: RecordingDesignSystem.getTextSecondaryColor(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get professional error state widget
+  Widget getErrorState(BuildContext context, String errorMessage, VoidCallback? onRetry) {
+    return Container(
+      padding: const EdgeInsets.all(RecordingDesignSystem.spacingL),
+      decoration: BoxDecoration(
+        color: RecordingDesignSystem.getErrorColor(context).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+        border: Border.all(
+          color: RecordingDesignSystem.getErrorColor(context).withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.error_outline,
+            color: RecordingDesignSystem.getErrorColor(context),
+            size: 32,
+          ),
+          const SizedBox(height: RecordingDesignSystem.spacingM),
+          Text(
+            'Camera Error',
+            style: RecordingDesignSystem.titleLarge.copyWith(
+              color: RecordingDesignSystem.getErrorColor(context),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: RecordingDesignSystem.spacingS),
+          Text(
+            errorMessage,
+            style: RecordingDesignSystem.bodyMedium.copyWith(
+              color: RecordingDesignSystem.getTextSecondaryColor(context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(height: RecordingDesignSystem.spacingM),
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: RecordingDesignSystem.getErrorColor(context),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: RecordingDesignSystem.spacingL,
+                  vertical: RecordingDesignSystem.spacingM,
+                ),
+              ),
+              child: Text(
+                'Retry',
+                style: RecordingDesignSystem.labelLarge.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   /// Switch to different camera if available

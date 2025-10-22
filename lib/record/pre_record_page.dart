@@ -6,7 +6,7 @@ import 'stopwatch_service.dart';
 import 'camera_service.dart';
 import 'exercise_cache_service.dart';
 import '../widgets/data_loading_wrapper.dart';
-import '../widgets/loading_indicator.dart';
+import 'design_system.dart';
 class PreRecordPage extends StatefulWidget {
   const PreRecordPage({super.key});
 
@@ -65,85 +65,24 @@ class _PreRecordPageState extends State<PreRecordPage> {
 
   Widget _buildCameraPreview(bool isDark) {
     if (_isCameraInitialized && _cameraService.isReady) {
-      final cameraPreview = _cameraService.getCameraPreview();
+      final cameraPreview = _cameraService.getEnhancedCameraPreview(context);
       if (cameraPreview != null) {
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: AspectRatio(
-              aspectRatio: _cameraService.controller!.value.aspectRatio,
-              child: cameraPreview,
-            ),
-          ),
+        return Semantics(
+          label: 'Camera preview for exercise preparation',
+          hint: 'Double tap to focus camera',
+          child: cameraPreview,
         );
       }
     }
 
     if (_isInitializingCamera) {
-      return Container(
-        decoration: BoxDecoration(
-          color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF3F4F6),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-        ),
-        child: const Center(
-          child: LoadingIndicator(
-            message: 'Initializing camera...',
-            size: 40,
-          ),
-        ),
-      );
+      return _cameraService.getLoadingIndicator(context);
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.camera_alt_outlined,
-              size: 48,
-              color: isDark ? Colors.white70 : const Color(0xFF6B7280),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _cameraError ?? 'Camera not available',
-              style: GoogleFonts.ptSans(
-                color: isDark ? Colors.white70 : const Color(0xFF6B7280),
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (_cameraError != null) ...[
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _initializeCamera,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8B2E2E),
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Retry'),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return _cameraService.getErrorState(
+      context,
+      _cameraError ?? 'Camera not available',
+      _cameraError != null ? _initializeCamera : null,
     );
   }
 
@@ -212,18 +151,23 @@ class _PreRecordPageState extends State<PreRecordPage> {
                         final currentExercise = snapshot.data;
                         return Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: RecordingDesignSystem.spacingM,
+                            vertical: RecordingDesignSystem.spacingM,
+                          ),
                           decoration: BoxDecoration(
-                            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+                            color: RecordingDesignSystem.getSurfaceColor(context),
+                            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                            border: Border.all(
+                              color: RecordingDesignSystem.getBorderColor(context),
+                              width: 1,
+                            ),
+                            boxShadow: RecordingDesignSystem.shadowSmall,
                           ),
                           child: Text(
                             currentExercise?.exerciseName ?? 'No Exercise',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 22,
-                              color: const Color(0xFF1F2937),
+                            style: RecordingDesignSystem.headlineLarge.copyWith(
+                              color: RecordingDesignSystem.getTextPrimaryColor(context),
                             ),
                             textAlign: TextAlign.center,
                             maxLines: 3,
@@ -279,67 +223,74 @@ class _PreRecordPageState extends State<PreRecordPage> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Start Recording Button with responsive layout
+                    // Enhanced Start Recording Button
                     Container(
                       width: double.infinity,
                       constraints: const BoxConstraints(minHeight: 56),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+                        gradient: LinearGradient(
+                          colors: [
+                            RecordingDesignSystem.primaryMedical,
+                            RecordingDesignSystem.secondaryMedical,
+                          ],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF8B2E2E).withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+                        boxShadow: RecordingDesignSystem.medicalShadow,
                       ),
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.videocam, color: Colors.white),
-                        label: Flexible(
-                          child: Text(
-                            'Start Recording',
-                            style: GoogleFonts.ptSans(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              color: Colors.white,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+                          onTap: () async {
+                            if (rehabPlan?.exerciseReferences.isEmpty != false) return;
+                            
+                            final currentExercise = await _cacheService.getExerciseById(
+                              rehabPlan!.exerciseReferences.first.exerciseId
+                            );
+                            if (currentExercise == null) return;
+                            
+                            StopwatchService.instance.start();
+                            Navigator.push(
+                              context,
+                              PageRouteBuilder(
+                                pageBuilder: (context, animation, secondaryAnimation) =>
+                                    RecordExercisePage(exercise: currentExercise),
+                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                  const begin = Offset(1.0, 0.0);
+                                  const end = Offset.zero;
+                                  const curve = RecordingDesignSystem.animationCurve;
+                                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                                  return SlideTransition(position: animation.drive(tween), child: child);
+                                },
+                                transitionDuration: RecordingDesignSystem.animationMedium,
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: RecordingDesignSystem.spacingXL,
+                              vertical: RecordingDesignSystem.spacingM,
                             ),
-                            textAlign: TextAlign.center,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.videocam, color: Colors.white, size: 24),
+                                const SizedBox(width: RecordingDesignSystem.spacingS),
+                                Flexible(
+                                  child: Text(
+                                    'Start Recording',
+                                    style: RecordingDesignSystem.labelLarge.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        onPressed: () async {
-                          if (rehabPlan?.exerciseReferences.isEmpty != false) return;
-                          
-                          final currentExercise = await _cacheService.getExerciseById(
-                            rehabPlan!.exerciseReferences.first.exerciseId
-                          );
-                          if (currentExercise == null) return;
-                          
-                          StopwatchService.instance.start();
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              pageBuilder: (context, animation, secondaryAnimation) =>
-                                  RecordExercisePage(exercise: currentExercise),
-                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                const begin = Offset(1.0, 0.0);
-                                const end = Offset.zero;
-                                const curve = Curves.easeInOut;
-                                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                return SlideTransition(position: animation.drive(tween), child: child);
-                              },
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                       ),
                     ),
@@ -360,33 +311,48 @@ class _PreRecordPageState extends State<PreRecordPage> {
     required String value,
     Color bgColor = Colors.grey,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 110,
       height: 130,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.06), blurRadius: 12, offset: const Offset(0, 6)),
-        ],
+        color: RecordingDesignSystem.getSurfaceColor(context),
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+        border: Border.all(
+          color: RecordingDesignSystem.getBorderColor(context),
+          width: 1,
+        ),
+        boxShadow: RecordingDesignSystem.shadowMedium,
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
             decoration: BoxDecoration(
-              color: const Color(0xFF8B2E2E).withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
+              color: RecordingDesignSystem.primaryMedical.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
             ),
-            child: const Icon(Icons.tag, color: Color(0xFF8B2E2E), size: 22),
+            child: Icon(
+              icon,
+              color: RecordingDesignSystem.primaryMedical,
+              size: 22,
+            ),
           ),
-          const SizedBox(height: 10),
-          Text(title, textAlign: TextAlign.center, style: GoogleFonts.ptSans(color: const Color(0xFF6B7280), fontSize: 13)),
-          const SizedBox(height: 4),
-          Text(value, style: GoogleFonts.poppins(color: const Color(0xFF111827), fontSize: 22, fontWeight: FontWeight.w700)),
+          const SizedBox(height: RecordingDesignSystem.spacingS),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: RecordingDesignSystem.bodySmall.copyWith(
+              color: RecordingDesignSystem.getTextSecondaryColor(context),
+            ),
+          ),
+          const SizedBox(height: RecordingDesignSystem.spacingXS),
+          Text(
+            value,
+            style: RecordingDesignSystem.headlineLarge.copyWith(
+              color: RecordingDesignSystem.getTextPrimaryColor(context),
+            ),
+          ),
         ],
       ),
     );
@@ -397,36 +363,50 @@ class _PreRecordPageState extends State<PreRecordPage> {
     required String title,
     required String subtitle,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
       decoration: BoxDecoration(
-        color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.06), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
+        color: RecordingDesignSystem.getSurfaceColor(context),
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+        border: Border.all(
+          color: RecordingDesignSystem.getBorderColor(context),
+          width: 1,
+        ),
+        boxShadow: RecordingDesignSystem.shadowMedium,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
             decoration: BoxDecoration(
-              color: const Color(0xFFC24A4A).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+              color: RecordingDesignSystem.secondaryMedical.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
             ),
-            child: const Icon(Icons.fitness_center, color: Color(0xFFC24A4A), size: 22),
+            child: Icon(
+              icon,
+              color: RecordingDesignSystem.secondaryMedical,
+              size: 22,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: RecordingDesignSystem.spacingM),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: GoogleFonts.poppins(color: const Color(0xFF111827), fontWeight: FontWeight.w600, fontSize: 16)),
-                const SizedBox(height: 2),
-                Text(subtitle, style: GoogleFonts.ptSans(color: const Color(0xFF6B7280), fontSize: 14)),
+                Text(
+                  title,
+                  style: RecordingDesignSystem.titleMedium.copyWith(
+                    color: RecordingDesignSystem.getTextPrimaryColor(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: RecordingDesignSystem.spacingXS),
+                Text(
+                  subtitle,
+                  style: RecordingDesignSystem.bodyMedium.copyWith(
+                    color: RecordingDesignSystem.getTextSecondaryColor(context),
+                  ),
+                ),
               ],
             ),
           ),

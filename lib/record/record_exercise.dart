@@ -9,6 +9,7 @@ import 'confirm_save_page.dart';
 import 'stopwatch_service.dart';
 import 'camera_service.dart';
 import 'exercise_cache_service.dart';
+import 'design_system.dart';
 class RecordExercisePage extends StatefulWidget {
   final Exercise exercise;
 
@@ -62,52 +63,18 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
   Widget _buildCameraPreview(bool isDark) {
     if (_isCameraInitialized && _cameraService.isReady) {
-      final cameraPreview = _cameraService.getCameraPreview();
+      final cameraPreview = _cameraService.getEnhancedCameraPreview(context);
       if (cameraPreview != null) {
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
-            border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: AspectRatio(
-              aspectRatio: _cameraService.controller!.value.aspectRatio,
-              child: cameraPreview,
-            ),
-          ),
+        return Semantics(
+          label: 'Camera preview for exercise recording',
+          hint: 'Double tap to focus camera',
+          child: cameraPreview,
         );
       }
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF3F4F6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(
-            'Initializing camera...',
-            style: GoogleFonts.ptSans(
-              color: isDark ? Colors.white70 : const Color(0xFF6B7280),
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
+    // Show loading state with enhanced design
+    return _cameraService.getLoadingIndicator(context);
   }
 
   @override
@@ -190,16 +157,20 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                 ),
                 const SizedBox(height: 10),
 
-                // Timer
+                // Enhanced Timer Display
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: RecordingDesignSystem.spacingL,
+                    vertical: RecordingDesignSystem.spacingM,
+                  ),
                   decoration: BoxDecoration(
-                    color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.06), blurRadius: 10, offset: const Offset(0, 4)),
-                    ],
+                    color: RecordingDesignSystem.getSurfaceColor(context),
+                    borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+                    border: Border.all(
+                      color: RecordingDesignSystem.primaryMedical.withOpacity(0.2),
+                      width: 2,
+                    ),
+                    boxShadow: RecordingDesignSystem.medicalShadow,
                   ),
                   child: StreamBuilder<Duration>(
                     stream: StopwatchService.instance.timeStream,
@@ -210,10 +181,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                       final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
                       return Text(
                         '$minutes:$seconds',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 28,
-                          color: const Color(0xFF111827),
+                        style: RecordingDesignSystem.displayMedium.copyWith(
+                          color: RecordingDesignSystem.primaryMedical,
+                          letterSpacing: 1.2,
                         ),
                       );
                     },
@@ -516,34 +486,45 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
       child: Container(
         constraints: const BoxConstraints(minWidth: 100, maxWidth: 150),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
+          gradient: LinearGradient(
+            colors: [RecordingDesignSystem.primaryMedical, RecordingDesignSystem.secondaryMedical],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(color: const Color(0xFF8B2E2E).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
-          ],
+          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+          boxShadow: RecordingDesignSystem.medicalShadow,
         ),
-        child: ElevatedButton.icon(
-          icon: Icon(icon, color: Colors.white, size: 20),
-          label: Flexible(
-            child: Text(
-              label,
-              style: GoogleFonts.ptSans(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: RecordingDesignSystem.spacingM,
+                vertical: RecordingDesignSystem.spacingM,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, color: Colors.white, size: 20),
+                  const SizedBox(width: RecordingDesignSystem.spacingS),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: RecordingDesignSystem.labelLarge.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-          ),
-          onPressed: onTap,
         ),
       ),
     );
@@ -553,13 +534,29 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     return Container(
       width: 60,
       height: 60,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Color(0xFF10B981),
+        gradient: LinearGradient(
+          colors: [RecordingDesignSystem.successColor, const Color(0xFF34D399)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: RecordingDesignSystem.successColor.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+            spreadRadius: 1,
+          ),
+        ],
       ),
-      child: IconButton(
-        icon: Icon(icon, size: 28, color: Colors.white),
-        onPressed: onTap,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onTap,
+          child: Icon(icon, size: 28, color: Colors.white),
+        ),
       ),
     );
   }
@@ -567,32 +564,47 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   Widget _buildInstructionCard(String imagePath, Exercise exercise) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 6)),
-        ],
+        color: RecordingDesignSystem.getSurfaceColor(context),
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+        border: Border.all(
+          color: RecordingDesignSystem.getBorderColor(context),
+          width: 1,
+        ),
+        boxShadow: RecordingDesignSystem.shadowLarge,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
               child: Image.asset(
                 imagePath,
                 fit: BoxFit.cover,
                 height: 200,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.broken_image, color: Colors.red, size: 100),
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: RecordingDesignSystem.getErrorColor(context).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                  ),
+                  child: Icon(
+                    Icons.broken_image,
+                    color: RecordingDesignSystem.getErrorColor(context),
+                    size: 100,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(exercise.description,
-                style: GoogleFonts.ptSans(fontSize: 14, color: const Color(0xFF374151))),
-            const SizedBox(height: 12),
+            const SizedBox(height: RecordingDesignSystem.spacingM),
+            Text(
+              exercise.description,
+              style: RecordingDesignSystem.bodyMedium.copyWith(
+                color: RecordingDesignSystem.getTextSecondaryColor(context),
+              ),
+            ),
+            const SizedBox(height: RecordingDesignSystem.spacingM),
             _buildInfoRow(Icons.fitness_center, 'Muscle Group: ${exercise.muscle}'),
             _buildInfoRow(Icons.local_hospital, 'Pain Level: ${exercise.painLevel}'),
             _buildInfoRow(Icons.flag, 'Goal: ${exercise.goal}'),
@@ -604,14 +616,22 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
   Widget _buildInfoRow(IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: RecordingDesignSystem.spacingXS),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF6B7280), size: 18),
-          const SizedBox(width: 8),
+          Icon(
+            icon,
+            color: RecordingDesignSystem.getTextSecondaryColor(context),
+            size: 18,
+          ),
+          const SizedBox(width: RecordingDesignSystem.spacingS),
           Expanded(
-            child: Text(text,
-                style: GoogleFonts.ptSans(fontSize: 14, color: const Color(0xFF6B7280))),
+            child: Text(
+              text,
+              style: RecordingDesignSystem.bodyMedium.copyWith(
+                color: RecordingDesignSystem.getTextSecondaryColor(context),
+              ),
+            ),
           ),
         ],
       ),
