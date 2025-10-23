@@ -208,7 +208,7 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
               const Icon(Icons.play_circle_outline, color: Colors.black87, size: 24),
               const SizedBox(width: 12),
           Text(
-            "Range of Motion Assessment",
+            "Range of Motion",
                 style: GoogleFonts.poppins(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
@@ -265,9 +265,9 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
             ],
           ),
           const SizedBox(height: 16),
+          // Let the video maximize horizontal space and size its height dynamically (16:9)
           MuscleVideoPlayer(
             muscleName: selectedMuscle,
-            height: 200,
             showMuscleInfo: false, // Info is already shown in the question section
           ),
         ],

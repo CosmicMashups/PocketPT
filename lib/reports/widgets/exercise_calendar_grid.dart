@@ -144,7 +144,7 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
             ),
             const SizedBox(width: 12),
             Text(
-              'Exercise Calendar',
+              'Calendar',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,

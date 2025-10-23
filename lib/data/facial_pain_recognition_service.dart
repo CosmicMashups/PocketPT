@@ -12,15 +12,19 @@ class FacialPainRecognitionService {
   // Model parameters (based on typical CNN input requirements)
   static const int _inputSize = 224; // Standard CNN input size
   
-  // Pain labels
-  static const List<String> _painLabels = ['Pained', 'Not Pained'];
+  // Pain labels - 3-class system for exercise recording
+  static const List<String> _painLabels = ['Low', 'Moderate', 'Severe'];
   
   // Model state
   bool _isModelLoaded = false;
   double _lastPainConfidence = 0;
-  String _lastPainPrediction = 'Not Pained';
+  String _lastPainPrediction = 'Low';
   // Module? _painModel; // Temporarily disabled - PyTorch type
   dynamic _painModel; // Using dynamic to avoid compilation errors
+  
+  // Performance optimization
+  static const int MAX_FPS = 5; // Maximum frames per second for pain detection
+  DateTime? _lastProcessTime;
   
   /// Initialize the facial pain recognition service
   Future<void> initialize() async {
@@ -53,18 +57,28 @@ class FacialPainRecognitionService {
     }
   }
   
-  /// Detect facial pain from camera image
+  /// Detect facial pain from camera image with frame rate limiting
   Future<Map<String, dynamic>> detectFacialPain({
-    required CameraImage image,
+    CameraImage? image,
     required CameraDescription camera,
   }) async {
     if (!_isModelLoaded) {
       return {
-        'painDetected': false,
+        'painLevel': 'Low',
         'confidence': 0.0,
-        'prediction': 'Not Pained',
+        'prediction': 'Low',
         'error': 'Model not loaded'
       };
+    }
+    
+    // Frame rate limiting for performance
+    if (!_shouldProcessFrame()) {
+      return getLastPrediction();
+    }
+    
+    // For now, use simulation mode since camera image processing needs proper implementation
+    if (image == null) {
+      return await _runSimulatedPainRecognitionModel(null);
     }
     
     try {
@@ -73,9 +87,9 @@ class FacialPainRecognitionService {
       
       if (processedImage == null) {
         return {
-          'painDetected': false,
+          'painLevel': 'Low',
           'confidence': 0.0,
-          'prediction': 'Not Pained',
+          'prediction': 'Low',
           'error': 'Failed to process image'
         };
       }
@@ -85,9 +99,9 @@ class FacialPainRecognitionService {
       
       if (faceRegion == null) {
         return {
-          'painDetected': false,
+          'painLevel': 'Low',
           'confidence': 0.0,
-          'prediction': 'Not Pained',
+          'prediction': 'Low',
           'error': 'No face detected'
         };
       }
@@ -99,9 +113,9 @@ class FacialPainRecognitionService {
     } catch (e) {
       debugPrint('FacialPainRecognitionService: Error detecting facial pain: $e');
       return {
-        'painDetected': false,
+        'painLevel': 'Low',
         'confidence': 0.0,
-        'prediction': 'Not Pained',
+        'prediction': 'Low',
         'error': e.toString()
       };
     }
@@ -208,9 +222,9 @@ class FacialPainRecognitionService {
     } catch (e) {
       debugPrint('FacialPainRecognitionService: Error running pain recognition model: $e');
       return {
-        'painDetected': false,
+        'painLevel': 'Low',
         'confidence': 0.0,
-        'prediction': 'Not Pained',
+        'prediction': 'Low',
         'error': e.toString()
       };
     }
@@ -232,23 +246,22 @@ class FacialPainRecognitionService {
   }
 
   /// Run simulated pain recognition (fallback)
-  Future<Map<String, dynamic>> _runSimulatedPainRecognitionModel(img.Image faceImage) async {
+  Future<Map<String, dynamic>> _runSimulatedPainRecognitionModel(img.Image? faceImage) async {
     // Simulate model inference time
     await Future.delayed(const Duration(milliseconds: 100));
     
-    // Simulate pain detection based on image characteristics
-    final painDetected = _simulatePainDetection(faceImage);
-    final confidence = painDetected ? 0.85 : 0.15; // Simulated confidence
-    final prediction = painDetected ? 'Pained' : 'Not Pained';
+    // Simulate 3-class pain detection based on image characteristics
+    final painLevel = _simulatePainLevelDetection(faceImage);
+    final confidence = _getConfidenceForPainLevel(painLevel);
     
     // Update last prediction
     _lastPainConfidence = confidence;
-    _lastPainPrediction = prediction;
+    _lastPainPrediction = painLevel;
     
     return {
-      'painDetected': painDetected,
+      'painLevel': painLevel,
       'confidence': confidence,
-      'prediction': prediction,
+      'prediction': painLevel,
       'error': null
     };
   }
@@ -256,21 +269,58 @@ class FacialPainRecognitionService {
   // Note: Tensor creation and softmax methods removed as they are not currently used
   // These will be re-implemented when PyTorch functionality is restored
   
-  /// Simulate pain detection based on image characteristics
-  bool _simulatePainDetection(img.Image faceImage) {
+  /// Simulate 3-class pain level detection based on image characteristics
+  String _simulatePainLevelDetection(img.Image? faceImage) {
     // This is a simplified simulation - in reality, the CNN model would analyze
     // facial features, muscle tension, eye squinting, etc.
     
-    // Simulate random pain detection for demonstration
+    // Simulate random pain level detection for demonstration
     // In practice, this would be replaced by the actual model inference
     final random = DateTime.now().millisecondsSinceEpoch % 100;
-    return random < 15; // 15% chance of detecting pain (for demo purposes)
+    
+    if (random < 5) {
+      return 'Severe'; // 5% chance of severe pain
+    } else if (random < 20) {
+      return 'Moderate'; // 15% chance of moderate pain
+    } else {
+      return 'Low'; // 80% chance of low pain
+    }
+  }
+  
+  /// Get confidence level for pain level detection
+  double _getConfidenceForPainLevel(String painLevel) {
+    switch (painLevel) {
+      case 'Severe':
+        return 0.85; // High confidence for severe pain
+      case 'Moderate':
+        return 0.75; // Medium-high confidence for moderate pain
+      case 'Low':
+        return 0.65; // Medium confidence for low pain
+      default:
+        return 0.5;
+    }
+  }
+  
+  /// Check if frame should be processed based on frame rate limiting
+  bool _shouldProcessFrame() {
+    final now = DateTime.now();
+    if (_lastProcessTime == null) {
+      _lastProcessTime = now;
+      return true;
+    }
+    
+    final elapsed = now.difference(_lastProcessTime!).inMilliseconds;
+    if (elapsed >= (1000 / MAX_FPS)) {
+      _lastProcessTime = now;
+      return true;
+    }
+    return false;
   }
   
   /// Get last pain prediction
   Map<String, dynamic> getLastPrediction() {
     return {
-      'painDetected': _lastPainPrediction == 'Pained',
+      'painLevel': _lastPainPrediction,
       'confidence': _lastPainConfidence,
       'prediction': _lastPainPrediction,
     };

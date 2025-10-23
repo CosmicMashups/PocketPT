@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/globals.dart';
-import '../data/functions.dart';
+import '../assessment/assessment_data.dart';
+import '../assessment/dynamic_video_player.dart';
 import 'cameraPose.dart';
 import 'painLevel.dart';
 
@@ -14,258 +15,361 @@ class InstructionVideoPage extends StatefulWidget {
 }
 
 class _InstructionVideoPageState extends State<InstructionVideoPage> {
+  // Professional healthcare color scheme
+  static const mainColor = Color(0xFF8B2E2E);
+  static const subColor = Color(0xFFC24A4A);
+  static const detailColor = Color(0xFF6B7280);
+  static const backgroundColor = Color(0xFFF8FAFC);
+
   String painLevel = UserAssess.painLevel;
   int painScale = UserAssess.painScale;
 
   @override
+  void initState() {
+    super.initState();
+    print('InstructionVideoPage: initState() called');
+    print('InstructionVideoPage: Current AssessmentData.specificMuscle = "${AssessmentData.specificMuscle}"');
+    print('InstructionVideoPage: Current UserAssess.specificMuscle = "${UserAssess.specificMuscle}"');
+    print('InstructionVideoPage: initState() completed');
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+    print('InstructionVideoPage: build() called');
+    print('InstructionVideoPage: Current AssessmentData.specificMuscle in build = "${AssessmentData.specificMuscle}"');
+    print('InstructionVideoPage: Current UserAssess.specificMuscle in build = "${UserAssess.specificMuscle}"');
+    
+    try {
+      return _buildPageContent(context);
+    } catch (e) {
+      print('InstructionVideoPage: ERROR in build() - $e');
+      return Container(
+        color: backgroundColor,
+        child: Center(
+          child: Text(
+            'Error loading page: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildPageContent(BuildContext context) {
+    return Material(
+      color: backgroundColor,
+      child: Column(
+        children: [
+          _buildAppBar(context),
+          Flexible(
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildProgressSection(),
+                    const SizedBox(height: 24),
+                    _buildQuestionSection(),
+                    const SizedBox(height: 24),
+                    _buildVideoSection(),
+                    const SizedBox(height: 32),
+                    _buildActionButtons(context),
+                    const SizedBox(height: 16),
+                    _buildSkipButton(context),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return Container(
+      height: kToolbarHeight + MediaQuery.of(context).padding.top,
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      color: mainColor,
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          Expanded(
+            child: Text(
+              "Daily Assessment",
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.refresh, color: Colors.transparent),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.assessment, color: Colors.black87, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                "Assessment Progress",
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                "Step 1 of 3",
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: detailColor,
+                ),
               ),
             ],
           ),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
-            onPressed: () => Navigator.of(context).pop(),
+          const SizedBox(height: 16),
+          LinearProgressIndicator(
+            value: 0.33,
+            minHeight: 8,
+            backgroundColor: const Color(0xFFE5E7EB),
+            valueColor: const AlwaysStoppedAnimation<Color>(mainColor),
           ),
-        ),
-        centerTitle: true,
-        title: Text(
-          "Instruction Video",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: const Color(0xFF1F2937),
-          ),
-        ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Progress Section
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.play_circle_outline, color: Color(0xFF8B2E2E), size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        "Step 1 of 3",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF8B2E2E),
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        "33%",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF6B7280),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  LinearProgressIndicator(
-                    value: 0.33,
-                    minHeight: 6,
-                    backgroundColor: const Color(0xFFE5E7EB),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
-                  ),
-                ],
-              ),
-            ),
+    );
+  }
 
-            // Main Content
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-                border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
+  Widget _buildQuestionSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.play_circle_outline, color: Colors.black87, size: 24),
+              const SizedBox(width: 12),
+              Text(
+                "Range of Motion",
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Text(
-                    "Instruction Video",
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1F2937),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "Follow the guided video instructions to assess your ${_getSelectedMuscle().isNotEmpty ? _getSelectedMuscle().toLowerCase() : 'muscle'}. This helps us understand your current range of motion and identify any limitations.",
+            style: GoogleFonts.ptSans(
+              fontSize: 16,
+              color: detailColor,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVideoSection() {
+    // Get the selected muscle with fallback logic
+    final selectedMuscle = _getSelectedMuscle();
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.video_library, color: Colors.black87, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                "Instructional Video",
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Let the video maximize horizontal space and size its height dynamically (16:9)
+          MuscleVideoPlayer(
+            muscleName: selectedMuscle,
+            showMuscleInfo: false, // Info is already shown in the question section
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get the selected muscle with proper fallback logic
+  String _getSelectedMuscle() {
+    // Try UserAssess first (most recent selection)
+    if (UserAssess.specificMuscle.isNotEmpty) {
+      return UserAssess.specificMuscle;
+    }
+    
+    // Fallback to AssessmentData
+    if (AssessmentData.specificMuscle.isNotEmpty) {
+      return AssessmentData.specificMuscle;
+    }
+    
+    // Final fallback to a default muscle
+    return 'Deltoids';
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [mainColor, subColor],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: mainColor.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (_, __, ___) => const CameraPosePage(),
+                    transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                      position: animation.drive(
+                        Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                            .chain(CurveTween(curve: Curves.easeInOut)),
+                      ),
+                      child: child,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.videocam_rounded, color: Colors.white, size: 24),
+                  const SizedBox(width: 8),
                   Text(
-                    "Please watch this instructional video to understand how to perform the range of motion assessment for your ${UserAssess.specificMuscle.toLowerCase()}.",
+                    "Start Recording",
                     style: GoogleFonts.ptSans(
                       fontSize: 16,
-                      color: const Color(0xFF6B7280),
-                      height: 1.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Video Section
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: LocalVideoPlayer(videoPath: 'assets/videos/arom_elbow.mp4'),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Action Buttons
-                  Column(
-                    children: [
-                      // Start Assessment Button
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF8B2E2E), Color(0xFFC24A4A)],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF8B2E2E).withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder: (_, __, ___) => const CameraPosePage(),
-                                transitionsBuilder: (_, animation, __, child) => SlideTransition(
-                                  position: animation.drive(
-                                    Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                                        .chain(CurveTween(curve: Curves.easeInOut)),
-                                  ),
-                                  child: child,
-                                ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          icon: const Icon(Icons.videocam, color: Colors.white, size: 20),
-                          label: Text(
-                            "Start Assessment",
-                            style: GoogleFonts.ptSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Skip Button
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            PageRouteBuilder(
-                              pageBuilder: (_, __, ___) => const PainLevelPage(),
-                              transitionsBuilder: (_, animation, __, child) => SlideTransition(
-                                position: animation.drive(
-                                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                                      .chain(CurveTween(curve: Curves.easeInOut)),
-                                ),
-                                child: child,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          "Skip to Pain Level Assessment",
-                          style: GoogleFonts.ptSans(
-                            fontSize: 14,
-                            color: const Color(0xFF8B2E2E),
-                            decoration: TextDecoration.underline,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-          ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkipButton(BuildContext context) {
+    return Center(
+      child: TextButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (_, __, ___) => const PainLevelPage(),
+              transitionsBuilder: (_, animation, __, child) => SlideTransition(
+                position: animation.drive(
+                  Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                      .chain(CurveTween(curve: Curves.easeInOut)),
+                ),
+                child: child,
+              ),
+            ),
+          );
+        },
+        child: Text(
+          "Skip Camera Assessment",
+          style: GoogleFonts.ptSans(
+            fontSize: 14,
+            color: detailColor,
+            decoration: TextDecoration.underline,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

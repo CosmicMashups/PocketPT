@@ -1,6 +1,6 @@
 {
-    "name": "pocketpt",
-    "short_name": "pocketpt",
+    "name": "PocketPT",
+    "short_name": "PocketPT",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

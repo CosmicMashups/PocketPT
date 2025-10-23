@@ -18,14 +18,19 @@ class ConfirmSavePage extends StatelessWidget {
         leading: Container(
           margin: const EdgeInsets.all(RecordingDesignSystem.spacingS),
           decoration: BoxDecoration(
-            color: RecordingDesignSystem.getSurfaceColor(context),
+            gradient: RecordingDesignSystem.neutralGradient,
             borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
-            boxShadow: RecordingDesignSystem.shadowSmall,
+            boxShadow: RecordingDesignSystem.shadowMedium,
+            border: Border.all(
+              color: RecordingDesignSystem.getBorderColor(context),
+              width: 1,
+            ),
           ),
           child: IconButton(
             icon: Icon(
-              Icons.close,
+              RecordingDesignSystem.iconClose,
               color: RecordingDesignSystem.primaryMedical,
+              size: 20,
             ),
             onPressed: onCancel,
           ),
@@ -60,12 +65,13 @@ class ConfirmSavePage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
                   decoration: BoxDecoration(
-                    color: RecordingDesignSystem.primaryMedical.withOpacity(0.08),
+                    gradient: RecordingDesignSystem.primaryGradient,
                     shape: BoxShape.circle,
+                    boxShadow: RecordingDesignSystem.medicalShadow,
                   ),
                   child: Icon(
-                    Icons.save_alt,
-                    color: RecordingDesignSystem.primaryMedical,
+                    RecordingDesignSystem.iconSave,
+                    color: Colors.white,
                     size: 32,
                   ),
                 ),
@@ -90,27 +96,44 @@ class ConfirmSavePage extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton(
-                        onPressed: onCancel,
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: RecordingDesignSystem.neutralGradient,
+                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                          boxShadow: RecordingDesignSystem.shadowSmall,
+                          border: Border.all(
                             color: RecordingDesignSystem.getBorderColor(context),
                             width: 1,
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: RecordingDesignSystem.spacingM,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
-                          ),
-                          foregroundColor: RecordingDesignSystem.getTextPrimaryColor(context),
-                          backgroundColor: RecordingDesignSystem.getSurfaceColor(context),
                         ),
-                        child: Text(
-                          'Cancel',
-                          style: RecordingDesignSystem.labelLarge.copyWith(
-                            color: RecordingDesignSystem.getTextPrimaryColor(context),
-                            fontWeight: FontWeight.w600,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                            onTap: onCancel,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: RecordingDesignSystem.spacingM,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    RecordingDesignSystem.iconClose,
+                                    color: RecordingDesignSystem.getTextPrimaryColor(context),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: RecordingDesignSystem.spacingS),
+                                  Text(
+                                    'Cancel',
+                                    style: RecordingDesignSystem.labelLarge.copyWith(
+                                      color: RecordingDesignSystem.getTextPrimaryColor(context),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -119,14 +142,7 @@ class ConfirmSavePage extends StatelessWidget {
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              RecordingDesignSystem.primaryMedical,
-                              RecordingDesignSystem.secondaryMedical,
-                            ],
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                          ),
+                          gradient: RecordingDesignSystem.primaryGradient,
                           borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
                           boxShadow: RecordingDesignSystem.medicalShadow,
                         ),
@@ -142,7 +158,11 @@ class ConfirmSavePage extends StatelessWidget {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.check, color: Colors.white, size: 20),
+                                  Icon(
+                                    RecordingDesignSystem.iconCheck,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: RecordingDesignSystem.spacingS),
                                   Text(
                                     'Save',

@@ -907,107 +907,107 @@ class _DashboardPageState extends State<DashboardPage>
               ),
               const SizedBox(height: 20),
 
-              // CNN Demo Section
-              Container(
-                margin: const EdgeInsets.only(bottom: 20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Colors.blue.withOpacity(0.9),
-                      Colors.blueAccent,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.psychology,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'CNN Pose Demo',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Try the new CNN-based pose estimation for pain assessment.',
-                                style: GoogleFonts.ptSans(
-                                  fontSize: 15,
-                                  color: Colors.white.withOpacity(0.9),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: Uncomment when CNNCameraPosePage is available
-                          // Navigator.push(
-                          //   context,
-                          //   MaterialPageRoute(
-                          //     builder: (context) => const CNNCameraPosePage(),
-                          //   ),
-                          // );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('CNN Demo coming soon!')),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.blue,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          'Try CNN Demo',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // // CNN Demo Section
+              // Container(
+              //   margin: const EdgeInsets.only(bottom: 20),
+              //   padding: const EdgeInsets.all(20),
+              //   decoration: BoxDecoration(
+              //     gradient: LinearGradient(
+              //       begin: Alignment.topLeft,
+              //       end: Alignment.bottomRight,
+              //       colors: [
+              //         Colors.blue.withOpacity(0.9),
+              //         Colors.blueAccent,
+              //       ],
+              //     ),
+              //     borderRadius: BorderRadius.circular(20),
+              //     boxShadow: [
+              //       BoxShadow(
+              //         color: Colors.blue.withOpacity(0.2),
+              //         blurRadius: 10,
+              //         offset: const Offset(0, 6),
+              //       ),
+              //     ],
+              //   ),
+              //   child: Column(
+              //     children: [
+              //       Row(
+              //         crossAxisAlignment: CrossAxisAlignment.start,
+              //         children: [
+              //           Container(
+              //             padding: const EdgeInsets.all(10),
+              //             decoration: BoxDecoration(
+              //               color: Colors.white.withOpacity(0.2),
+              //               shape: BoxShape.circle,
+              //             ),
+              //             child: const Icon(
+              //               Icons.psychology,
+              //               size: 30,
+              //               color: Colors.white,
+              //             ),
+              //           ),
+              //           const SizedBox(width: 16),
+              //           Expanded(
+              //             child: Column(
+              //               crossAxisAlignment: CrossAxisAlignment.start,
+              //               children: [
+              //                 Text(
+              //                   'CNN Pose Demo',
+              //                   style: GoogleFonts.poppins(
+              //                     fontSize: 20,
+              //                     fontWeight: FontWeight.w700,
+              //                     color: Colors.white,
+              //                   ),
+              //                 ),
+              //                 const SizedBox(height: 8),
+              //                 Text(
+              //                   'Try the new CNN-based pose estimation for pain assessment.',
+              //                   style: GoogleFonts.ptSans(
+              //                     fontSize: 15,
+              //                     color: Colors.white.withOpacity(0.9),
+              //                   ),
+              //                 ),
+              //               ],
+              //             ),
+              //           ),
+              //         ],
+              //       ),
+              //       const SizedBox(height: 20),
+              //       SizedBox(
+              //         width: double.infinity,
+              //         child: ElevatedButton(
+              //           onPressed: () {
+              //             // TODO: Uncomment when CNNCameraPosePage is available
+              //             // Navigator.push(
+              //             //   context,
+              //             //   MaterialPageRoute(
+              //             //     builder: (context) => const CNNCameraPosePage(),
+              //             //   ),
+              //             // );
+              //             ScaffoldMessenger.of(context).showSnackBar(
+              //               const SnackBar(content: Text('CNN Demo coming soon!')),
+              //             );
+              //           },
+              //           style: ElevatedButton.styleFrom(
+              //             backgroundColor: Colors.white,
+              //             foregroundColor: Colors.blue,
+              //             padding: const EdgeInsets.symmetric(vertical: 14),
+              //             shape: RoundedRectangleBorder(
+              //               borderRadius: BorderRadius.circular(12),
+              //             ),
+              //           ),
+              //           child: Text(
+              //             'Try CNN Demo',
+              //             style: GoogleFonts.poppins(
+              //               fontSize: 16,
+              //               fontWeight: FontWeight.w600,
+              //             ),
+              //           ),
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
 
               // Your Plan Section
               Text(

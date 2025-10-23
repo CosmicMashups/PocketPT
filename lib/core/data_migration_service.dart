@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'result.dart';
@@ -30,7 +29,7 @@ class DataMigrationService {
       // Check if new secure data exists
       final hasNewSecureData = await _secureAuthService.isLoggedIn();
       
-      return Result.success(hasOldUserData && !hasNewSecureData.data);
+      return Result.success(hasOldUserData && !(hasNewSecureData.data ?? false));
     } catch (error, stackTrace) {
       _errorHandler.handleError('DataMigrationService.isMigrationNeeded', error, stackTrace);
       return Result.error('Failed to check migration status', error, stackTrace);

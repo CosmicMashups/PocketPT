@@ -164,7 +164,7 @@ class CameraService {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusXL),
         child: AspectRatio(
-          aspectRatio: _controller!.value.aspectRatio,
+          aspectRatio: 9 / 16, // Maintain 9:16 aspect ratio for consistent display
           child: CameraPreview(_controller!),
         ),
       ),

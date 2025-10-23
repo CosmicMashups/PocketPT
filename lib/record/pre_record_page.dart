@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../data/rehabilitation_plan.dart';
+import '../assessment/assessment_data.dart';
 import 'record_exercise.dart';
+import 'warmup_stretching_page.dart';
 import 'stopwatch_service.dart';
 import 'camera_service.dart';
 import 'exercise_cache_service.dart';
@@ -94,35 +96,36 @@ class _PreRecordPageState extends State<PreRecordPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return RehabDataLoadingWrapper(
       child: Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
+      backgroundColor: RecordingDesignSystem.getBackgroundColor(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: Container(
-          margin: const EdgeInsets.all(8),
+          margin: const EdgeInsets.all(RecordingDesignSystem.spacingS),
           decoration: BoxDecoration(
-            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            gradient: RecordingDesignSystem.neutralGradient,
+            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+            boxShadow: RecordingDesignSystem.shadowMedium,
+            border: Border.all(
+              color: RecordingDesignSystem.getBorderColor(context),
+              width: 1,
+            ),
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+            icon: Icon(
+              RecordingDesignSystem.iconBack,
+              color: RecordingDesignSystem.primaryMedical,
+              size: 20,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
         centerTitle: true,
         title: Text(
           'Exercise Preparation',
-          style: GoogleFonts.poppins(
+          style: RecordingDesignSystem.headlineMedium.copyWith(
+            color: RecordingDesignSystem.getTextPrimaryColor(context),
             fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: const Color(0xFF1F2937),
           ),
         ),
       ),
@@ -135,9 +138,13 @@ class _PreRecordPageState extends State<PreRecordPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Camera Preview with responsive layout
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.35,
+                    // Camera Preview with 9:16 aspect ratio
+                    Container(
+                      width: double.infinity,
+                      height: MediaQuery.of(context).size.width * (16 / 9),
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.4,
+                      ),
                       child: _buildCameraPreview(isDark),
                     ),
                     const SizedBox(height: 24),
@@ -251,22 +258,13 @@ class _PreRecordPageState extends State<PreRecordPage> {
                             );
                             if (currentExercise == null) return;
                             
-                            StopwatchService.instance.start();
-                            Navigator.push(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder: (context, animation, secondaryAnimation) =>
-                                    RecordExercisePage(exercise: currentExercise),
-                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                  const begin = Offset(1.0, 0.0);
-                                  const end = Offset.zero;
-                                  const curve = RecordingDesignSystem.animationCurve;
-                                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                                  return SlideTransition(position: animation.drive(tween), child: child);
-                                },
-                                transitionDuration: RecordingDesignSystem.animationMedium,
-                              ),
-                            );
+                            // Get muscle group from assessment data
+                            final muscleGroup = AssessmentData.specificMuscle.isNotEmpty 
+                                ? AssessmentData.specificMuscle 
+                                : 'General';
+                            
+                            // Show warm-up option dialog
+                            _showWarmupOption(context, muscleGroup, currentExercise);
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -312,45 +310,68 @@ class _PreRecordPageState extends State<PreRecordPage> {
     Color bgColor = Colors.grey,
   }) {
     return Container(
-      width: 110,
-      height: 130,
+      constraints: const BoxConstraints(
+        minWidth: 100,
+        maxWidth: 120,
+        minHeight: 120,
+        maxHeight: 140,
+      ),
       padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
       decoration: BoxDecoration(
-        color: RecordingDesignSystem.getSurfaceColor(context),
+        gradient: LinearGradient(
+          colors: [
+            RecordingDesignSystem.getSurfaceColor(context),
+            RecordingDesignSystem.getSurfaceColor(context).withOpacity(0.8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
         border: Border.all(
           color: RecordingDesignSystem.getBorderColor(context),
           width: 1,
         ),
-        boxShadow: RecordingDesignSystem.shadowMedium,
+        boxShadow: RecordingDesignSystem.shadowLarge,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
+            padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
             decoration: BoxDecoration(
-              color: RecordingDesignSystem.primaryMedical.withOpacity(0.08),
+              gradient: RecordingDesignSystem.primaryGradient,
               borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+              boxShadow: RecordingDesignSystem.medicalShadow,
             ),
             child: Icon(
               icon,
-              color: RecordingDesignSystem.primaryMedical,
-              size: 22,
+              color: Colors.white,
+              size: 20,
             ),
           ),
           const SizedBox(height: RecordingDesignSystem.spacingS),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: RecordingDesignSystem.bodySmall.copyWith(
-              color: RecordingDesignSystem.getTextSecondaryColor(context),
+          Flexible(
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              style: RecordingDesignSystem.bodySmall.copyWith(
+                color: RecordingDesignSystem.getTextSecondaryColor(context),
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(height: RecordingDesignSystem.spacingXS),
-          Text(
-            value,
-            style: RecordingDesignSystem.headlineLarge.copyWith(
-              color: RecordingDesignSystem.getTextPrimaryColor(context),
+          Flexible(
+            child: Text(
+              value,
+              style: RecordingDesignSystem.titleLarge.copyWith(
+                color: RecordingDesignSystem.getTextPrimaryColor(context),
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -366,26 +387,34 @@ class _PreRecordPageState extends State<PreRecordPage> {
     return Container(
       padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
       decoration: BoxDecoration(
-        color: RecordingDesignSystem.getSurfaceColor(context),
+        gradient: LinearGradient(
+          colors: [
+            RecordingDesignSystem.getSurfaceColor(context),
+            RecordingDesignSystem.getSurfaceColor(context).withOpacity(0.8),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
         border: Border.all(
           color: RecordingDesignSystem.getBorderColor(context),
           width: 1,
         ),
-        boxShadow: RecordingDesignSystem.shadowMedium,
+        boxShadow: RecordingDesignSystem.shadowLarge,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
+            padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
             decoration: BoxDecoration(
-              color: RecordingDesignSystem.secondaryMedical.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+              gradient: RecordingDesignSystem.accentGradient,
+              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+              boxShadow: RecordingDesignSystem.medicalShadow,
             ),
             child: Icon(
               icon,
-              color: RecordingDesignSystem.secondaryMedical,
-              size: 22,
+              color: Colors.white,
+              size: 24,
             ),
           ),
           const SizedBox(width: RecordingDesignSystem.spacingM),
@@ -405,12 +434,129 @@ class _PreRecordPageState extends State<PreRecordPage> {
                   subtitle,
                   style: RecordingDesignSystem.bodyMedium.copyWith(
                     color: RecordingDesignSystem.getTextSecondaryColor(context),
+                    height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showWarmupOption(BuildContext context, String muscleGroup, Exercise firstExercise) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Ready to Start?',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF8B2E2E),
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'We recommend a warm-up stretching routine to prepare your $muscleGroup muscles before exercising.',
+                style: GoogleFonts.ptSans(
+                  fontSize: 16,
+                  color: const Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.fitness_center, color: const Color(0xFF8B2E2E)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Warm-up helps prevent injury and improves performance',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 14,
+                          color: const Color(0xFF8B2E2E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _startRecordingDirectly(firstExercise);
+              },
+              child: Text(
+                'Skip Warm-up',
+                style: TextStyle(color: const Color(0xFF6B7280)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _startWithWarmup(muscleGroup, firstExercise);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B2E2E),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Start Warm-up'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _startWithWarmup(String muscleGroup, Exercise firstExercise) {
+    StopwatchService.instance.start();
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            WarmupStretchingPage(
+              muscleGroup: muscleGroup,
+              firstExercise: firstExercise,
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = RecordingDesignSystem.animationCurve;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        },
+        transitionDuration: RecordingDesignSystem.animationMedium,
+      ),
+    );
+  }
+
+  void _startRecordingDirectly(Exercise firstExercise) {
+    StopwatchService.instance.start();
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            RecordExercisePage(exercise: firstExercise),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = RecordingDesignSystem.animationCurve;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        },
+        transitionDuration: RecordingDesignSystem.animationMedium,
       ),
     );
   }

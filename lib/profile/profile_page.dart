@@ -13,6 +13,7 @@ import '../data/auth_persistence_service.dart';
 import '../data/user_data_notifier.dart';
 import '../data/guest_mode_service.dart';
 import '../widgets/responsive_dialog.dart';
+import '../demo/pose_estimation_demo.dart';
 import '../main.dart';
 // removed loader: using direct global data like a_goal1.dart
 
@@ -131,6 +132,19 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 ),
                 const SizedBox(height: 24),
                 
+                // Pose Estimation Demo Section
+                AnimationConfiguration.staggeredList(
+                  position: 3,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: _buildPoseEstimationDemoSection(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
                 // Security Section
                 _buildSecuritySection(),
                 const SizedBox(height: 24),
@@ -141,7 +155,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 
                 // Account Actions Section (moved to bottom)
                 AnimationConfiguration.staggeredList(
-                  position: 3,
+                  position: 4,
                   duration: PocketPTAnimations.pageTransition,
                   child: SlideAnimation(
                     verticalOffset: 50.0,
@@ -1312,6 +1326,147 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 ),
               ),
             )).toList(),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kMainColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                'Close',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPoseEstimationDemoSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'AI & Machine Learning',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          _buildActionItem(
+            'Pose Estimation Demo',
+            'Test the custom trained pose estimation model with real-time camera feed',
+            Icons.psychology,
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PoseEstimationDemo(),
+                ),
+              );
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          _buildActionItem(
+            'Model Information',
+            'Learn about the pose estimation model and its capabilities',
+            Icons.info_outline,
+            () {
+              _showModelInfoDialog();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showModelInfoDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return ResponsiveDialog(
+          title: 'Pose Estimation Model',
+          icon: Icons.psychology,
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Custom Trained Model',
+                style: GoogleFonts.ptSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'This demo uses a custom-trained pose estimation model (pose_estimation_model.pt) that provides enhanced pose detection capabilities beyond standard ML Kit implementations.',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  color: const Color(0xFF6B7280),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Features:',
+                style: GoogleFonts.ptSans(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...[
+                '• Real-time pose detection with 17 keypoints',
+                '• Enhanced accuracy for specific use cases',
+                '• Customizable skeleton overlay visualization',
+                '• Performance monitoring and FPS display',
+                '• Confidence scoring for each keypoint',
+              ].map((feature) => Padding(
+                padding: const EdgeInsets.only(bottom: 4.0),
+                child: Text(
+                  feature,
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    color: const Color(0xFF6B7280),
+                  ),
+                ),
+              )).toList(),
+            ],
           ),
           actions: [
             ElevatedButton(

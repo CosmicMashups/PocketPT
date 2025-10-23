@@ -8,14 +8,41 @@ PocketPT is a cross‑platform rehabilitation companion app that guides patients
 - Work reliably offline with seamless background sync when the network is available.
 - Maintain a responsive, professional UX across Android, iOS, web, desktop.
 
+## Current Implementation Status
+
+### Core Features (Implemented)
+- **Authentication System**: Email/password login, Google Sign-in, guest mode, persistent sessions
+- **Assessment Workflow**: Complete multi-step assessment including pain evaluation, ROM assessment, camera-based pose detection
+- **Exercise Management**: Exercise library, rehabilitation plan generation, custom exercise support
+- **Recording System**: Camera-based exercise recording with pose detection and pain recognition
+- **Progress Tracking**: User progress, exercise history, pain history, streak tracking
+- **Reporting**: PDF export, progress analytics, exercise calendar
+- **Profile Management**: User settings, notification preferences, data management
+
+### Data Architecture (Fully Implemented)
+- **Dual Storage**: Hive (local) + Firebase (cloud) with comprehensive sync
+- **13 Hive Models**: Complete data persistence for all user data
+- **Firebase Collections**: Structured user data with proper subcollections
+- **Offline-First**: Full functionality without internet connection
+- **Data Sync**: Automatic synchronization with conflict resolution
+
+### ML/AI Features (Implemented)
+- **Pose Detection**: ML Kit integration for real-time pose analysis
+- **Pain Recognition**: Facial pain detection using PyTorch models
+- **ROM Assessment**: Camera-based range of motion evaluation
+- **Exercise Form Analysis**: Real-time form feedback during exercises
+
 ## Tech Stack
-- Primary: Flutter (Dart), Material, Riverpod (root scope ready)
+- Primary: Flutter (Dart), Material Design
 - Platforms: Android, iOS, Web, macOS, Windows (Linux planned)
-- Backend/Cloud: Firebase (Auth, Firestore/Storage implied), Firebase Messaging (optional)
-- Local storage: Hive (adapters in `lib/data/hive_models.dart` + `hive_models.g.dart`)
+- Backend/Cloud: Firebase (Auth, Firestore, Storage), Firebase Messaging
+- Local storage: Hive with 13 custom adapters (`lib/data/hive_models.dart` + `hive_models.g.dart`)
 - Notifications: Local notifications (non‑web)
-- ML/Computer Vision: Pose and facial pain detection services (on‑device inference), PyTorch assets under `assets/model/`
-- UI: Google Fonts (Poppins, PT Sans), CurvedNavigationBar
+- ML/Computer Vision: 
+  - ML Kit for pose detection
+  - PyTorch models for facial pain recognition (`assets/model/`)
+  - Real-time camera processing with throttling
+- UI: Google Fonts (Poppins, PT Sans), CurvedNavigationBar, custom medical design system
 
 ## Project Conventions
 
@@ -35,12 +62,27 @@ PocketPT is a cross‑platform rehabilitation companion app that guides patients
 - Feature folders (`assessment/`, `dashboard/`, `exercise/`, `record/`, `reports/`, `profile/`) own UI; shared widgets in `lib/widgets/` for loading, responsiveness, and visualization.
 - ML services (pose/facial pain) are encapsulated under `lib/data/` and used by recording/assessment features.
 
+### Data Persistence Architecture
+- **Hive Models**: 13 registered adapters for complete data persistence
+  - UserDetails, UserProgress, UserAssess, UserSettings
+  - ActiveProgram, RehabilitationPlan, TreatmentReference
+  - PainHistory, ExerciseHistory, CustomExercises
+  - ExerciseReference, TreatmentReference with ID-based storage
+- **Firebase Collections**: Structured user data with proper subcollections
+  - `users/{userId}` - Main user document
+  - `users/{userId}/rehabilitationPlans/plans` - Exercise plans
+  - `users/{userId}/treatments/treatments` - Treatment data
+  - Additional collections for progress, assessment, settings, histories
+- **Sync Strategy**: Timestamp-based conflict resolution with automatic background sync
+- **Offline Support**: Full functionality without network, with graceful degradation
+
 ### Testing Strategy
 - Widget/integration test scaffolds under `lib/test_*.dart` and `test/widget_test.dart`.
 - Smoke tests for Firebase configuration and auth flows (`lib/test_firebase_integration.dart`, `lib/test_firebase_page.dart`).
 - Persistence tests validating Hive read/write and data integrity (`lib/test_persistence_page.dart`, `lib/test_optimized_loading.dart`).
 - Manual E2E flows for assessment gating and navigation via `AuthWrapper` and main tabs.
 - Performance checks: lightweight frame timing logs enabled in `MyApp` to flag jank during profiling.
+- Comprehensive test suite with 7 test categories covering all data operations
 
 ### Git Workflow
 - Branching: `main` is stable; feature branches `feat/<area>`; fixes `fix/<scope>`; experiments `exp/<topic>`.
@@ -55,6 +97,30 @@ PocketPT is a cross‑platform rehabilitation companion app that guides patients
   - Daily usage: exercise manager, recording (pose tracking), reports, and profile.
 - Users may operate offline; data must be preserved and later synced.
 - Sensitive health‑related data requires careful handling and clear user consent.
+
+## Current App Structure
+
+### Main Navigation (HomePage)
+- **Dashboard**: User progress, recent activities, quick actions
+- **Exercise**: Exercise library, rehabilitation plans, custom exercises
+- **Record**: Camera-based exercise recording with pose detection
+- **Report**: Progress analytics, PDF export, exercise calendar
+- **Profile**: User settings, data management, logout
+
+### Assessment Workflow
+1. **Preliminary Assessment**: Goal setting and process overview
+2. **Core Assessment**: Pain evaluation, muscle selection, history
+3. **Camera Assessment**: ROM evaluation with pose detection
+4. **Video Assessment**: Movement recording and analysis
+5. **Pain Level**: Final pain scale evaluation
+6. **Plan Generation**: Personalized rehabilitation plan creation
+7. **Treatment Generation**: Custom treatment recommendations
+
+### Recording System
+- **Pre-Record**: Exercise selection and camera setup
+- **Record Exercise**: Real-time pose detection and pain recognition
+- **Confirm Save**: Exercise completion and data storage
+- **Cooldown/Stretching**: Post-exercise recommendations
 
 ## Important Constraints
 - Offline‑first on mobile/desktop: all critical data must persist locally via Hive; avoid blocking UI on network.

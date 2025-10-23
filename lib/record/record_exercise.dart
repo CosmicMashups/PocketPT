@@ -3,13 +3,17 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/globals.dart';
 import '../home_dialog.dart';
 import '../data/rehabilitation_plan.dart';
+import '../assessment/assessment_data.dart';
 import '../core/animations.dart';
+import '../data/facial_pain_recognition_service.dart';
 import 'pre_record_page.dart';
 import 'confirm_save_page.dart';
+import 'cooldown_stretching_page.dart';
 import 'stopwatch_service.dart';
 import 'camera_service.dart';
 import 'exercise_cache_service.dart';
 import 'design_system.dart';
+import 'dart:async';
 class RecordExercisePage extends StatefulWidget {
   final Exercise exercise;
 
@@ -22,8 +26,20 @@ class RecordExercisePage extends StatefulWidget {
 class _RecordExercisePageState extends State<RecordExercisePage> with TickerProviderStateMixin {
   final CameraService _cameraService = CameraService.instance;
   final ExerciseCacheService _cacheService = ExerciseCacheService.instance;
+  final FacialPainRecognitionService _painService = FacialPainRecognitionService();
   bool _isCameraInitialized = false;
   late AnimationController _animationController;
+  
+  // Pain detection state
+  bool _isPainDetectionEnabled = false;
+  String? _currentPainLevel;
+  double _painConfidence = 0.0;
+  bool _showPainBanner = false;
+  Timer? _painDetectionTimer;
+  
+  // Severe pain dialog cooldown
+  DateTime? _lastSeverePainDialogTime;
+  static const Duration _severePainDialogCooldown = Duration(seconds: 15);
 
   @override
   void initState() {
@@ -33,12 +49,14 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
       duration: PocketPTAnimations.medium,
     );
     _initializeCamera();
+    _initializePainDetection();
     StopwatchService.instance.start();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _painDetectionTimer?.cancel();
     super.dispose();
   }
 
@@ -60,21 +78,317 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     }
   }
 
+  Future<void> _initializePainDetection() async {
+    try {
+      await _painService.initialize();
+      if (mounted) {
+        setState(() {
+          _isPainDetectionEnabled = true;
+        });
+        _startPainDetection();
+      }
+    } catch (e) {
+      debugPrint('Error initializing pain detection: $e');
+      if (mounted) {
+        setState(() {
+          _isPainDetectionEnabled = false;
+        });
+      }
+    }
+  }
+
+  void _startPainDetection() {
+    if (!_isPainDetectionEnabled || !_isCameraInitialized) return;
+    
+    _painDetectionTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) async {
+      if (!mounted || !_cameraService.isReady) return;
+      
+      try {
+        // For now, we'll use a simulated camera image since we need to implement
+        // proper camera image capture for pain detection
+        // This will be replaced with actual camera image processing
+        final result = await _painService.detectFacialPain(
+          image: null, // Will be implemented with proper camera image capture
+          camera: _cameraService.controller!.description,
+        );
+        
+        if (mounted && result['error'] == null) {
+          _handlePainDetectionResult(result);
+        }
+      } catch (e) {
+        debugPrint('Pain detection error: $e');
+      }
+    });
+  }
+
+  void _handlePainDetectionResult(Map<String, dynamic> result) {
+    final painLevel = result['painLevel'];
+    final confidence = result['confidence'];
+    
+    if (confidence > 0.7) {
+      setState(() {
+        _currentPainLevel = painLevel;
+        _painConfidence = confidence;
+      });
+      
+      _triggerPainIntervention(painLevel);
+    }
+  }
+
+  void _triggerPainIntervention(String painLevel) {
+    switch (painLevel) {
+      case 'Low':
+        // No action needed for low pain
+        break;
+      case 'Moderate':
+        _showModeratePainBanner();
+        break;
+      case 'Severe':
+        _showSeverePainDialog();
+        break;
+    }
+  }
+
+  void _showModeratePainBanner() {
+    if (_showPainBanner) return; // Prevent multiple banners
+    
+    setState(() {
+      _showPainBanner = true;
+    });
+    
+    // Auto-dismiss after 10 seconds
+    Timer(const Duration(seconds: 10), () {
+      if (mounted) {
+        setState(() {
+          _showPainBanner = false;
+        });
+      }
+    });
+  }
+
+  void _dismissPainBanner() {
+    setState(() {
+      _showPainBanner = false;
+    });
+  }
+
+  void _showSeverePainDialog() {
+    final now = DateTime.now();
+    
+    // Check if enough time has passed since last dialog
+    if (_lastSeverePainDialogTime != null) {
+      final timeSinceLastDialog = now.difference(_lastSeverePainDialogTime!);
+      if (timeSinceLastDialog < _severePainDialogCooldown) {
+        debugPrint('Severe pain dialog blocked due to cooldown. Time remaining: ${(_severePainDialogCooldown - timeSinceLastDialog).inSeconds} seconds');
+        return;
+      }
+    }
+    
+    _lastSeverePainDialogTime = now;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Severe Pain Detected'),
+          ],
+        ),
+        content: Text(
+          'We\'ve detected severe pain during your exercise. '
+          'For your safety, we recommend taking a rest. '
+          'Are you able to continue safely?'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _pauseExerciseForRest();
+            },
+            child: Text('Take a Rest'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _continueExercise();
+            },
+            child: Text('Continue Exercise'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _pauseExerciseForRest() {
+    // Pause the exercise and show rest recommendations
+    StopwatchService.instance.pause();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Exercise paused. Please rest and resume when ready.'),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 5),
+      ),
+    );
+  }
+
+  void _continueExercise() {
+    // User chose to continue despite severe pain
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Please be careful and stop if pain increases.'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
 
   Widget _buildCameraPreview(bool isDark) {
     if (_isCameraInitialized && _cameraService.isReady) {
       final cameraPreview = _cameraService.getEnhancedCameraPreview(context);
       if (cameraPreview != null) {
-        return Semantics(
-          label: 'Camera preview for exercise recording',
-          hint: 'Double tap to focus camera',
-          child: cameraPreview,
+        return Stack(
+          children: [
+            Semantics(
+              label: 'Camera preview for exercise recording',
+              hint: 'Double tap to focus camera',
+              child: cameraPreview,
+            ),
+            // Pain detection overlay
+            if (_isPainDetectionEnabled)
+              _buildPainDetectionOverlay(),
+            // Moderate pain banner
+            if (_showPainBanner)
+              _buildModeratePainBanner(),
+          ],
         );
       }
     }
 
     // Show loading state with enhanced design
     return _cameraService.getLoadingIndicator(context);
+  }
+
+  Widget _buildPainDetectionOverlay() {
+    return Positioned(
+      top: 20,
+      right: 20,
+      child: Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _getPainColor(_currentPainLevel).withOpacity(0.9),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getPainIcon(_currentPainLevel),
+              color: Colors.white,
+              size: 20,
+            ),
+            SizedBox(height: 4),
+            Text(
+              _currentPainLevel ?? 'Low',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (_painConfidence > 0)
+              Text(
+                '${(_painConfidence * 100).toStringAsFixed(0)}%',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeratePainBanner() {
+    return Positioned(
+      bottom: 20,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'We detected some discomfort. Consider taking a rest if needed.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: _dismissPainBanner,
+              child: Text(
+                'Dismiss',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getPainColor(String? painLevel) {
+    switch (painLevel) {
+      case 'Low':
+        return Colors.green;
+      case 'Moderate':
+        return Colors.orange;
+      case 'Severe':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getPainIcon(String? painLevel) {
+    switch (painLevel) {
+      case 'Low':
+        return Icons.sentiment_satisfied;
+      case 'Moderate':
+        return Icons.sentiment_neutral;
+      case 'Severe':
+        return Icons.sentiment_dissatisfied;
+      default:
+        return Icons.help_outline;
+    }
   }
 
   @override
@@ -150,9 +464,13 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                 ),
                 const SizedBox(height: 16),
 
-                // Camera Preview with responsive layout
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.4,
+                // Camera Preview with 9:16 aspect ratio
+                Container(
+                  width: double.infinity,
+                  height: MediaQuery.of(context).size.width * (16 / 9),
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                  ),
                   child: _buildCameraPreview(isDark),
                 ),
                 const SizedBox(height: 10),
@@ -411,29 +729,23 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
                             StopwatchService.instance.reset();
 
-                            Navigator.push(
-                              context,
-                              MedicalPageRoute(
-                                child: ConfirmSavePage(
-                                  onSave: () {
-                                    // The progress has already been updated in the main section
-                                    // Just navigate to home page
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MedicalPageRoute(
-                                        child: HomePageWithDialog(),
-                                        settings: const RouteSettings(name: '/home'),
-                                      ),
-                                      (route) => false,
-                                    );
-                                  },
-                                  onCancel: () {
-                                    Navigator.pop(context); // return to exercise screen
-                                  },
-                                ),
-                                settings: const RouteSettings(name: '/confirm-save'),
-                              ),
-                            );
+                            // Get muscle group from assessment data
+                            final muscleGroup = AssessmentData.specificMuscle.isNotEmpty 
+                                ? AssessmentData.specificMuscle 
+                                : 'General';
+                            
+                            // Get all completed exercises for cooldown
+                            final completedExercises = <Exercise>[];
+                            for (int i = 0; i <= currentIndex; i++) {
+                              final exerciseRef = rehabPlan.exerciseReferences[i];
+                              final exercise = await _cacheService.getExerciseById(exerciseRef.exerciseId);
+                              if (exercise != null) {
+                                completedExercises.add(exercise);
+                              }
+                            }
+
+                            // Show cooldown option
+                            _showCooldownOption(context, muscleGroup, completedExercises);
                           }
                         }
                       },
@@ -634,6 +946,126 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showCooldownOption(BuildContext context, String muscleGroup, List<Exercise> completedExercises) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Great Work!',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF8B2E2E),
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'You\'ve completed all exercises! We recommend a cooldown stretching routine to help your $muscleGroup muscles recover.',
+                style: GoogleFonts.ptSans(
+                  fontSize: 16,
+                  color: const Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.self_improvement, color: const Color(0xFF8B2E2E)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Cooldown helps reduce muscle soreness and promotes recovery',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 14,
+                          color: const Color(0xFF8B2E2E),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _proceedToSave(context);
+              },
+              child: Text(
+                'Skip Cooldown',
+                style: TextStyle(color: const Color(0xFF6B7280)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _startCooldown(muscleGroup, completedExercises);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B2E2E),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Start Cooldown'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _startCooldown(String muscleGroup, List<Exercise> completedExercises) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            CooldownStretchingPage(
+              muscleGroup: muscleGroup,
+              completedExercises: completedExercises,
+            ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = RecordingDesignSystem.animationCurve;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        },
+        transitionDuration: RecordingDesignSystem.animationMedium,
+      ),
+    );
+  }
+
+  void _proceedToSave(BuildContext context) {
+    Navigator.push(
+      context,
+      MedicalPageRoute(
+        child: ConfirmSavePage(
+          onSave: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MedicalPageRoute(
+                child: HomePageWithDialog(),
+                settings: const RouteSettings(name: '/home'),
+              ),
+              (route) => false,
+            );
+          },
+          onCancel: () {
+            Navigator.pop(context);
+          },
+        ),
+        settings: const RouteSettings(name: '/confirm-save'),
       ),
     );
   }

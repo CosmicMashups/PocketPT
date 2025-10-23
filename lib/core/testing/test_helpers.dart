@@ -1,12 +1,9 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../result.dart';
-import '../error_handler.dart';
-import '../secure_auth_service.dart';
 import '../repositories/user_repository.dart';
-import '../repositories/hive_user_repository.dart';
-import '../data_migration_service.dart';
 
 /// Test helpers for comprehensive testing infrastructure
 /// This provides utilities for testing the new architecture

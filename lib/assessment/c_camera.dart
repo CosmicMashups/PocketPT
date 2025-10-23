@@ -7,14 +7,14 @@ import 'dart:async';
 import '../data/globals.dart';
 import '../main.dart';
 import '../data/pose_detection_service.dart';
+import '../data/facial_pain_recognition_service.dart';
 import '../widgets/enhanced_pose_skeleton_painter.dart';
 import '../widgets/assessment_help_dialog.dart';
 import 'assessment_data.dart';
 import 'arom/assessment_service.dart';
 import 'arom/assessment_result.dart';
 import 'c_video.dart';
-import 'c_upload.dart';
-import 'c_videopreview.dart';
+import 'c_painlevel.dart';
 class AssessPainCamera extends StatefulWidget {
   const AssessPainCamera({super.key});
 
@@ -59,10 +59,27 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     'Multifidus': 'multifidus'
   };
   final PoseDetectionService _poseService = PoseDetectionService();
+  final FacialPainRecognitionService _painService = FacialPainRecognitionService();
   bool _isStreaming = false;
   bool _processingFrame = false;
   Timer? _throttleTimer;
   int? _lastProcessedTime; // ms timestamp for throttling
+  
+  // Pain detection state variables
+  bool _isPainDetectionEnabled = false;
+  String? _currentPainLevel;
+  double _painConfidence = 0.0;
+  bool _showPainBanner = false;
+  Timer? _painDetectionTimer;
+  DateTime? _lastPainProcessTime;
+  
+  // Severe pain dialog cooldown
+  DateTime? _lastSeverePainDialogTime;
+  static const Duration _severePainDialogCooldown = Duration(seconds: 15);
+  
+  // Video recording settings
+  bool _enableVideoRecording = false; // Default to real-time only
+  bool _isRealTimeAssessment = false;
   
   // Performance monitoring
   int _frameCount = 0;
@@ -107,25 +124,59 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     return mode;
   }
 
-  // Start recording video while maintaining pose detection
-  Future<XFile?> _startRecording() async {
-    if (!_controller.value.isInitialized || _controller.value.isRecordingVideo) {
+  // Start assessment (with or without video recording)
+  Future<XFile?> _startAssessment() async {
+    if (!_controller.value.isInitialized) {
       return null;
     }
 
     try {
-      // Start video recording while keeping image stream active for pose detection
-      await _controller.startVideoRecording();
+      // Ensure image stream is active for pose detection
+      if (!_isStreaming) {
+        debugPrint('Starting image stream for pose detection during assessment');
+        await _startImageStream();
+      }
       
-      // Continue pose detection during recording
-      // Wait for 10 seconds while pose detection continues
-      await Future.delayed(const Duration(seconds: 10));
-
-      // Stop video recording but keep image stream for pose detection
-      XFile videoFile = await _controller.stopVideoRecording();
-      return videoFile;
+      if (_enableVideoRecording) {
+        // Video recording mode
+        if (_controller.value.isRecordingVideo) {
+          return null; // Already recording
+        }
+        
+        await _controller.startVideoRecording();
+        debugPrint('Video recording started, pose detection continues via image stream');
+        
+        // Verify pose detection is working during recording
+        _verifyPoseDetectionDuringRecording();
+        
+        // Wait for 10 seconds while pose detection continues via image stream
+        await Future.delayed(const Duration(seconds: 10));
+        
+        // Stop video recording but keep image stream for pose detection
+        XFile videoFile = await _controller.stopVideoRecording();
+        debugPrint('Video recording stopped, pose detection continues via image stream');
+        return videoFile;
+      } else {
+        // Real-time assessment mode (no video recording)
+        setState(() {
+          _isRealTimeAssessment = true;
+        });
+        debugPrint('Real-time assessment started (no video recording)');
+        
+        // Verify pose detection is working during real-time assessment
+        _verifyPoseDetectionDuringRecording();
+        
+        // Wait for 10 seconds while pose detection continues via image stream
+        await Future.delayed(const Duration(seconds: 10));
+        
+        setState(() {
+          _isRealTimeAssessment = false;
+        });
+        debugPrint('Real-time assessment completed');
+        return null; // No video file in real-time mode
+      }
     } catch (e) {
-      debugPrint('Error recording video: $e');
+      debugPrint('Error during assessment: $e');
       return null;
     }
   }
@@ -143,6 +194,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     print('AssessPainCamera: painScale initialized to: $painScale');
     
     _initializeCamera();
+    _initializePainDetection();
     print('AssessPainCamera: initState() completed');
   }
 
@@ -238,6 +290,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
       _processingFrame = true;
       try {
+        // Process pose detection
         final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
         if (poses.isNotEmpty) {
           try {
@@ -288,6 +341,21 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           } catch (e) {
             debugPrint('Landmark processing error: $e');
             // Continue processing even if landmark extraction fails
+          }
+        }
+        
+        // Process pain detection with frame rate limiting
+        if (_isPainDetectionEnabled && _shouldProcessPainFrame()) {
+          try {
+            final painResult = await _painService.detectFacialPain(
+              image: image,
+              camera: cameras[_selectedCameraIndex],
+            );
+            if (mounted && painResult['error'] == null) {
+              _handlePainDetectionResult(painResult);
+            }
+          } catch (e) {
+            debugPrint('Pain detection error: $e');
           }
         }
       } catch (e) {
@@ -408,10 +476,449 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     await _initializeCamera();
   }
 
+  // Initialize pain detection service
+  Future<void> _initializePainDetection() async {
+    try {
+      await _painService.initialize();
+      if (mounted) {
+        setState(() {
+          _isPainDetectionEnabled = true;
+        });
+        _startPainDetection();
+      }
+    } catch (e) {
+      debugPrint('Error initializing pain detection: $e');
+      if (mounted) {
+        setState(() {
+          _isPainDetectionEnabled = false;
+        });
+      }
+    }
+  }
+
+  // Start pain detection monitoring
+  void _startPainDetection() {
+    if (!_isPainDetectionEnabled || !_isCameraInitialized) return;
+    _painDetectionTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) async {
+      if (!mounted || !_controller.value.isInitialized) return;
+      try {
+        final result = await _painService.detectFacialPain(
+          image: null, // Will be handled by camera image stream
+          camera: _controller.description,
+        );
+        if (mounted && result['error'] == null) {
+          _handlePainDetectionResult(result);
+        }
+      } catch (e) {
+        debugPrint('Pain detection error: $e');
+      }
+    });
+  }
+
+  // Handle pain detection results
+  void _handlePainDetectionResult(Map<String, dynamic> result) {
+    final painLevel = result['painLevel'];
+    final confidence = result['confidence'];
+    
+    if (confidence > 0.7) {
+      setState(() {
+        _currentPainLevel = painLevel;
+        _painConfidence = confidence;
+      });
+      _triggerPainIntervention(painLevel);
+    }
+  }
+
+  // Trigger pain intervention based on level
+  void _triggerPainIntervention(String painLevel) {
+    switch (painLevel) {
+      case 'Low':
+        // Ignore low pain
+        break;
+      case 'Moderate':
+        _showModeratePainBanner();
+        break;
+      case 'Severe':
+        _showSeverePainDialog();
+        break;
+    }
+  }
+
+  // Show moderate pain banner
+  void _showModeratePainBanner() {
+    if (_showPainBanner) return; // Prevent multiple banners
+    
+    setState(() {
+      _showPainBanner = true;
+    });
+    
+    // Auto-dismiss after 10 seconds
+    Timer(const Duration(seconds: 10), () {
+      if (mounted) {
+        setState(() {
+          _showPainBanner = false;
+        });
+      }
+    });
+  }
+
+  // Show severe pain dialog with cooldown protection
+  void _showSeverePainDialog() {
+    final now = DateTime.now();
+    
+    // Check if enough time has passed since last dialog
+    if (_lastSeverePainDialogTime != null) {
+      final timeSinceLastDialog = now.difference(_lastSeverePainDialogTime!);
+      if (timeSinceLastDialog < _severePainDialogCooldown) {
+        debugPrint('Severe pain dialog blocked due to cooldown. Time remaining: ${(_severePainDialogCooldown - timeSinceLastDialog).inSeconds} seconds');
+        return;
+      }
+    }
+    
+    _lastSeverePainDialogTime = now;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red, size: 24),
+              const SizedBox(width: 8),
+              Text('Severe Pain Detected'),
+            ],
+          ),
+          content: Text(
+            'The application has detected severe pain from your facial expressions. '
+            'Please confirm if this pain level is accurate before proceeding.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _pauseExerciseForRest();
+              },
+              child: Text('Take a Rest'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _continueExercise();
+              },
+              child: Text('Continue Assessment'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Pause exercise for rest
+  void _pauseExerciseForRest() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Assessment paused. Please rest and resume when ready.'),
+        backgroundColor: Colors.orange,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // Continue exercise with warning
+  void _continueExercise() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Continuing assessment. Please stop if pain increases.'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // Dismiss pain banner
+  void _dismissPainBanner() {
+    setState(() {
+      _showPainBanner = false;
+    });
+  }
+
+  // Check if pain detection frame should be processed (5 FPS limiting)
+  bool _shouldProcessPainFrame() {
+    final now = DateTime.now();
+    if (_lastPainProcessTime == null) {
+      _lastPainProcessTime = now;
+      return true;
+    }
+    final elapsed = now.difference(_lastPainProcessTime!).inMilliseconds;
+    if (elapsed >= (1000 / 5)) { // 5 FPS
+      _lastPainProcessTime = now;
+      return true;
+    }
+    return false;
+  }
+
+  // Verify pose detection is working during recording
+  void _verifyPoseDetectionDuringRecording() {
+    if (_isRecording && _isStreaming) {
+      debugPrint('✅ Pose detection is active during recording');
+    } else if (_isRecording && !_isStreaming) {
+      debugPrint('⚠️ WARNING: Pose detection is NOT active during recording');
+    }
+  }
+
+  // Build pain detection status overlay
+  Widget _buildPainDetectionOverlay() {
+    return Positioned(
+      top: 8,
+      right: 8,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getPainIcon(_currentPainLevel),
+              color: _getPainColor(_currentPainLevel),
+              size: 16,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _currentPainLevel ?? 'Low',
+              style: GoogleFonts.ptSans(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            if (_painConfidence > 0) ...[
+              const SizedBox(width: 4),
+              Text(
+                '${(_painConfidence * 100).toInt()}%',
+                style: GoogleFonts.ptSans(
+                  fontSize: 10,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build moderate pain banner
+  Widget _buildModeratePainBanner() {
+    return Positioned(
+      bottom: 20,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange.shade700, width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Moderate Pain Detected',
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Please take a break if needed. You can continue when ready.',
+                    style: GoogleFonts.ptSans(
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: _dismissPainBanner,
+              icon: Icon(Icons.close, color: Colors.white, size: 18),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Get pain color based on level
+  Color _getPainColor(String? painLevel) {
+    switch (painLevel) {
+      case 'Low':
+        return Colors.green;
+      case 'Moderate':
+        return Colors.orange;
+      case 'Severe':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Get pain icon based on level
+  IconData _getPainIcon(String? painLevel) {
+    switch (painLevel) {
+      case 'Low':
+        return Icons.sentiment_very_satisfied;
+      case 'Moderate':
+        return Icons.sentiment_dissatisfied;
+      case 'Severe':
+        return Icons.sentiment_very_dissatisfied;
+      default:
+        return Icons.sentiment_neutral;
+    }
+  }
+
+  // Show pain level confirmation dialog
+  void _showPainLevelConfirmationDialog() {
+    final detectedPainLevel = _currentPainLevel ?? 'Low';
+    final detectedConfidence = _painConfidence;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.health_and_safety, color: _getPainColor(detectedPainLevel), size: 24),
+              const SizedBox(width: 8),
+              Text('Pain Level Confirmation'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'The application has detected the following pain level during your ROM assessment:',
+                style: GoogleFonts.ptSans(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _getPainColor(detectedPainLevel).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _getPainColor(detectedPainLevel)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(_getPainIcon(detectedPainLevel), color: _getPainColor(detectedPainLevel)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Detected: $detectedPainLevel Pain',
+                      style: GoogleFonts.ptSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: _getPainColor(detectedPainLevel),
+                      ),
+                    ),
+                    if (detectedConfidence > 0) ...[
+                      const Spacer(),
+                      Text(
+                        '${(detectedConfidence * 100).toInt()}% confidence',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Is this pain level accurate for your assessment?',
+                style: GoogleFonts.ptSans(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _proceedToPainLevelInput(detectedPainLevel);
+              },
+              child: Text('Yes, Continue'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _proceedToPainLevelInput('Manual'); // Let user input manually
+              },
+              child: Text('No, Input Manually'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Proceed to pain level input with detected or manual option
+  void _proceedToPainLevelInput(String painLevel) {
+    if (painLevel != 'Manual') {
+      // Set the detected pain level in UserAssess
+      switch (painLevel) {
+        case 'Low':
+          UserAssess.painScale = 2;
+          UserAssess.painLevel = 'Low';
+          break;
+        case 'Moderate':
+          UserAssess.painScale = 5;
+          UserAssess.painLevel = 'Moderate';
+          break;
+        case 'Severe':
+          UserAssess.painScale = 8;
+          UserAssess.painLevel = 'Severe';
+          break;
+      }
+    }
+    
+    // Navigate directly to pain level input
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => const AssessPainLevel(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOut;
+          final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          final offsetAnimation = animation.drive(tween);
+          return SlideTransition(position: offsetAnimation, child: child);
+        },
+      ),
+    );
+  }
+
   // Dispose of the camera controller when not needed
   @override
   void dispose() {
     try { _controller.stopImageStream(); } catch (_) {}
+    _painDetectionTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -492,117 +999,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         ),
         centerTitle: true,
         actions: [
-          // Help button
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.help_outline, color: Color(0xFF8B2E2E), size: 20),
-              onPressed: _showHelpDialog,
-              tooltip: 'Assessment Help',
-            ),
-          ),
-          // Side selection dropdown
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedSide,
-                items: const [
-                  DropdownMenuItem(value: 'Left', child: Text('Left')),
-                  DropdownMenuItem(value: 'Right', child: Text('Right')),
-                ],
-                onChanged: (val) {
-                  if (val == null) return;
-                  setState(() => _selectedSide = val);
-                },
-                style: GoogleFonts.ptSans(
-                  fontSize: 14,
-                  color: const Color(0xFF1F2937),
-                  fontWeight: FontWeight.w500,
-                ),
-                icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF6B7280)),
-                ),
-              ),
-            ),
-          // Enhanced skeleton overlay toggle with configuration
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE5E7EB)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.scatter_plot, size: 16, color: Color(0xFF8B2E2E)),
-                const SizedBox(width: 6),
-                Text('Skeleton', style: GoogleFonts.ptSans(fontSize: 12, color: isDark ? Colors.white70 : const Color(0xFF1F2937))),
-                Switch(
-                  value: _showSkeleton,
-                  activeColor: const Color(0xFF8B2E2E),
-                  onChanged: (val) {
-                    setState(() {
-                      _showSkeleton = val;
-                      // Don't clear landmarks when toggling off - keep them for assessment
-                      // Only clear if explicitly requested or on camera switch
-                    });
-                    
-                    // Log toggle state for debugging
-                    debugPrint('Skeleton overlay toggled: $_showSkeleton');
-                  },
-                ),
-                if (_showSkeleton) ...[
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () => _showSkeletonConfigDialog(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(Icons.settings, size: 12, color: Color(0xFF8B2E2E)),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          // Camera switch button
+          // Unified settings button with dropdown menu
           Container(
             margin: const EdgeInsets.only(right: 16),
             decoration: BoxDecoration(
@@ -617,108 +1014,158 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                 ),
               ],
             ),
-            child: IconButton(
-            tooltip: 'Switch camera',
-              icon: const Icon(Icons.cameraswitch_rounded, color: Color(0xFF6B7280), size: 20),
-            onPressed: _switchCamera,
+            child: PopupMenuButton<String>(
+              icon: const Icon(Icons.settings, color: Color(0xFF8B2E2E), size: 20),
+              tooltip: 'Settings',
+              onSelected: (value) {
+                switch (value) {
+                  case 'help':
+                    _showHelpDialog();
+                    break;
+                  case 'video':
+                    setState(() {
+                      _enableVideoRecording = !_enableVideoRecording;
+                    });
+                    break;
+                  case 'skeleton':
+                    setState(() {
+                      _showSkeleton = !_showSkeleton;
+                    });
+                    break;
+                  case 'skeleton_config':
+                    _showSkeletonConfigDialog(context);
+                    break;
+                  case 'switch_camera':
+                    _switchCamera();
+                    break;
+                  case 'left_side':
+                    setState(() => _selectedSide = 'Left');
+                    break;
+                  case 'right_side':
+                    setState(() => _selectedSide = 'Right');
+                    break;
+                }
+              },
+              itemBuilder: (BuildContext context) => [
+                PopupMenuItem<String>(
+                  value: 'help',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.help_outline, color: Color(0xFF8B2E2E), size: 18),
+                      const SizedBox(width: 12),
+                      Text('Assessment Help', style: GoogleFonts.ptSans(fontSize: 14)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'video',
+                  child: Row(
+                    children: [
+                      Icon(
+                        _enableVideoRecording ? Icons.videocam : Icons.videocam_off,
+                        color: _enableVideoRecording ? const Color(0xFF8B2E2E) : Colors.grey,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 12),
+                      Text('Video Recording', style: GoogleFonts.ptSans(fontSize: 14)),
+                      const Spacer(),
+                      Switch(
+                        value: _enableVideoRecording,
+                        activeColor: const Color(0xFF8B2E2E),
+                        onChanged: (value) {
+                          setState(() {
+                            _enableVideoRecording = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'skeleton',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.scatter_plot, color: Color(0xFF8B2E2E), size: 18),
+                      const SizedBox(width: 12),
+                      Text('Skeleton Overlay', style: GoogleFonts.ptSans(fontSize: 14)),
+                      const Spacer(),
+                      Switch(
+                        value: _showSkeleton,
+                        activeColor: const Color(0xFF8B2E2E),
+                        onChanged: (value) {
+                          setState(() {
+                            _showSkeleton = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                if (_showSkeleton)
+                  PopupMenuItem<String>(
+                    value: 'skeleton_config',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.tune, color: Color(0xFF8B2E2E), size: 18),
+                        const SizedBox(width: 12),
+                        Text('Skeleton Settings', style: GoogleFonts.ptSans(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                const PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  value: 'switch_camera',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cameraswitch_rounded, color: Color(0xFF8B2E2E), size: 18),
+                      const SizedBox(width: 12),
+                      Text('Switch Camera', style: GoogleFonts.ptSans(fontSize: 14)),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem<String>(
+                  value: _selectedSide == 'Left' ? 'right_side' : 'left_side',
+                  child: Row(
+                    children: [
+                      Icon(
+                        _selectedSide == 'Left' ? Icons.keyboard_arrow_right : Icons.keyboard_arrow_left,
+                        color: const Color(0xFF8B2E2E),
+                        size: 18,
+                      ),
+                      const SizedBox(width: 12),
+                      Text('Switch to ${_selectedSide == 'Left' ? 'Right' : 'Left'} Side', style: GoogleFonts.ptSans(fontSize: 14)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Compact Progress Section
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.camera_alt,
-                    color: Color(0xFF8B2E2E),
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "ROM Assessment",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1F2937),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      LinearProgressIndicator(
-                        value: 0.6,
-                        minHeight: 4,
-                        backgroundColor: const Color(0xFFE5E7EB),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  "3/5",
-                  style: GoogleFonts.ptSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF8B2E2E),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           // Camera and Assessment Area
           Expanded(
             child: Stack(
               children: [
 
-                // Camera preview with enhanced professional design
+                // Camera preview optimized for mobile screens
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3), width: 3),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.2), width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF8B2E2E).withOpacity(0.15),
-                        blurRadius: 25,
-                        offset: const Offset(0, 10),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(21),
+                    borderRadius: BorderRadius.circular(18.5),
                     child: _isCameraInitialized
                         ? Stack(
                             children: [
@@ -727,55 +1174,17 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                                 height: double.infinity,
                                 child: CameraPreview(_controller),
                               ),
-                              // Minimal status indicator
-                              Positioned(
-                                top: 12,
-                                right: 12,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withOpacity(0.95),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'LIVE',
-                                        style: GoogleFonts.ptSans(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.white,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                              // Pain detection status indicator
+                              if (_isPainDetectionEnabled) _buildPainDetectionOverlay(),
+                              // Pain banner for moderate pain
+                              if (_showPainBanner) _buildModeratePainBanner(),
                             ],
                           )
                         : Container(
-                            height: 300,
+                            height: 250,
                             decoration: BoxDecoration(
                               color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(18),
+                              borderRadius: BorderRadius.circular(18.5),
                             ),
                             child: Center(
                               child: Column(
@@ -801,40 +1210,151 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                   ),
                 ),
 
-                // Clean status indicators overlay
+                // Consolidated status indicators overlay - mobile optimized
                 Positioned(
-                  top: 12,
-                  left: 12,
-                  right: 12,
+                  top: 8,
+                  left: 8,
+                  right: 8,
                   child: Row(
                     children: [
+                      // LIVE indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.95),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 3,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 4,
+                              height: 4,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              'LIVE',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       // Skeleton toggle indicator
                       if (_showSkeleton)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                           decoration: BoxDecoration(
                             color: const Color(0xFF8B2E2E).withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
                               ),
                             ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.visibility, color: Colors.white, size: 12),
-                              const SizedBox(width: 4),
+                              const Icon(Icons.visibility, color: Colors.white, size: 10),
+                              const SizedBox(width: 3),
                               Text(
                                 'SKELETON',
                                 style: GoogleFonts.ptSans(
-                                  fontSize: 10,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      
+                      // Assessment mode indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _enableVideoRecording 
+                              ? const Color(0xFF8B2E2E).withOpacity(0.9)
+                              : const Color(0xFF10B981).withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 3,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _enableVideoRecording ? Icons.videocam : Icons.speed,
+                              color: Colors.white,
+                              size: 10,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              _enableVideoRecording ? 'VIDEO' : 'REAL-TIME',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      
+                      // Pose detection status indicator during recording
+                      if (_isRecording && _isStreaming)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3B82F6).withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.accessibility, color: Colors.white, size: 10),
+                              const SizedBox(width: 3),
+                              Text(
+                                'POSE',
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ],
@@ -843,22 +1363,17 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                       
                       const Spacer(),
                       
-                      // Pain score indicator - enhanced professional design
+                      // Pain score indicator - mobile optimized
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: _getScoreColor(UserAssess.painScale).withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white.withOpacity(0.25), width: 0.8),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                            BoxShadow(
-                              color: _getScoreColor(UserAssess.painScale).withOpacity(0.3),
-                              blurRadius: 12,
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 4,
                               offset: const Offset(0, 1),
                             ),
                           ],
@@ -869,13 +1384,13 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                             Icon(
                               Icons.health_and_safety,
                               color: Colors.white,
-                              size: 14,
+                              size: 12,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 3),
                             Text(
                               '${UserAssess.painScale}/10',
                               style: GoogleFonts.ptSans(
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),
@@ -922,27 +1437,27 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                     ),
                   ),
 
-                // Enhanced instructions overlay with professional styling
+                // Enhanced instructions overlay - mobile optimized
                 Positioned(
-                  bottom: 120,
-                  left: 16,
-                  right: 16,
+                  bottom: 100,
+                  left: 12,
+                  right: 12,
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.5), width: 2),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.4), width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
                         BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.2),
-                          blurRadius: 15,
-                          offset: const Offset(0, 3),
+                          color: const Color(0xFF8B2E2E).withOpacity(0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -955,42 +1470,42 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                             Icon(
                               Icons.info_outline,
                               color: Colors.white,
-                              size: 16,
+                              size: 14,
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 4),
                             Text(
                               "Assessment Instructions",
                               style: GoogleFonts.ptSans(
                                 fontWeight: FontWeight.w600,
-                                fontSize: 14,
+                                fontSize: 12,
                                 color: Colors.white,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           _getModeInstructions(),
                           style: GoogleFonts.ptSans(
                             fontWeight: FontWeight.w400,
-                            fontSize: 13,
+                            fontSize: 11,
                             color: Colors.white.withOpacity(0.9),
-                            height: 1.3,
+                            height: 1.2,
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: const Color(0xFF8B2E2E).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.5), width: 1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.5), width: 0.8),
                           ),
                           child: Text(
                             '${_selectedSide} Side',
                             style: GoogleFonts.ptSans(
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
                             ),
@@ -1001,27 +1516,27 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                   ),
                 ),
 
-                // Enhanced assessment results panel
+                // Enhanced assessment results panel - mobile optimized
                 Positioned(
-                  top: 12,
-                  left: 12,
+                  top: 8,
+                  left: 8,
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    padding: const EdgeInsets.all(16),
+                    constraints: const BoxConstraints(maxWidth: 180),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.98),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.2), width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.15), width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
                         ),
                         BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                          color: const Color(0xFF8B2E2E).withOpacity(0.06),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
@@ -1034,56 +1549,56 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                             Icon(
                               Icons.analytics,
                               color: const Color(0xFF8B2E2E),
-                              size: 14,
+                              size: 12,
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 4),
                             Text(
                               "Results",
                               style: GoogleFonts.ptSans(
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                                 color: const Color(0xFF1F2937),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         // Display assessment results using modular services
                         if (_currentAssessmentResult != null) ...[
                           Text(
                             _currentAssessmentResult!.displayLabel,
                             style: GoogleFonts.ptSans(
-                              fontSize: 11,
+                              fontSize: 9,
                               color: _currentAssessmentResult!.displayColor,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           if (_currentAssessmentResult!.additionalData['angle'] != null) ...[
                             Text(
                               'Angle: ${_currentAssessmentResult!.additionalData['angle'].toStringAsFixed(1)}°',
                               style: GoogleFonts.ptSans(
-                                fontSize: 10,
+                                fontSize: 8,
                                 color: const Color(0xFF6B7280),
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 1),
                           ],
                           if (_currentAssessmentResult!.additionalData['absNormalizedDisplacement'] != null) ...[
                             Text(
                               'Disp: ${_currentAssessmentResult!.additionalData['absNormalizedDisplacement'].toStringAsFixed(2)}',
                               style: GoogleFonts.ptSans(
-                                fontSize: 10,
+                                fontSize: 8,
                                 color: const Color(0xFF6B7280),
                               ),
                             ),
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 1),
                           ],
                           if (_currentAssessmentResult!.alignment != null) ...[
                             Text(
                               _currentAssessmentResult!.alignment!,
                               style: GoogleFonts.ptSans(
-                                fontSize: 9,
+                                fontSize: 7,
                                 color: const Color(0xFF6B7280),
                               ),
                             ),
@@ -1092,7 +1607,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                             Text(
                               _currentAssessmentResult!.compensation!,
                               style: GoogleFonts.ptSans(
-                                fontSize: 9,
+                                fontSize: 7,
                                 color: const Color(0xFF6B7280),
                               ),
                             ),
@@ -1101,7 +1616,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                           Text(
                             '${UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'Muscle'}: Not assessed',
                             style: GoogleFonts.ptSans(
-                              fontSize: 11,
+                              fontSize: 9,
                               color: Colors.grey,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1115,82 +1630,33 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
             ),
           ),
 
-          // Enhanced bottom action buttons with professional styling
+          // Enhanced bottom action buttons - mobile optimized
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
               border: Border(
-                top: BorderSide(color: const Color(0xFF8B2E2E).withOpacity(0.1), width: 2),
+                top: BorderSide(color: const Color(0xFF8B2E2E).withOpacity(0.06), width: 1),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 25,
-                  offset: const Offset(0, -10),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, -6),
                 ),
                 BoxShadow(
-                  color: const Color(0xFF8B2E2E).withOpacity(0.05),
-                  blurRadius: 15,
-                  offset: const Offset(0, -5),
+                  color: const Color(0xFF8B2E2E).withOpacity(0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
                 ),
               ],
             ),
             child: Row(
               children: [
-                // Enhanced upload button
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3), width: 2),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        try { await _controller.stopImageStream(); } catch (_) {}
-                        await _controller.dispose();
-                        if (mounted) {
-                          setState(() {
-                            _isCameraInitialized = false;
-                            _isStreaming = false;
-                          });
-                        }
-                        if (context.mounted) {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => AssessUpload()));
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: const Icon(Icons.upload_file, color: Color(0xFF6B7280), size: 18),
-                      label: Text(
-                        "Upload Video",
-                        style: GoogleFonts.ptSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF6B7280),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
                 
                 // Enhanced record button
                 Expanded(
@@ -1204,38 +1670,33 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                               end: Alignment.centerRight,
                             ),
                       color: _isRecording ? Colors.grey : null,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: _isRecording 
-                            ? Colors.grey.withOpacity(0.3)
-                            : const Color(0xFF8B2E2E).withOpacity(0.3), 
-                        width: 2
+                            ? Colors.grey.withOpacity(0.2)
+                            : const Color(0xFF8B2E2E).withOpacity(0.2), 
+                        width: 1
                       ),
                       boxShadow: _isRecording ? [
                         BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                          color: Colors.grey.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
                         ),
                       ] : [
                         BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        ),
-                        BoxShadow(
                           color: const Color(0xFF8B2E2E).withOpacity(0.2),
-                          blurRadius: 20,
+                          blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
                       ],
                     ),
                     child: ElevatedButton.icon(
-                      onPressed: _isRecording
+                      onPressed: _isRecording || _isRealTimeAssessment
                           ? null
                           : () async {
                               setState(() => _isRecording = true);
-                              XFile? videoFile = await _startRecording();
+                              XFile? videoFile = await _startAssessment();
                               setState(() => _isRecording = false);
 
                             if (videoFile != null) {
@@ -1243,37 +1704,46 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                                 UserAssess.painVideo = file;
                                 
                                 if (context.mounted) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => AssessPainVideoPreview(videoPath: file.path)),
-                                  );
+                                  // Bypass video preview and go directly to pain level confirmation
+                                  _showPainLevelConfirmationDialog();
                                 }
+                              } else if (_enableVideoRecording) {
+                                debugPrint('Video recording failed or was cancelled.');
                               } else {
-                                debugPrint('Recording failed or was cancelled.');
+                                // Real-time assessment completed
+                                if (context.mounted) {
+                                  _showPainLevelConfirmationDialog();
+                                }
                               }
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
                         shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      icon: _isRecording 
+                      icon: _isRecording || _isRealTimeAssessment
                           ? const SizedBox(
-                              width: 16,
-                              height: 16,
+                              width: 14,
+                              height: 14,
                               child: CircularProgressIndicator(
                                 color: Colors.white,
-                                strokeWidth: 2,
+                                strokeWidth: 1.5,
                               ),
                             )
-                          : const Icon(Icons.videocam_rounded, color: Colors.white, size: 18),
+                          : Icon(
+                              _enableVideoRecording ? Icons.videocam_rounded : Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                       label: Text(
-                        _isRecording ? "Recording..." : "Record Video",
+                        _isRecording 
+                            ? (_enableVideoRecording ? "Recording..." : "Assessing...")
+                            : (_enableVideoRecording ? "Record Video" : "Start Assessment"),
                         style: GoogleFonts.ptSans(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),

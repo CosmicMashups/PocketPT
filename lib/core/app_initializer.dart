@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'result.dart';
 import 'error_handler.dart';
-import 'repositories/user_repository.dart';
 import 'repositories/user_hive_adapter.dart';
 import 'repositories/hive_user_repository.dart';
 

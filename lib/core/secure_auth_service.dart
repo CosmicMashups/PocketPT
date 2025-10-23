@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'dart:math';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'result.dart';
 import 'error_handler.dart';
 
@@ -101,7 +100,7 @@ class SecureAuthService {
       return Result.success({
         'userId': userId,
         'sessionToken': sessionToken,
-        'isLoggedIn': isLoggedIn,
+        'isLoggedIn': isLoggedIn ?? 'false',
       });
     } catch (error, stackTrace) {
       errorHandler.handleError('SecureAuthService.getSession', error, stackTrace);
@@ -135,7 +134,7 @@ class SecureAuthService {
   
   /// Generate a cryptographically secure random salt
   Uint8List _generateSalt() {
-    final random = Random.secure();
+    final random = math.Random.secure();
     final salt = Uint8List(32); // 256-bit salt
     for (int i = 0; i < salt.length; i++) {
       salt[i] = random.nextInt(256);
@@ -152,12 +151,47 @@ class SecureAuthService {
     // Convert password to bytes
     final passwordBytes = utf8.encode(password);
     
-    // Perform PBKDF2 key derivation
-    final pbkdf2 = Pbkdf2(macAlgorithm: Hmac(sha256, passwordBytes), iterations: iterations, bits: keyLength * 8);
-    final derivedKey = pbkdf2.deriveKey(salt);
+    // Perform PBKDF2 key derivation manually
+    final derivedKey = _pbkdf2(passwordBytes, salt, iterations, keyLength);
     
     // Return base64 encoded hash
     return base64Encode(derivedKey);
+  }
+  
+  /// Manual PBKDF2 implementation
+  Uint8List _pbkdf2(List<int> password, Uint8List salt, int iterations, int keyLength) {
+    final hmac = Hmac(sha256, password);
+    final result = Uint8List(keyLength);
+    int resultOffset = 0;
+    
+    for (int blockIndex = 1; resultOffset < keyLength; blockIndex++) {
+      // Create block
+      final block = Uint8List(salt.length + 4);
+      block.setRange(0, salt.length, salt);
+      block[salt.length] = (blockIndex >> 24) & 0xFF;
+      block[salt.length + 1] = (blockIndex >> 16) & 0xFF;
+      block[salt.length + 2] = (blockIndex >> 8) & 0xFF;
+      block[salt.length + 3] = blockIndex & 0xFF;
+      
+      // First iteration
+      var u = hmac.convert(block).bytes;
+      final t = Uint8List.fromList(u);
+      
+      // Remaining iterations
+      for (int i = 1; i < iterations; i++) {
+        u = hmac.convert(u).bytes;
+        for (int j = 0; j < u.length; j++) {
+          t[j] ^= u[j];
+        }
+      }
+      
+      // Copy to result
+      final bytesToCopy = math.min(t.length, keyLength - resultOffset);
+      result.setRange(resultOffset, resultOffset + bytesToCopy, t);
+      resultOffset += bytesToCopy;
+    }
+    
+    return result;
   }
   
   /// Validate password strength
@@ -188,7 +222,7 @@ class SecureAuthService {
   /// Generate a secure random password
   String generateSecurePassword({int length = 16}) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#\$%^&*()';
-    final random = Random.secure();
+    final random = math.Random.secure();
     return String.fromCharCodes(
       Iterable.generate(length, (_) => chars.codeUnitAt(random.nextInt(chars.length))),
     );

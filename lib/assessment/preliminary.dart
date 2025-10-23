@@ -297,11 +297,6 @@ class AssessPrelim extends StatelessWidget {
       ],
             ),
           ),
-          Icon(
-            Icons.check_circle_outline,
-            color: successColor,
-            size: 20,
-          ),
         ],
       ),
     );

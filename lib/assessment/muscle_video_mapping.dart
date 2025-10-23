@@ -94,19 +94,48 @@ class MuscleVideoMapping {
   /// Extract YouTube video ID from URL
   static String? extractVideoId(String url) {
     try {
+      // Clean up the URL first
+      String cleanUrl = url.trim();
+      
       // Handle various YouTube URL formats
-      final uri = Uri.parse(url);
+      final uri = Uri.parse(cleanUrl);
+      
+      String? videoId;
       
       if (uri.host.contains('youtube.com')) {
-        return uri.queryParameters['v'];
+        // Check if it's a shorts URL first
+        if (uri.path.contains('/shorts/')) {
+          videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+        } else if (uri.path.contains('/watch')) {
+          // Regular YouTube watch URL
+          videoId = uri.queryParameters['v'];
+        } else if (uri.path.contains('/embed/')) {
+          // Embedded YouTube URL
+          videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+        } else {
+          // Fallback to query parameter
+          videoId = uri.queryParameters['v'];
+        }
       } else if (uri.host.contains('youtu.be')) {
-        return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
-      } else if (uri.host.contains('youtube.com/shorts')) {
-        return uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+        // Short YouTube URL format
+        videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+      } else if (uri.host.contains('m.youtube.com')) {
+        // Mobile YouTube URL
+        if (uri.path.contains('/shorts/')) {
+          videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+        } else {
+          videoId = uri.queryParameters['v'];
+        }
+      }
+      
+      // Validate video ID format (should be 11 characters)
+      if (videoId != null && videoId.length == 11) {
+        return videoId;
       }
       
       return null;
     } catch (e) {
+      print('MuscleVideoMapping: Error parsing YouTube URL: $url - $e');
       return null;
     }
   }

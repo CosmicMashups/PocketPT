@@ -38,6 +38,7 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
   bool _isLoading = true;
   bool _hasError = false;
   String? _errorMessage;
+  bool _isYouTubeShort = false;
 
   @override
   void initState() {
@@ -61,11 +62,21 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
         _errorMessage = null;
       });
 
-      final videoUrl = MuscleVideoMapping.getVideoUrl(widget.muscleName);
-      final videoId = MuscleVideoMapping.extractVideoId(videoUrl);
+      final videoUrl = MuscleVideoMapping.getVideoUrl(widget.muscleName).trim();
       
-      if (videoId == null) {
-        throw Exception('Invalid YouTube URL: $videoUrl');
+      // Detect if this is a YouTube Short based on URL
+      _isYouTubeShort = _detectYouTubeShort(videoUrl);
+      
+      // Prefer the package's robust parser (handles Shorts and multiple formats),
+      // then fall back to our extractor if needed.
+      String? videoId = YoutubePlayerController.convertUrlToId(videoUrl);
+      
+      if (videoId == null || videoId.isEmpty) {
+        videoId = MuscleVideoMapping.extractVideoId(videoUrl);
+      }
+      
+      if (videoId == null || videoId.isEmpty) {
+        throw Exception('Invalid YouTube URL or video ID: $videoUrl');
       }
 
       _controller = YoutubePlayerController.fromVideoId(
@@ -79,9 +90,15 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
         ),
       );
       
-      setState(() {
-        _isLoading = false;
+      // Add a small delay to ensure the controller is properly initialized
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       });
+      
     } catch (e) {
       setState(() {
         _hasError = true;
@@ -96,6 +113,16 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
     _initializePlayer();
   }
 
+  /// Detect if the URL is a YouTube Short
+  bool _detectYouTubeShort(String url) {
+    try {
+      final uri = Uri.parse(url.trim());
+      return uri.host.contains('youtube.com') && uri.path.contains('/shorts/');
+    } catch (e) {
+      return false;
+    }
+  }
+
   @override
   void dispose() {
     _controller.close();
@@ -104,7 +131,7 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final height = widget.height ?? 200.0;
+    final double? height = widget.height; // null means dynamic based on width
     
     if (_isLoading) {
       return _buildLoadingState(height);
@@ -117,112 +144,156 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
     return _buildVideoPlayer(height);
   }
 
-  Widget _buildLoadingState(final double height) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
+  Widget _buildLoadingState(final double? height) {
+    final content = Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Loading video...',
+            style: GoogleFonts.ptSans(
+              fontSize: 14,
+              color: const Color(0xFF6B7280),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Loading video...',
-              style: GoogleFonts.ptSans(
-                fontSize: 14,
-                color: const Color(0xFF6B7280),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState(final double height) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline,
-              color: Colors.red,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Video unavailable',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1F2937),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _errorMessage ?? 'Failed to load video',
-              style: GoogleFonts.ptSans(
-                fontSize: 12,
-                color: const Color(0xFF6B7280),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _retryLoad,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Retry'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF8B2E2E),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVideoPlayer(final double height) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: YoutubePlayer(
-          controller: _controller,
-          aspectRatio: 16 / 9,
-        ),
+    );
+    
+    // Always use LayoutBuilder to ensure we get the actual available width
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final calculatedHeight = height ?? _calculateVideoHeight(availableWidth);
+        return Container(
+          width: double.infinity,
+          height: calculatedHeight,
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+          ),
+          child: content,
+        );
+      },
+    );
+  }
+
+  Widget _buildErrorState(final double? height) {
+    final content = Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 48,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Video unavailable',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _errorMessage ?? 'Failed to load video',
+            style: GoogleFonts.ptSans(
+              fontSize: 12,
+              color: const Color(0xFF6B7280),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _retryLoad,
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B2E2E),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
+    
+    // Always use LayoutBuilder to ensure we get the actual available width
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final calculatedHeight = height ?? _calculateVideoHeight(availableWidth);
+        return Container(
+          width: double.infinity,
+          height: calculatedHeight,
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+          ),
+          child: content,
+        );
+      },
+    );
+  }
+
+  Widget _buildVideoPlayer(final double? height) {
+    // Always use LayoutBuilder to ensure we get the actual available width
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Use the full available width (this accounts for parent margins/padding)
+        final availableWidth = constraints.maxWidth;
+        
+        // Calculate height based on video type: 16:9 for normal videos, 9:16 for shorts
+        final calculatedHeight = height ?? _calculateVideoHeight(availableWidth);
+        
+        return Container(
+          width: double.infinity, // Ensure full width usage
+          height: calculatedHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: YoutubePlayer(
+              controller: _controller,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Calculate video height based on video type and available width
+  double _calculateVideoHeight(double availableWidth) {
+    if (_isYouTubeShort) {
+      // For YouTube Shorts, use 9:16 aspect ratio (portrait)
+      // But limit the width to a reasonable size for mobile
+      final maxWidth = availableWidth > 400 ? 400.0 : availableWidth;
+      return maxWidth * (16 / 9);
+    } else {
+      // For normal videos, use 16:9 aspect ratio (landscape)
+      return availableWidth * (9 / 16);
+    }
   }
 }
 

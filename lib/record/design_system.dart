@@ -12,6 +12,26 @@ class RecordingDesignSystem {
   static const Color errorColor = Color(0xFFEF4444);
   static const Color infoColor = Color(0xFF3B82F6);
   
+  // Additional medical-grade colors
+  static const Color accentBlue = Color(0xFF2563EB);
+  static const Color accentGreen = Color(0xFF059669);
+  static const Color accentPurple = Color(0xFF7C3AED);
+  static const Color accentOrange = Color(0xFFEA580C);
+  static const Color accentTeal = Color(0xFF0D9488);
+  static const Color accentPink = Color(0xFFDB2777);
+  
+  // Neutral variations
+  static const Color neutral50 = Color(0xFFF9FAFB);
+  static const Color neutral100 = Color(0xFFF3F4F6);
+  static const Color neutral200 = Color(0xFFE5E7EB);
+  static const Color neutral300 = Color(0xFFD1D5DB);
+  static const Color neutral400 = Color(0xFF9CA3AF);
+  static const Color neutral500 = Color(0xFF6B7280);
+  static const Color neutral600 = Color(0xFF4B5563);
+  static const Color neutral700 = Color(0xFF374151);
+  static const Color neutral800 = Color(0xFF1F2937);
+  static const Color neutral900 = Color(0xFF111827);
+  
   // Neutral palette for professional appearance
   static const Color backgroundLight = Color(0xFFF8FAFC);
   static const Color backgroundDark = Color(0xFF0F1012);
@@ -178,6 +198,94 @@ class RecordingDesignSystem {
   // Animation curves
   static const Curve animationCurve = Curves.easeInOutCubic;
   static const Curve animationCurveFast = Curves.easeOutCubic;
+  
+  // Icon constants for consistent usage
+  static const IconData iconCamera = Icons.videocam;
+  static const IconData iconTimer = Icons.timer;
+  static const IconData iconPlay = Icons.play_arrow;
+  static const IconData iconPause = Icons.pause;
+  static const IconData iconStop = Icons.stop;
+  static const IconData iconSave = Icons.save;
+  static const IconData iconCheck = Icons.check;
+  static const IconData iconClose = Icons.close;
+  static const IconData iconBack = Icons.arrow_back;
+  static const IconData iconForward = Icons.arrow_forward;
+  static const IconData iconSettings = Icons.settings;
+  static const IconData iconInfo = Icons.info;
+  static const IconData iconWarning = Icons.warning;
+  static const IconData iconError = Icons.error;
+  static const IconData iconSuccess = Icons.check_circle;
+  static const IconData iconExercise = Icons.fitness_center;
+  static const IconData iconStretch = Icons.self_improvement;
+  static const IconData iconWarmup = Icons.local_fire_department;
+  static const IconData iconCooldown = Icons.ac_unit;
+  static const IconData iconProgress = Icons.trending_up;
+  static const IconData iconComplete = Icons.task_alt;
+  static const IconData iconHome = Icons.home;
+  static const IconData iconMenu = Icons.menu;
+  static const IconData iconMore = Icons.more_vert;
+  static const IconData iconEdit = Icons.edit;
+  static const IconData iconDelete = Icons.delete;
+  static const IconData iconAdd = Icons.add;
+  static const IconData iconRemove = Icons.remove;
+  static const IconData iconRefresh = Icons.refresh;
+  static const IconData iconDownload = Icons.download;
+  static const IconData iconUpload = Icons.upload;
+  static const IconData iconShare = Icons.share;
+  static const IconData iconFavorite = Icons.favorite;
+  static const IconData iconStar = Icons.star;
+  static const IconData iconNotification = Icons.notifications;
+  static const IconData iconProfile = Icons.person;
+  static const IconData iconSecurity = Icons.security;
+  static const IconData iconHelp = Icons.help;
+  static const IconData iconSearch = Icons.search;
+  static const IconData iconFilter = Icons.filter_list;
+  static const IconData iconSort = Icons.sort;
+  static const IconData iconVisibility = Icons.visibility;
+  static const IconData iconVisibilityOff = Icons.visibility_off;
+  
+  // Enhanced gradient definitions
+  static LinearGradient get primaryGradient => const LinearGradient(
+    colors: [primaryMedical, secondaryMedical],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static LinearGradient get successGradient => const LinearGradient(
+    colors: [successColor, accentGreen],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static LinearGradient get warningGradient => const LinearGradient(
+    colors: [warningColor, accentOrange],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static LinearGradient get errorGradient => const LinearGradient(
+    colors: [errorColor, accentPink],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static LinearGradient get infoGradient => const LinearGradient(
+    colors: [infoColor, accentBlue],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static LinearGradient get neutralGradient => const LinearGradient(
+    colors: [neutral100, neutral200],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static LinearGradient get accentGradient => const LinearGradient(
+    colors: [accentPurple, accentTeal],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   // Adaptive color helper
   static Color getAdaptiveColor(BuildContext context, Color lightColor, Color darkColor) {
