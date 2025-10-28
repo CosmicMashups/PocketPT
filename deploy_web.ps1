@@ -56,8 +56,12 @@ if ($LASTEXITCODE -eq 0) {
         git worktree add -f $deployDir gh-pages
         if ($LASTEXITCODE -ne 0) { throw "Failed to create gh-pages worktree" }
 
-        # Clean worktree contents
+        # Clean worktree contents (filesystem and git index)
         Get-ChildItem -Path $deployDir -Force | Where-Object { $_.Name -ne ".git" } | Remove-Item -Recurse -Force
+        Push-Location $deployDir
+        git rm -r -q --cached . 2>$null
+        git clean -fdx -q
+        Pop-Location
 
         # Copy build output (use robocopy for reliability on Windows, includes all files)
         $src = (Resolve-Path "build/web").Path
@@ -71,9 +75,12 @@ if ($LASTEXITCODE -eq 0) {
         if (-not (Test-Path "$deployDir/splash/img/light-background.png")) { Write-Host "Warning: splash images missing in gh-pages" -ForegroundColor Yellow }
 
         Push-Location $deployDir
-        git add --all
+        git add -A
+        git status -s | Measure-Object | ForEach-Object { Write-Host ("Staged changes: " + $_.Count) }
         git commit -m "deploy: update web build" --allow-empty --no-verify
-        git push origin gh-pages --force
+        Write-Host ("gh-pages commit: " + (git rev-parse --short HEAD)) -ForegroundColor Cyan
+        git push -u origin gh-pages --force
+        Write-Host ("Remote gh-pages head: " + ((git ls-remote --heads origin gh-pages) -split "\s+" | Select-Object -First 1)) -ForegroundColor Cyan
         Pop-Location
 
         # Detach worktree
