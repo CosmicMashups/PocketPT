@@ -5,10 +5,10 @@ Write-Host "Building Flutter web application..." -ForegroundColor Green
 
 # Build the web application optimized for GitHub Pages
 # Attempt with pwa-strategy to avoid service worker caching; if unsupported, retry without it
-flutter build web --release --base-href /pocketpt/ --pwa-strategy none
+flutter build web --debug --base-href /pocketpt/ --pwa-strategy none
 if ($LASTEXITCODE -ne 0) {
   Write-Host "Retrying build without --pwa-strategy (not supported on this Flutter)" -ForegroundColor Yellow
-  flutter build web --release --base-href /pocketpt/
+  flutter build web --debug --base-href /pocketpt/
 }
 
 # Ensure GitHub Pages does not use Jekyll and SPA routing works
@@ -35,19 +35,25 @@ if ($LASTEXITCODE -eq 0) {
         if (-not (Test-Path "build/web/flutter_bootstrap.js")) { throw "Missing build/web/flutter_bootstrap.js" }
         if (-not (Test-Path "build/web/manifest.json")) { Write-Host "Warning: manifest.json missing" -ForegroundColor Yellow }
 
-        # Ensure gh-pages branch exists
+        # Ensure gh-pages branch exists locally (tracking remote if present)
         git show-ref --verify --quiet refs/heads/gh-pages
         if ($LASTEXITCODE -ne 0) {
-          git branch gh-pages
+          git fetch origin gh-pages 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            git branch gh-pages origin/gh-pages
+          } else {
+            git branch gh-pages
+          }
         }
 
-        # Prepare worktree directory
+        # Prepare worktree directory (handle stale registrations)
         $deployDir = ".gh-pages"
+        git worktree prune 2>$null
         if (Test-Path $deployDir) {
           git worktree remove $deployDir --force 2>$null
           Remove-Item -Recurse -Force $deployDir -ErrorAction SilentlyContinue
         }
-        git worktree add $deployDir gh-pages
+        git worktree add -f $deployDir gh-pages
         if ($LASTEXITCODE -ne 0) { throw "Failed to create gh-pages worktree" }
 
         # Clean worktree contents
