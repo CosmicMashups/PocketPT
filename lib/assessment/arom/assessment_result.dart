@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 class AssessmentResult {
   final String romLevel;
   final int painScore;
+  final String categoricalPainLevel;
   final String displayLabel;
   final Color displayColor;
   final String clinicalContext;
@@ -14,6 +15,7 @@ class AssessmentResult {
   const AssessmentResult({
     required this.romLevel,
     required this.painScore,
+    required this.categoricalPainLevel,
     required this.displayLabel,
     required this.displayColor,
     required this.clinicalContext,
@@ -27,6 +29,7 @@ class AssessmentResult {
     return AssessmentResult(
       romLevel: 'unknown',
       painScore: 5, // Default moderate
+      categoricalPainLevel: 'Moderate', // Default moderate
       displayLabel: '$muscleGroup: Not visible',
       displayColor: Colors.white,
       clinicalContext: 'Assessment incomplete - Retry assessment',
@@ -38,6 +41,7 @@ class AssessmentResult {
     return AssessmentResult(
       romLevel: 'error',
       painScore: 5, // Default moderate
+      categoricalPainLevel: 'Moderate', // Default moderate
       displayLabel: '$muscleGroup: Error',
       displayColor: Colors.red,
       clinicalContext: 'Assessment error - Retry assessment',
@@ -49,6 +53,7 @@ class AssessmentResult {
     return AssessmentResult(
       romLevel: 'adjust',
       painScore: 5, // Default moderate
+      categoricalPainLevel: 'Moderate', // Default moderate
       displayLabel: '$muscleGroup: Adjust position',
       displayColor: Colors.yellow,
       clinicalContext: 'Adjust positioning for accurate assessment',

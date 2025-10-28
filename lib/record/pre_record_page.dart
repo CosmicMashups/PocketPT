@@ -138,18 +138,39 @@ class _PreRecordPageState extends State<PreRecordPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Camera Preview with 9:16 aspect ratio
-                    Container(
-                      width: double.infinity,
-                      height: MediaQuery.of(context).size.width * (16 / 9),
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.4,
-                      ),
-                      child: _buildCameraPreview(isDark),
+                    // Camera Preview with proper 9:16 aspect ratio and responsive sizing
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Calculate available width considering padding (16px on each side)
+                        final availableWidth = constraints.maxWidth - 32; // 16px padding on each side
+                        
+                        // Calculate height based on 9:16 aspect ratio
+                        final cameraHeight = availableWidth * (16 / 9);
+                        
+                        // Apply maximum height constraint (40% of screen height)
+                        final maxHeight = MediaQuery.of(context).size.height * 0.4;
+                        final finalHeight = cameraHeight > maxHeight ? maxHeight : cameraHeight;
+                        
+                        // Calculate final width to maintain aspect ratio if height was constrained
+                        final finalWidth = finalHeight * (9 / 16);
+                        
+                        return Center(
+                          child: Container(
+                            width: finalWidth,
+                            height: finalHeight,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+                              boxShadow: RecordingDesignSystem.shadowLarge,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: _buildCameraPreview(isDark),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
 
-                    // Exercise Name with proper text wrapping
+                    // Enhanced Exercise Name Card with decorative elements
                     FutureBuilder<Exercise?>(
                       future: rehabPlan?.exerciseReferences.isNotEmpty == true 
                           ? _cacheService.getExerciseById(rehabPlan!.exerciseReferences.first.exerciseId)
@@ -158,43 +179,127 @@ class _PreRecordPageState extends State<PreRecordPage> {
                         final currentExercise = snapshot.data;
                         return Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: RecordingDesignSystem.spacingM,
-                            vertical: RecordingDesignSystem.spacingM,
-                          ),
+                          padding: const EdgeInsets.all(RecordingDesignSystem.spacingL),
                           decoration: BoxDecoration(
-                            color: RecordingDesignSystem.getSurfaceColor(context),
-                            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                            gradient: LinearGradient(
+                              colors: [
+                                RecordingDesignSystem.getSurfaceColor(context),
+                                RecordingDesignSystem.getSurfaceColor(context).withOpacity(0.8),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
                             border: Border.all(
-                              color: RecordingDesignSystem.getBorderColor(context),
-                              width: 1,
+                              color: RecordingDesignSystem.primaryMedical.withOpacity(0.2),
+                              width: 2,
                             ),
-                            boxShadow: RecordingDesignSystem.shadowSmall,
+                            boxShadow: RecordingDesignSystem.medicalShadow,
                           ),
-                          child: Text(
-                            currentExercise?.exerciseName ?? 'No Exercise',
-                            style: RecordingDesignSystem.headlineLarge.copyWith(
-                              color: RecordingDesignSystem.getTextPrimaryColor(context),
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            children: [
+                              // Decorative header with icon
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
+                                    decoration: BoxDecoration(
+                                      gradient: RecordingDesignSystem.primaryGradient,
+                                      borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                                      boxShadow: RecordingDesignSystem.shadowMedium,
+                                    ),
+                                    child: Icon(
+                                      RecordingDesignSystem.iconExercise,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: RecordingDesignSystem.spacingM),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: RecordingDesignSystem.spacingM,
+                                      vertical: RecordingDesignSystem.spacingS,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: RecordingDesignSystem.successColor.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                                      border: Border.all(
+                                        color: RecordingDesignSystem.successColor.withOpacity(0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          RecordingDesignSystem.iconCheck,
+                                          color: RecordingDesignSystem.successColor,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: RecordingDesignSystem.spacingXS),
+                                        Text(
+                                          'Ready',
+                                          style: RecordingDesignSystem.labelMedium.copyWith(
+                                            color: RecordingDesignSystem.successColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: RecordingDesignSystem.spacingM),
+                              // Exercise name with enhanced styling
+                              Text(
+                                currentExercise?.exerciseName ?? 'No Exercise',
+                                style: RecordingDesignSystem.headlineLarge.copyWith(
+                                  color: RecordingDesignSystem.getTextPrimaryColor(context),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: RecordingDesignSystem.spacingS),
+                              // Exercise type indicator
+                              if (currentExercise != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: RecordingDesignSystem.spacingM,
+                                    vertical: RecordingDesignSystem.spacingXS,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: RecordingDesignSystem.accentBlue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                                  ),
+                                  child: Text(
+                                    'Exercise Type: ${currentExercise.goal}',
+                                    style: RecordingDesignSystem.bodySmall.copyWith(
+                                      color: RecordingDesignSystem.accentBlue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         );
                       },
                     ),
                     const SizedBox(height: 20),
 
-                    // Exercise Info Cards
+                    // Enhanced Exercise Info Cards with decorative elements
                     Row(
                       children: [
-                        _infoCard(
+                        _enhancedInfoCard(
                           title: 'Exercise',
-                          icon: Icons.tag,
+                          icon: RecordingDesignSystem.iconExercise,
                           value: '1',
-                          bgColor: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+                          gradient: RecordingDesignSystem.primaryGradient,
+                          accentColor: RecordingDesignSystem.primaryMedical,
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: RecordingDesignSystem.spacingM),
                         Expanded(
                           child: Column(
                             children: [
@@ -206,18 +311,22 @@ class _PreRecordPageState extends State<PreRecordPage> {
                                   final currentExercise = snapshot.data;
                                   return Column(
                                     children: [
-                                      _infoTile(
-                                        icon: Icons.fitness_center,
+                                      _enhancedInfoTile(
+                                        icon: RecordingDesignSystem.iconTimer,
                                         title: 'Repetitions',
                                         subtitle: currentExercise != null && rehabPlan != null
                                             ? '${rehabPlan.exerciseReferences.first.sets} sets of ${rehabPlan.exerciseReferences.first.repetitions}'
                                             : 'Not available',
+                                        gradient: RecordingDesignSystem.successGradient,
+                                        accentColor: RecordingDesignSystem.successColor,
                                       ),
-                                      const SizedBox(height: 12),
-                                      _infoTile(
-                                        icon: Icons.accessibility_new,
+                                      const SizedBox(height: RecordingDesignSystem.spacingM),
+                                      _enhancedInfoTile(
+                                        icon: RecordingDesignSystem.iconProgress,
                                         title: 'Focus Area',
                                         subtitle: currentExercise?.muscle ?? 'No muscle',
+                                        gradient: RecordingDesignSystem.infoGradient,
+                                        accentColor: RecordingDesignSystem.infoColor,
                                       ),
                                     ],
                                   );
@@ -230,21 +339,18 @@ class _PreRecordPageState extends State<PreRecordPage> {
                     ),
                     const SizedBox(height: 32),
 
-                    // Enhanced Start Recording Button
+                    // Enhanced Start Recording Button with decorative elements
                     Container(
                       width: double.infinity,
-                      constraints: const BoxConstraints(minHeight: 56),
+                      constraints: const BoxConstraints(minHeight: 64),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            RecordingDesignSystem.primaryMedical,
-                            RecordingDesignSystem.secondaryMedical,
-                          ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
+                        gradient: RecordingDesignSystem.primaryGradient,
                         borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
-                        boxShadow: RecordingDesignSystem.medicalShadow,
+                        boxShadow: RecordingDesignSystem.medicalShadowLarge,
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.2),
+                          width: 1,
+                        ),
                       ),
                       child: Material(
                         color: Colors.transparent,
@@ -269,21 +375,66 @@ class _PreRecordPageState extends State<PreRecordPage> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: RecordingDesignSystem.spacingXL,
-                              vertical: RecordingDesignSystem.spacingM,
+                              vertical: RecordingDesignSystem.spacingL,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.videocam, color: Colors.white, size: 24),
-                                const SizedBox(width: RecordingDesignSystem.spacingS),
-                                Flexible(
-                                  child: Text(
-                                    'Start Recording',
-                                    style: RecordingDesignSystem.labelLarge.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                                      ),
+                                      child: Icon(
+                                        RecordingDesignSystem.iconCamera,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
                                     ),
-                                    textAlign: TextAlign.center,
+                                    const SizedBox(width: RecordingDesignSystem.spacingM),
+                                    Flexible(
+                                      child: Text(
+                                        'Start Recording',
+                                        style: RecordingDesignSystem.headlineMedium.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: RecordingDesignSystem.spacingS),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: RecordingDesignSystem.spacingM,
+                                    vertical: RecordingDesignSystem.spacingXS,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        RecordingDesignSystem.iconTimer,
+                                        color: Colors.white70,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: RecordingDesignSystem.spacingXS),
+                                      Text(
+                                        'Tap to begin your exercise session',
+                                        style: RecordingDesignSystem.bodySmall.copyWith(
+                                          color: Colors.white70,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -303,18 +454,19 @@ class _PreRecordPageState extends State<PreRecordPage> {
     );
   }
 
-  Widget _infoCard({
+  Widget _enhancedInfoCard({
     required String title,
     required IconData icon,
     required String value,
-    Color bgColor = Colors.grey,
+    required LinearGradient gradient,
+    required Color accentColor,
   }) {
     return Container(
       constraints: const BoxConstraints(
         minWidth: 100,
         maxWidth: 120,
-        minHeight: 120,
-        maxHeight: 140,
+        minHeight: 140,
+        maxHeight: 160,
       ),
       padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
       decoration: BoxDecoration(
@@ -328,8 +480,8 @@ class _PreRecordPageState extends State<PreRecordPage> {
         ),
         borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
         border: Border.all(
-          color: RecordingDesignSystem.getBorderColor(context),
-          width: 1,
+          color: accentColor.withOpacity(0.3),
+          width: 2,
         ),
         boxShadow: RecordingDesignSystem.shadowLarge,
       ),
@@ -339,14 +491,14 @@ class _PreRecordPageState extends State<PreRecordPage> {
           Container(
             padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
             decoration: BoxDecoration(
-              gradient: RecordingDesignSystem.primaryGradient,
+              gradient: gradient,
               borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
               boxShadow: RecordingDesignSystem.medicalShadow,
             ),
             child: Icon(
               icon,
               color: Colors.white,
-              size: 20,
+              size: 24,
             ),
           ),
           const SizedBox(height: RecordingDesignSystem.spacingS),
@@ -356,18 +508,26 @@ class _PreRecordPageState extends State<PreRecordPage> {
               textAlign: TextAlign.center,
               style: RecordingDesignSystem.bodySmall.copyWith(
                 color: RecordingDesignSystem.getTextSecondaryColor(context),
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(height: RecordingDesignSystem.spacingXS),
-          Flexible(
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: RecordingDesignSystem.spacingS,
+              vertical: RecordingDesignSystem.spacingXS,
+            ),
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+            ),
             child: Text(
               value,
               style: RecordingDesignSystem.titleLarge.copyWith(
-                color: RecordingDesignSystem.getTextPrimaryColor(context),
+                color: accentColor,
                 fontWeight: FontWeight.w700,
               ),
               maxLines: 1,
@@ -379,10 +539,12 @@ class _PreRecordPageState extends State<PreRecordPage> {
     );
   }
 
-  Widget _infoTile({
+  Widget _enhancedInfoTile({
     required IconData icon,
     required String title,
     required String subtitle,
+    required LinearGradient gradient,
+    required Color accentColor,
   }) {
     return Container(
       padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
@@ -397,8 +559,8 @@ class _PreRecordPageState extends State<PreRecordPage> {
         ),
         borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
         border: Border.all(
-          color: RecordingDesignSystem.getBorderColor(context),
-          width: 1,
+          color: accentColor.withOpacity(0.3),
+          width: 2,
         ),
         boxShadow: RecordingDesignSystem.shadowLarge,
       ),
@@ -407,7 +569,7 @@ class _PreRecordPageState extends State<PreRecordPage> {
           Container(
             padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
             decoration: BoxDecoration(
-              gradient: RecordingDesignSystem.accentGradient,
+              gradient: gradient,
               borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
               boxShadow: RecordingDesignSystem.medicalShadow,
             ),
@@ -422,12 +584,33 @@ class _PreRecordPageState extends State<PreRecordPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: RecordingDesignSystem.titleMedium.copyWith(
-                    color: RecordingDesignSystem.getTextPrimaryColor(context),
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: RecordingDesignSystem.titleMedium.copyWith(
+                          color: RecordingDesignSystem.getTextPrimaryColor(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: RecordingDesignSystem.spacingS,
+                        vertical: RecordingDesignSystem.spacingXS,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                      ),
+                      child: Icon(
+                        RecordingDesignSystem.iconInfo,
+                        color: accentColor,
+                        size: 16,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: RecordingDesignSystem.spacingXS),
                 Text(

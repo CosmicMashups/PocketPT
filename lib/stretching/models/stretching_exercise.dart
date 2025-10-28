@@ -68,8 +68,8 @@ class StretchingExercise {
         row[19].toString(),
         row[20].toString(),
       ].where((precaution) => precaution.isNotEmpty).toList(),
-      imagePath: row[21].toString(),
-      videoPath: row[22].toString(),
+      imagePath: row[21].toString().isNotEmpty ? row[21].toString() : '',
+      videoPath: row[22].toString().isNotEmpty ? row[22].toString() : '',
       requiresEquipment: row[23].toString().toLowerCase() == 'true',
       equipmentNeeded: row[24].toString(),
       minPainLevel: row.length > 25 && row[25].toString().isNotEmpty 

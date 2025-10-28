@@ -1270,7 +1270,7 @@ class _EditPlanPageState extends State<EditPlanPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              "💊 Recommended Treatments",
+              "💊 Treatments",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,

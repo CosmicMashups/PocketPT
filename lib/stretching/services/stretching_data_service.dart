@@ -176,6 +176,11 @@ class StretchingDataService {
       final exercises = await loadStretchingExercises();
       print('StretchingDataService: Loaded ${exercises.length} total exercises');
       
+      if (exercises.isEmpty) {
+        print('StretchingDataService: No exercises loaded, returning empty list');
+        return [];
+      }
+      
       // Filter exercises based on muscle group, type, and pain level
       final filteredExercises = exercises.where((exercise) {
         // Check muscle group and type match
@@ -188,6 +193,18 @@ class StretchingDataService {
       }).toList();
       
       print('StretchingDataService: Filtered to ${filteredExercises.length} exercises');
+      
+      // If no exercises found with pain level filtering, try without pain level filtering
+      if (filteredExercises.isEmpty) {
+        print('StretchingDataService: No exercises found with pain level filtering, trying without pain level');
+        final exercisesWithoutPainFilter = exercises.where((exercise) {
+          return exercise.muscleGroup == muscleGroup && exercise.exerciseType == routineType;
+        }).toList();
+        
+        print('StretchingDataService: Found ${exercisesWithoutPainFilter.length} exercises without pain level filtering');
+        return exercisesWithoutPainFilter;
+      }
+      
       return filteredExercises;
     } catch (e, stackTrace) {
       print('StretchingDataService: ERROR getting exercises for $muscleGroup $routineType - $e');

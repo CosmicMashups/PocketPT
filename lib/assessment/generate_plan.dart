@@ -435,7 +435,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              'Recommended Treatments',
+                              'Treatments',
                               style: GoogleFonts.poppins(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,

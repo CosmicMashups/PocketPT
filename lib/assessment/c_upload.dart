@@ -1,12 +1,11 @@
-// Import packages
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../data/ai_media_processing_service.dart';
 import '../data/globals.dart';
 import '../data/pose_detection_service.dart';
 import 'assessment_data.dart';
+import 'arom/assessment_result.dart';
 import 'c_painlevel.dart';
 import 'c_video.dart';
 import 'c_preview.dart';
@@ -28,7 +27,6 @@ class _AssessUploadState extends State<AssessUpload> {
 
   // Media capture state
   final ImagePicker _picker = ImagePicker();
-  final AIMediaProcessingService _aiService = AIMediaProcessingService();
   final PoseDetectionService _poseService = PoseDetectionService();
   File? _capturedImage;
   File? _selectedVideo;
@@ -576,7 +574,7 @@ class _AssessUploadState extends State<AssessUpload> {
       final muscleGroup = _getAssessmentMode();
       final side = 'Right'; // Default side, could be made configurable
       
-      // Process photo with pose detection
+      // Process photo with enhanced pose detection
       final result = await _poseService.processPhotoForAssessment(
         photoFile: photoFile,
         muscleGroup: muscleGroup,
@@ -584,17 +582,22 @@ class _AssessUploadState extends State<AssessUpload> {
       );
 
       if (result['success'] == true) {
+        // Update assessment data with pose detection results
+        await _updateAssessmentDataFromPoseResult(result);
+        
         // Navigate to preview page with results
         if (context.mounted) {
           Navigator.push(
             context,
             PageRouteBuilder(
               pageBuilder: (context, animation, secondaryAnimation) => AssessPhotoPreview(
-                photoFile: photoFile,
+                photoFile: result['processedFile'] ?? photoFile,
                 assessmentResult: result['assessmentResult'],
                 landmarks: result['landmarks'],
                 muscleGroup: UserAssess.specificMuscle,
                 side: side,
+                confidence: result['confidence'],
+                imageQuality: result['imageQuality'],
               ),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                 const begin = Offset(1.0, 0.0);
@@ -608,29 +611,188 @@ class _AssessUploadState extends State<AssessUpload> {
           );
         }
       } else {
-        // Handle processing failure
+        // Handle processing failure with enhanced error handling
         final errorMessage = result['error'] ?? 'Failed to process photo';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: () => _takePhoto(),
-            ),
-          ),
-        );
+        final suggestions = result['suggestions'] as List<String>? ?? [];
+        
+        _showErrorDialog(errorMessage, suggestions, () => _takePhoto());
       }
     } catch (e) {
       debugPrint('Error processing photo with assessment: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error processing photo: $e'),
-          backgroundColor: Colors.red,
-        ),
+      _showErrorDialog(
+        'Error processing photo: $e',
+        ['Try uploading a different image', 'Check your internet connection'],
+        () => _takePhoto(),
       );
     }
+  }
+
+  /// Process video with pose detection and assessment
+  Future<void> _processVideoWithAssessment(File videoFile) async {
+    try {
+      // Show processing indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text('Processing video for assessment...'),
+            ],
+          ),
+          backgroundColor: mainColor,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+
+      // Get assessment parameters
+      final muscleGroup = _getAssessmentMode();
+      final side = 'Right'; // Default side, could be made configurable
+      
+      // Process video with pose detection
+      final result = await _poseService.processVideoForAssessment(
+        videoFile: videoFile,
+        muscleGroup: muscleGroup,
+        side: side,
+      );
+
+      if (result['success'] == true) {
+        // Update assessment data with pose detection results
+        await _updateAssessmentDataFromPoseResult(result);
+        
+        // Navigate to preview page with results
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => AssessPhotoPreview(
+                photoFile: null, // Video file
+                videoFile: videoFile,
+                assessmentResult: result['assessmentResult'],
+                landmarks: result['landmarks'],
+                muscleGroup: UserAssess.specificMuscle,
+                side: side,
+                confidence: result['confidence'],
+                frameCount: result['frameCount'],
+                totalFrames: result['totalFrames'],
+              ),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(1.0, 0.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOut;
+                var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                var offsetAnimation = animation.drive(tween);
+                return SlideTransition(position: offsetAnimation, child: child);
+              },
+            ),
+          );
+        }
+      } else {
+        // Handle processing failure with enhanced error handling
+        final errorMessage = result['error'] ?? 'Failed to process video';
+        final suggestions = result['suggestions'] as List<String>? ?? [];
+        
+        _showErrorDialog(errorMessage, suggestions, () => _selectFromGallery());
+      }
+    } catch (e) {
+      debugPrint('Error processing video with assessment: $e');
+      _showErrorDialog(
+        'Error processing video: $e',
+        ['Try uploading a different video', 'Check your internet connection'],
+        () => _selectFromGallery(),
+      );
+    }
+  }
+
+  /// Update assessment data with pose detection results
+  Future<void> _updateAssessmentDataFromPoseResult(Map<String, dynamic> result) async {
+    try {
+      final assessmentResult = result['assessmentResult'];
+      if (assessmentResult != null) {
+        // Extract painScale and painLevel from AssessmentResult object
+        int painScale;
+        String painLevel;
+        
+        if (assessmentResult is AssessmentResult) {
+          // Direct AssessmentResult object
+          painScale = assessmentResult.painScore;
+          painLevel = assessmentResult.categoricalPainLevel;
+        } else if (assessmentResult is Map) {
+          // Map-based result (for video processing)
+          painScale = assessmentResult['painScore'] ?? 5;
+          painLevel = assessmentResult['categoricalPainLevel'] ?? 'Moderate';
+        } else {
+          // Fallback
+          painScale = 5;
+          painLevel = 'Moderate';
+        }
+        
+        // Update UserAssess with pose detection results
+        UserAssess.painScale = painScale;
+        UserAssess.painLevel = painLevel;
+        
+        // Update AssessmentData
+        AssessmentData.painScale = painScale;
+        AssessmentData.hasPoseAssessment = true;
+        AssessmentData.poseAssessmentTimestamp = DateTime.now();
+        AssessmentData.poseAssessmentConfidence = result['confidence'] ?? 0.5;
+        
+        // Save to Hive
+        await UserAssess.saveToHive();
+        
+        debugPrint('Assessment data updated from pose detection: painScale=$painScale, painLevel=$painLevel');
+      }
+    } catch (e) {
+      debugPrint('Error updating assessment data from pose result: $e');
+    }
+  }
+
+  /// Show error dialog with suggestions
+  void _showErrorDialog(String errorMessage, List<String> suggestions, VoidCallback retryCallback) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Assessment Error'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(errorMessage),
+              if (suggestions.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text('Suggestions:', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                ...suggestions.map((suggestion) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text('• $suggestion', style: GoogleFonts.ptSans(fontSize: 14)),
+                )),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Skip'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                retryCallback();
+              },
+              child: Text('Retry'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _recordVideo() {
@@ -712,15 +874,8 @@ class _AssessUploadState extends State<AssessUpload> {
             _selectedVideo = File(video.path);
           });
           
-          // TODO: Trigger AI model processing for the selected video
-          _processCapturedMedia(_selectedVideo!);
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Video selected successfully!'),
-              backgroundColor: successColor,
-            ),
-          );
+          // Process video with pose detection and assessment
+          await _processVideoWithAssessment(_selectedVideo!);
         }
       }
     } catch (e) {
@@ -976,94 +1131,5 @@ class _AssessUploadState extends State<AssessUpload> {
     if (score <= 3) return Colors.green;
     if (score <= 6) return Colors.orange;
     return Colors.red;
-  }
-
-  // Save AI results to assessment data
-  Future<void> _saveAIResultsToAssessment(Map<String, dynamic> aiResults) async {
-    try {
-      // Update AssessmentData with AI results
-      AssessmentData.aiAnalysisResults = aiResults;
-      AssessmentData.hasAIAnalysis = true;
-      AssessmentData.aiAnalysisTimestamp = DateTime.now();
-      
-      // Update UserAssess with AI-derived pain scale if available
-      final painScore = aiResults['overallPainScore'] as double?;
-      if (painScore != null) {
-        // Convert 0-10 scale to 1-10 scale for consistency
-        final adjustedScore = (painScore + 1).clamp(1, 10).round();
-        UserAssess.painScale = adjustedScore;
-        
-        // Update pain level based on score
-        if (adjustedScore <= 3) {
-          UserAssess.painLevel = 'Mild';
-        } else if (adjustedScore <= 6) {
-          UserAssess.painLevel = 'Moderate';
-        } else {
-          UserAssess.painLevel = 'Severe';
-        }
-      }
-      
-      // Save to Hive
-      await UserAssess.saveToHive();
-      
-      debugPrint('AI results saved to assessment data');
-    } catch (e) {
-      debugPrint('Error saving AI results to assessment data: $e');
-    }
-  }
-
-  // Process captured media with AI models
-  Future<void> _processCapturedMedia(File mediaFile) async {
-    try {
-      debugPrint('Processing media file: ${mediaFile.path}');
-      
-      // Show processing indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Processing media with AI models...'),
-          backgroundColor: mainColor,
-          duration: Duration(seconds: 3),
-        ),
-      );
-
-      // Process with AI models
-      Map<String, dynamic> results;
-      if (mediaFile.path.toLowerCase().contains('.mp4') || 
-          mediaFile.path.toLowerCase().contains('.mov') ||
-          mediaFile.path.toLowerCase().contains('.avi')) {
-        results = await _aiService.processVideo(mediaFile);
-      } else {
-        results = await _aiService.processImage(mediaFile);
-      }
-
-      // Store results
-      setState(() {
-        _aiResults = results;
-      });
-
-      // Save AI results to assessment data
-      await _saveAIResultsToAssessment(results);
-
-      // Show success message
-      final painScore = results['overallPainScore'] as double? ?? 5.0;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('AI analysis complete! Pain level: ${painScore.toStringAsFixed(1)}/10'),
-          backgroundColor: successColor,
-          duration: Duration(seconds: 3),
-        ),
-      );
-
-      debugPrint('AI processing results: $results');
-    } catch (e) {
-      debugPrint('Error processing media: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error processing media: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 }

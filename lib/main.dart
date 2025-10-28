@@ -41,6 +41,9 @@ import 'widgets/responsive_loading_screen.dart';
 import 'core/animations.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
+// Web-only offline detector (safe on mobile via conditional import)
+import 'web/offline_stub.dart'
+  if (dart.library.html) 'web/offline_web.dart' as web_offline;
 import 'data/hive_models.dart';
 // Main Function: To run the app
 void main() async {
@@ -63,13 +66,21 @@ void main() async {
       } catch (_) {}
     }
 
-    // Initialize Firebase and Hive in parallel
+    // Detect web-offline early to avoid blocking on network-dependent init
+    final bool isWebOffline = kIsWeb && (web_offline.isWebOffline());
+
+    // Initialize Firebase and Hive in parallel (skip Firebase when web-offline)
     try {
       debugPrint('Main: Starting Firebase and Hive initialization...');
       if (kIsWeb) {
-        // On web, only initialize Firebase
-        await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-        debugPrint('Main: Firebase initialized successfully on web');
+        if (isWebOffline) {
+          // Web offline: initialize Hive for local storage, skip Firebase
+          await Hive.initFlutter();
+          debugPrint('Main: Web offline - initialized Hive only, skipped Firebase');
+        } else {
+          await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+          debugPrint('Main: Firebase initialized successfully on web');
+        }
       } else {
         // On mobile/desktop, initialize both Firebase and Hive
         await Future.wait([
@@ -115,12 +126,19 @@ void main() async {
     try {
       debugPrint('Main: Starting service initialization...');
       if (kIsWeb) {
-        // On web, only initialize Firebase-dependent services
-        await Future.wait([
-          DataSyncService.instance.initialize(),
-          AuthPersistenceService.instance.initialize(),
-        ]);
-        debugPrint('Main: Web services initialized successfully');
+        if (isWebOffline) {
+          // Start guest mode for fully offline operation
+          await GuestModeService.instance.initialize();
+          await GuestModeService.instance.startGuestSession();
+          debugPrint('Main: Web offline - guest mode initialized');
+        } else {
+          // On web online, initialize Firebase-dependent services
+          await Future.wait([
+            DataSyncService.instance.initialize(),
+            AuthPersistenceService.instance.initialize(),
+          ]);
+          debugPrint('Main: Web services initialized successfully');
+        }
       } else {
         // On mobile/desktop, initialize only lightweight services
         await Future.wait([
@@ -357,13 +375,40 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
-          titleTextStyle: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+          titleTextStyle: (kIsWeb && web_offline.isWebOffline())
+              ? const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                )
+              : GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
         ),
-        textTheme: TextTheme(
+        textTheme: (kIsWeb && web_offline.isWebOffline())
+            ? const TextTheme(
+                // Headings: Poppins
+                displayLarge: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w700),
+                displayMedium: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w700),
+                displaySmall: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w600),
+                headlineLarge: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w600),
+                headlineMedium: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w600),
+                headlineSmall: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w500),
+                titleLarge: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w600),
+                titleMedium: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w500),
+                titleSmall: TextStyle(fontFamily: 'Poppins', color: kTextHeading, fontWeight: FontWeight.w500),
+                // Body: PT Sans
+                bodyLarge: TextStyle(fontFamily: 'PT Sans', color: kTextNormal),
+                bodyMedium: TextStyle(fontFamily: 'PT Sans', color: kTextNormal),
+                bodySmall: TextStyle(fontFamily: 'PT Sans', color: kTextNormal),
+                labelLarge: TextStyle(fontFamily: 'PT Sans', color: kTextNormal),
+                labelMedium: TextStyle(fontFamily: 'PT Sans', color: kTextNormal),
+                labelSmall: TextStyle(fontFamily: 'PT Sans', color: kTextNormal),
+              )
+            : TextTheme(
           // Headings: Poppins
           displayLarge: GoogleFonts.poppins(
             color: kTextHeading,
@@ -409,7 +454,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           labelLarge: GoogleFonts.ptSans(color: kTextNormal),
           labelMedium: GoogleFonts.ptSans(color: kTextNormal),
           labelSmall: GoogleFonts.ptSans(color: kTextNormal),
-        ),
+              ),
         iconTheme: const IconThemeData(color: kSubColor),
       ),
       darkTheme: ThemeData(
@@ -425,48 +470,75 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
-          titleTextStyle: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+          titleTextStyle: (kIsWeb && web_offline.isWebOffline())
+              ? const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                )
+              : GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
         ),
-        textTheme: TextTheme(
-          displayLarge: GoogleFonts.poppins(color: Colors.white),
-          displayMedium: GoogleFonts.poppins(color: Colors.white),
-          displaySmall: GoogleFonts.poppins(color: Colors.white),
-          headlineLarge: GoogleFonts.poppins(color: Colors.white),
-          headlineMedium: GoogleFonts.poppins(color: Colors.white),
-          headlineSmall: GoogleFonts.poppins(color: Colors.white),
-          titleLarge: GoogleFonts.poppins(color: Colors.white),
-          titleMedium: GoogleFonts.poppins(color: Colors.white),
-          titleSmall: GoogleFonts.poppins(color: Colors.white),
-          bodyLarge: GoogleFonts.ptSans(color: Colors.white70),
-          bodyMedium: GoogleFonts.ptSans(color: Colors.white70),
-          bodySmall: GoogleFonts.ptSans(color: Colors.white70),
-          labelLarge: GoogleFonts.ptSans(color: Colors.white70),
-          labelMedium: GoogleFonts.ptSans(color: Colors.white70),
-          labelSmall: GoogleFonts.ptSans(color: Colors.white70),
-        ),
+        textTheme: (kIsWeb && web_offline.isWebOffline())
+            ? const TextTheme(
+                displayLarge: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                displayMedium: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                displaySmall: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                headlineLarge: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                headlineMedium: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                headlineSmall: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                titleLarge: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                titleMedium: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                titleSmall: TextStyle(fontFamily: 'Poppins', color: Colors.white),
+                bodyLarge: TextStyle(fontFamily: 'PT Sans', color: Colors.white70),
+                bodyMedium: TextStyle(fontFamily: 'PT Sans', color: Colors.white70),
+                bodySmall: TextStyle(fontFamily: 'PT Sans', color: Colors.white70),
+                labelLarge: TextStyle(fontFamily: 'PT Sans', color: Colors.white70),
+                labelMedium: TextStyle(fontFamily: 'PT Sans', color: Colors.white70),
+                labelSmall: TextStyle(fontFamily: 'PT Sans', color: Colors.white70),
+              )
+            : TextTheme(
+                displayLarge: GoogleFonts.poppins(color: Colors.white),
+                displayMedium: GoogleFonts.poppins(color: Colors.white),
+                displaySmall: GoogleFonts.poppins(color: Colors.white),
+                headlineLarge: GoogleFonts.poppins(color: Colors.white),
+                headlineMedium: GoogleFonts.poppins(color: Colors.white),
+                headlineSmall: GoogleFonts.poppins(color: Colors.white),
+                titleLarge: GoogleFonts.poppins(color: Colors.white),
+                titleMedium: GoogleFonts.poppins(color: Colors.white),
+                titleSmall: GoogleFonts.poppins(color: Colors.white),
+                bodyLarge: GoogleFonts.ptSans(color: Colors.white70),
+                bodyMedium: GoogleFonts.ptSans(color: Colors.white70),
+                bodySmall: GoogleFonts.ptSans(color: Colors.white70),
+                labelLarge: GoogleFonts.ptSans(color: Colors.white70),
+                labelMedium: GoogleFonts.ptSans(color: Colors.white70),
+                labelSmall: GoogleFonts.ptSans(color: Colors.white70),
+              ),
         iconTheme: const IconThemeData(color: kSubColor),
       ),
       themeMode: mode,
 
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const _LoadingScaffold(
-              title: 'Loading PocketPT',
-              subtitle: 'Please wait while we prepare your personalized experience',
-            );
-          }
-          if (snapshot.hasData) {
-            return const AuthWrapper();
-          }
-          return const LoginPage();
-        },
-      ),
+      home: (kIsWeb && web_offline.isWebOffline())
+          ? const DashboardPage() // Offline guest mode entry
+          : StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.authStateChanges(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const _LoadingScaffold(
+                    title: 'Loading PocketPT',
+                    subtitle: 'Please wait while we prepare your personalized experience',
+                  );
+                }
+                if (snapshot.hasData) {
+                  return const AuthWrapper();
+                }
+                return const LoginPage();
+              },
+            ),
           );
       },
     );

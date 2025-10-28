@@ -10,19 +10,29 @@ import 'c_painlevel.dart';
 /// Photo preview page for ROM assessment results
 /// Displays captured/uploaded photo with pose skeleton overlay and assessment results
 class AssessPhotoPreview extends StatefulWidget {
-  final File photoFile;
-  final AssessmentResult assessmentResult;
+  final File? photoFile;
+  final File? videoFile;
+  final dynamic assessmentResult; // Can be AssessmentResult or Map
   final Map<String, Offset> landmarks;
   final String muscleGroup;
   final String side;
+  final double? confidence;
+  final String? imageQuality;
+  final int? frameCount;
+  final int? totalFrames;
 
   const AssessPhotoPreview({
     super.key,
-    required this.photoFile,
+    this.photoFile,
+    this.videoFile,
     required this.assessmentResult,
     required this.landmarks,
     required this.muscleGroup,
     required this.side,
+    this.confidence,
+    this.imageQuality,
+    this.frameCount,
+    this.totalFrames,
   });
 
   @override
@@ -43,7 +53,15 @@ class _AssessPhotoPreviewState extends State<AssessPhotoPreview> {
   @override
   void initState() {
     super.initState();
-    _adjustedPainLevel = widget.assessmentResult.painScore.toDouble();
+    // Handle both AssessmentResult and Map types
+    if (widget.assessmentResult is AssessmentResult) {
+      _adjustedPainLevel = (widget.assessmentResult as AssessmentResult).painScore.toDouble();
+    } else if (widget.assessmentResult is Map) {
+      final result = widget.assessmentResult as Map<String, dynamic>;
+      _adjustedPainLevel = (result['painScore'] ?? 5).toDouble();
+    } else {
+      _adjustedPainLevel = 5.0; // Default fallback
+    }
   }
 
   @override
@@ -154,14 +172,62 @@ class _AssessPhotoPreviewState extends State<AssessPhotoPreview> {
                 borderRadius: BorderRadius.circular(21),
                 child: Stack(
                   children: [
-                    // Photo display
+                    // Media display (photo or video)
                     SizedBox(
                       width: double.infinity,
                       height: double.infinity,
-                      child: Image.file(
-                        widget.photoFile,
-                        fit: BoxFit.cover,
-                      ),
+                      child: widget.photoFile != null
+                          ? Image.file(
+                              widget.photoFile!,
+                              fit: BoxFit.cover,
+                            )
+                          : widget.videoFile != null
+                              ? Container(
+                                  color: Colors.black,
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.video_library,
+                                          size: 64,
+                                          color: Colors.white70,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'Video Assessment',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        if (widget.frameCount != null && widget.totalFrames != null) ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Processed ${widget.frameCount}/${widget.totalFrames} frames',
+                                            style: GoogleFonts.ptSans(
+                                              fontSize: 14,
+                                              color: Colors.white70,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  color: Colors.grey[300],
+                                  child: Center(
+                                    child: Text(
+                                      'No media available',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                     ),
                     
                     // Skeleton overlay
@@ -222,17 +288,27 @@ class _AssessPhotoPreviewState extends State<AssessPhotoPreview> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              widget.assessmentResult.displayLabel,
+                              _getAssessmentDisplayLabel(),
                               style: GoogleFonts.ptSans(
                                 fontSize: 12,
-                                color: widget.assessmentResult.displayColor,
+                                color: _getAssessmentDisplayColor(),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            if (widget.assessmentResult.additionalData['angle'] != null) ...[
+                            if (_getAssessmentAngle() != null) ...[
                               const SizedBox(height: 4),
                               Text(
-                                'Angle: ${widget.assessmentResult.additionalData['angle'].toStringAsFixed(1)}°',
+                                'Angle: ${_getAssessmentAngle()!.toStringAsFixed(1)}°',
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 11,
+                                  color: const Color(0xFF6B7280),
+                                ),
+                              ),
+                            ],
+                            if (widget.confidence != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Confidence: ${(widget.confidence! * 100).toStringAsFixed(0)}%',
                                 style: GoogleFonts.ptSans(
                                   fontSize: 11,
                                   color: const Color(0xFF6B7280),
@@ -448,6 +524,48 @@ class _AssessPhotoPreviewState extends State<AssessPhotoPreview> {
     if (_adjustedPainLevel <= 3) return "Low";
     if (_adjustedPainLevel <= 6) return "Moderate";
     return "Severe";
+  }
+
+  String _getAssessmentDisplayLabel() {
+    if (widget.assessmentResult is AssessmentResult) {
+      return (widget.assessmentResult as AssessmentResult).displayLabel;
+    } else if (widget.assessmentResult is Map) {
+      final result = widget.assessmentResult as Map<String, dynamic>;
+      return result['clinicalContext'] ?? result['overallROMStatus'] ?? 'Assessment Complete';
+    }
+    return 'Assessment Complete';
+  }
+
+  Color _getAssessmentDisplayColor() {
+    if (widget.assessmentResult is AssessmentResult) {
+      return (widget.assessmentResult as AssessmentResult).displayColor;
+    } else if (widget.assessmentResult is Map) {
+      final result = widget.assessmentResult as Map<String, dynamic>;
+      final romStatus = result['overallROMStatus'] ?? 'unknown';
+      switch (romStatus) {
+        case 'good':
+          return successColor;
+        case 'low':
+          return warningColor;
+        case 'moderate':
+        case 'severe':
+          return errorColor;
+        default:
+          return mainColor;
+      }
+    }
+    return mainColor;
+  }
+
+  double? _getAssessmentAngle() {
+    if (widget.assessmentResult is AssessmentResult) {
+      final result = widget.assessmentResult as AssessmentResult;
+      return result.additionalData['angle'] as double?;
+    } else if (widget.assessmentResult is Map) {
+      final result = widget.assessmentResult as Map<String, dynamic>;
+      return result['angle'] as double?;
+    }
+    return null;
   }
 
   void _retakePhoto() {

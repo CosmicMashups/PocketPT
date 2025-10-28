@@ -31,11 +31,36 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Get pain scale from assessment data
       final painScale = UserAssess.painScale;
-      ref.read(stretchingProvider.notifier).loadRoutinesForMuscleWithPainLevel(
-        widget.muscleGroup, painScale);
+      print('WarmupStretchingPage: Loading routines for ${widget.muscleGroup} with pain level $painScale');
+      
+      try {
+        await ref.read(stretchingProvider.notifier).loadRoutinesForMuscleWithPainLevel(
+          widget.muscleGroup, painScale);
+        
+        // Check if routines were loaded successfully
+        final stretchingState = ref.read(stretchingProvider);
+        if (stretchingState.currentWarmupRoutine == null) {
+          print('WarmupStretchingPage: No warmup routine found with pain level, trying without pain filtering');
+          await ref.read(stretchingProvider.notifier).loadRoutinesForMuscle(widget.muscleGroup);
+          
+          // Check again after fallback
+          final updatedState = ref.read(stretchingProvider);
+          if (updatedState.currentWarmupRoutine == null) {
+            print('WarmupStretchingPage: Still no warmup routine found, will show appropriate message');
+          }
+        }
+      } catch (e) {
+        print('WarmupStretchingPage: Error loading routines: $e');
+        // Try fallback without pain level filtering
+        try {
+          await ref.read(stretchingProvider.notifier).loadRoutinesForMuscle(widget.muscleGroup);
+        } catch (fallbackError) {
+          print('WarmupStretchingPage: Fallback also failed: $fallbackError');
+        }
+      }
     });
   }
 
@@ -82,7 +107,14 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
           final routine = stretchingState.currentWarmupRoutine;
 
           if (routine == null) {
-            return _buildLoadingState();
+            // Check if we're still loading or if no routines were found
+            final isLoading = stretchingState.currentWarmupRoutine == null && 
+                            stretchingState.currentCooldownRoutine == null;
+            if (isLoading) {
+              return _buildLoadingState();
+            } else {
+              return _buildNoRoutineState();
+            }
           }
 
           return SafeArea(
@@ -141,6 +173,49 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
     );
   }
 
+  Widget _buildNoRoutineState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.fitness_center_outlined,
+            size: 80,
+            color: mainColor.withOpacity(0.5),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No Warm-up Routine Available',
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: mainColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No warm-up routines were found for ${widget.muscleGroup}.\nYou can proceed directly to your exercise.',
+            style: GoogleFonts.ptSans(
+              fontSize: 16,
+              color: detailColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: () => _startExercise(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: mainColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            ),
+            child: const Text('Start Exercise'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeaderSection() {
     return Container(
       margin: const EdgeInsets.all(RecordingDesignSystem.spacingM),
@@ -156,8 +231,8 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
         ),
         borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusXL),
         border: Border.all(
-          color: RecordingDesignSystem.getBorderColor(context),
-          width: 1,
+          color: RecordingDesignSystem.warningColor.withOpacity(0.3),
+          width: 2,
         ),
         boxShadow: RecordingDesignSystem.medicalShadowLarge,
       ),
@@ -168,14 +243,14 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
               Container(
                 padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
                 decoration: BoxDecoration(
-                  gradient: RecordingDesignSystem.primaryGradient,
+                  gradient: RecordingDesignSystem.warningGradient,
                   borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
                   boxShadow: RecordingDesignSystem.medicalShadow,
                 ),
                 child: Icon(
                   RecordingDesignSystem.iconWarmup,
                   color: Colors.white,
-                  size: 24,
+                  size: 28,
                 ),
               ),
               const SizedBox(width: RecordingDesignSystem.spacingM),
@@ -183,18 +258,87 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Prepare Your Muscles",
-                      style: RecordingDesignSystem.headlineMedium.copyWith(
-                        color: RecordingDesignSystem.getTextPrimaryColor(context),
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            "Prepare Your Muscles",
+                            style: RecordingDesignSystem.headlineMedium.copyWith(
+                              color: RecordingDesignSystem.getTextPrimaryColor(context),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: RecordingDesignSystem.spacingM,
+                            vertical: RecordingDesignSystem.spacingXS,
+                          ),
+                          decoration: BoxDecoration(
+                            color: RecordingDesignSystem.warningColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                            border: Border.all(
+                              color: RecordingDesignSystem.warningColor.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                RecordingDesignSystem.iconTimer,
+                                color: RecordingDesignSystem.warningColor,
+                                size: 16,
+                              ),
+                              const SizedBox(width: RecordingDesignSystem.spacingXS),
+                              Text(
+                                '5-10 min',
+                                style: RecordingDesignSystem.bodySmall.copyWith(
+                                  color: RecordingDesignSystem.warningColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: RecordingDesignSystem.spacingXS),
                     Text(
                       "Warm-up stretching for ${widget.muscleGroup}",
                       style: RecordingDesignSystem.bodyMedium.copyWith(
                         color: RecordingDesignSystem.getTextSecondaryColor(context),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: RecordingDesignSystem.spacingS),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: RecordingDesignSystem.spacingM,
+                        vertical: RecordingDesignSystem.spacingXS,
+                      ),
+                      decoration: BoxDecoration(
+                        color: RecordingDesignSystem.successColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            RecordingDesignSystem.iconCheck,
+                            color: RecordingDesignSystem.successColor,
+                            size: 16,
+                          ),
+                          const SizedBox(width: RecordingDesignSystem.spacingXS),
+                          Text(
+                            'Injury Prevention',
+                            style: RecordingDesignSystem.bodySmall.copyWith(
+                              color: RecordingDesignSystem.successColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -225,6 +369,8 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
                       color: Colors.white,
                       fontWeight: FontWeight.w500,
                     ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
                 ),
               ],
@@ -274,8 +420,10 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
             children: [
               if (state.currentExerciseIndex > 0)
                 ElevatedButton.icon(

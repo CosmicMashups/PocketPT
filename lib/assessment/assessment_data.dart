@@ -25,6 +25,11 @@ class AssessmentData {
   static Map<String, dynamic>? aiAnalysisResults;
   static bool hasAIAnalysis = false;
   static DateTime? aiAnalysisTimestamp;
+  
+  // Pose Assessment fields
+  static bool hasPoseAssessment = false;
+  static DateTime? poseAssessmentTimestamp;
+  static double poseAssessmentConfidence = 0.0;
 
   /// Reset all assessment data to default values
   static void reset() {
@@ -49,6 +54,11 @@ class AssessmentData {
     aiAnalysisResults = null;
     hasAIAnalysis = false;
     aiAnalysisTimestamp = null;
+    
+    // Reset pose assessment fields
+    hasPoseAssessment = false;
+    poseAssessmentTimestamp = null;
+    poseAssessmentConfidence = 0.0;
   }
 
   /// Check if assessment is complete
@@ -92,6 +102,12 @@ class AssessmentData {
       'musclePainLevels': musclePainLevels,
       'musclePainCategories': musclePainCategories,
       'muscleStillPainful': muscleStillPainful,
+      'aiAnalysisResults': aiAnalysisResults,
+      'hasAIAnalysis': hasAIAnalysis,
+      'aiAnalysisTimestamp': aiAnalysisTimestamp?.millisecondsSinceEpoch,
+      'hasPoseAssessment': hasPoseAssessment,
+      'poseAssessmentTimestamp': poseAssessmentTimestamp?.millisecondsSinceEpoch,
+      'poseAssessmentConfidence': poseAssessmentConfidence,
       'isComplete': isComplete,
       'progressPercentage': progressPercentage,
     };
@@ -113,6 +129,12 @@ class AssessmentData {
     print('  Muscle Pain Levels: $musclePainLevels');
     print('  Muscle Pain Categories: $musclePainCategories');
     print('  Muscle Still Painful: $muscleStillPainful');
+    print('  AI Analysis Results: $aiAnalysisResults');
+    print('  Has AI Analysis: $hasAIAnalysis');
+    print('  AI Analysis Timestamp: $aiAnalysisTimestamp');
+    print('  Has Pose Assessment: $hasPoseAssessment');
+    print('  Pose Assessment Timestamp: $poseAssessmentTimestamp');
+    print('  Pose Assessment Confidence: $poseAssessmentConfidence');
     print('  Is Complete: $isComplete');
     print('  Progress: ${(progressPercentage * 100).toStringAsFixed(1)}%');
   }

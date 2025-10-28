@@ -30,12 +30,17 @@ Execute the following commands manually:
 
 1. Build the web application:
    ```bash
-   flutter build web --debug
+   flutter build web --debug --base-href /pocketpt/
    ```
 
-2. Add web build files to git (required due to .gitignore):
+2. Add web build files to git (required due to .gitignore) and create SPA safety files:
    ```bash
+   # Prevent Jekyll processing and enable single-page routing fallback
+   echo > build/web/.nojekyll
+   cp build/web/index.html build/web/404.html
+
    git add -f build/web/
+   git commit -m "chore(deploy): web build" --no-verify
    ```
 
 3. Deploy using git subtree:
@@ -43,6 +48,8 @@ Execute the following commands manually:
    git subtree split --prefix build/web -b gh-pages-temp
    git push origin gh-pages-temp:gh-pages --force
    git branch -D gh-pages-temp
+   # Optionally rewind the temporary commit locally
+   git reset --soft HEAD~1 && git restore --staged build/web
    ```
 
 ## Important: Base Href Configuration
@@ -97,8 +104,8 @@ build/web/
 - Verify that all assets are properly referenced
 
 ### Git Issues
-- **"The paths are ignored by .gitignore"**: Use `git add -f build/web/` to force add the web build files
-- **"build/web is ignored"**: This is expected behavior. The deployment scripts handle this automatically with `git add -f`
+- **"The paths are ignored by .gitignore"**: Use `git add -f build/web/` to force add the web build files. The repo ignores `/build` by default but explicitly allows `/build/web`; however, some Git versions still require `-f` when the parent is ignored.
+- **Missing files on GitHub Pages**: Ensure `.nojekyll` and `404.html` are present in `build/web` before deploying so assets and SPA routes work.
 - **Subtree split fails**: Ensure the web build exists and contains files before running the subtree command
 
 ### Deployment Issues

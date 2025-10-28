@@ -64,6 +64,22 @@ class PainScaleMapping {
     }
   }
   
+  /// Map ROM level to categorical pain level (Low/Moderate/Severe)
+  /// Uses the same logic as c_painlevel.dart for consistency
+  static String mapToCategoricalPainLevel(String romLevel) {
+    switch (romLevel) {
+      case 'severe':
+        return 'Severe'; // Severe limitation/pain
+      case 'moderate':
+        return 'Moderate'; // Moderate limitation/pain
+      case 'low':
+      case 'good':
+        return 'Low'; // Low limitation/pain or good ROM
+      default:
+        return 'Moderate'; // Default moderate when ROM level is unknown
+    }
+  }
+  
   static Color getScoreColor(int score) {
     if (score <= 3) return Colors.green;      // Good (0-3)
     if (score <= 7) return Colors.orange;     // Moderate (4-7)

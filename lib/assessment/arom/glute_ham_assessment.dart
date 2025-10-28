@@ -43,6 +43,7 @@ class GluteHamAssessment {
 
     final romLevel = _evaluateGlutealROM(angle);
     final painScore = PainScaleMapping.mapToPainScale(romLevel);
+    final categoricalPainLevel = PainScaleMapping.mapToCategoricalPainLevel(romLevel);
     final displayLabel = _getGlutealROMLabel(angle, romLevel);
     final displayColor = PainScaleMapping.getScoreColor(painScore);
     final clinicalContext = _getGlutealClinicalContext(romLevel);
@@ -50,6 +51,7 @@ class GluteHamAssessment {
     return AssessmentResult(
       romLevel: romLevel,
       painScore: painScore,
+      categoricalPainLevel: categoricalPainLevel,
       displayLabel: displayLabel,
       displayColor: displayColor,
       clinicalContext: clinicalContext,
@@ -71,6 +73,7 @@ class GluteHamAssessment {
 
     final romLevel = _evaluateHamstringROM(angle);
     final painScore = PainScaleMapping.mapToPainScale(romLevel);
+    final categoricalPainLevel = PainScaleMapping.mapToCategoricalPainLevel(romLevel);
     final displayLabel = _getHamstringROMLabel(angle, romLevel);
     final displayColor = PainScaleMapping.getScoreColor(painScore);
     final clinicalContext = _getHamstringClinicalContext(romLevel);
@@ -78,6 +81,7 @@ class GluteHamAssessment {
     return AssessmentResult(
       romLevel: romLevel,
       painScore: painScore,
+      categoricalPainLevel: categoricalPainLevel,
       displayLabel: displayLabel,
       displayColor: displayColor,
       clinicalContext: clinicalContext,

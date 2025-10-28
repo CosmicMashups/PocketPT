@@ -208,7 +208,7 @@ class _AssessSummaryState extends State<AssessSummary> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        "Clinical Assessment Summary",
+                        "Assessment Summary",
                         style: GoogleFonts.ptSans(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,

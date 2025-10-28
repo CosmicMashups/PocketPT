@@ -169,22 +169,25 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
                 });
               },
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF8B2E2E).withOpacity(0.2),
-                  width: 1,
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFF8B2E2E).withOpacity(0.2),
+                    width: 1,
+                  ),
                 ),
-              ),
-              child: Text(
-                DateFormat('MMM yyyy').format(selectedDate),
-                style: TextStyle(
-                  color: const Color(0xFF8B2E2E),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                child: Text(
+                  DateFormat('MMM yyyy').format(selectedDate),
+                  style: TextStyle(
+                    color: const Color(0xFF8B2E2E),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
@@ -209,28 +212,38 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
 
   Widget _buildWeekdayHeader(BuildContext context, bool isDark) {
     const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: weekdays
-          .map((day) => Container(
-                width: 40,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white10 : const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Center(
-                  child: Text(
-                    day,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white70 : const Color(0xFF6B7280),
-                      fontSize: 12,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate optimal cell size based on available width
+        // Account for 6 gaps between 7 columns (spacing: 4)
+        final availableWidth = constraints.maxWidth;
+        final cellWidth = (availableWidth - (6 * 4)) / 7;
+        final cellSize = cellWidth.clamp(32.0, 60.0); // Min 32px, Max 60px
+        
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: weekdays
+              .map((day) => Container(
+                    width: cellSize,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                  ),
-                ),
-              ))
-          .toList(),
+                    child: Center(
+                      child: Text(
+                        day,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+                          fontSize: cellSize > 45 ? 12 : 10,
+                        ),
+                      ),
+                    ),
+                  ))
+              .toList(),
+        );
+      },
     );
   }
 
@@ -242,104 +255,139 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
     DateTime selectedDate,
     List<ExerciseRecord> exerciseRecords,
   ) {
-    final cells = <Widget>[];
-    final offset = firstWeekday % 7;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate optimal cell size based on available width
+        // Account for 6 gaps between 7 columns (spacing: 4)
+        final availableWidth = constraints.maxWidth;
+        final cellWidth = (availableWidth - (6 * 4)) / 7;
+        final cellSize = cellWidth.clamp(32.0, 60.0); // Min 32px, Max 60px
+        
+        final rows = <Widget>[];
+        final offset = firstWeekday % 7;
+        
+        // Build calendar rows
+        var currentDay = 1;
+        while (currentDay <= daysInMonth) {
+          final rowCells = <Widget>[];
+          
+          // Add cells for this week
+          for (var i = 0; i < 7; i++) {
+            if (i < offset && currentDay == 1) {
+              // Empty cell before first day of month
+              rowCells.add(SizedBox(width: cellSize, height: cellSize));
+            } else if (currentDay <= daysInMonth) {
+              // Day cell
+              final date = DateTime(selectedDate.year, selectedDate.month, currentDay);
+              
+              // Check if there are exercises on this date
+              final hasExercises = exerciseRecords.any((record) => 
+                  record.date.year == date.year &&
+                  record.date.month == date.month &&
+                  record.date.day == date.day);
 
-    // Add empty cells for days before the first of the month
-    for (var i = 0; i < offset; i++) {
-      cells.add(const SizedBox(width: 40, height: 40));
-    }
+              final isToday = date.year == DateTime.now().year &&
+                  date.month == DateTime.now().month &&
+                  date.day == DateTime.now().day;
 
-    // Add cells for each day of the month
-    for (var day = 1; day <= daysInMonth; day++) {
-      final date = DateTime(selectedDate.year, selectedDate.month, day);
-      
-      // Check if there are exercises on this date using the new data
-      final hasExercises = exerciseRecords.any((record) => 
-          record.date.year == date.year &&
-          record.date.month == date.month &&
-          record.date.day == date.day);
+              // Count completed and partial exercises for this date
+              final completedExercises = exerciseRecords.where((record) => 
+                  record.date.year == date.year &&
+                  record.date.month == date.month &&
+                  record.date.day == date.day &&
+                  record.status.toLowerCase() == 'completed').length;
 
-      final isToday = date.year == DateTime.now().year &&
-          date.month == DateTime.now().month &&
-          date.day == DateTime.now().day;
+              final partialExercises = exerciseRecords.where((record) => 
+                  record.date.year == date.year &&
+                  record.date.month == date.month &&
+                  record.date.day == date.day &&
+                  record.status.toLowerCase() == 'partial').length;
 
-      // Count completed exercises for this date
-      final completedExercises = exerciseRecords.where((record) => 
-          record.date.year == date.year &&
-          record.date.month == date.month &&
-          record.date.day == date.day &&
-          record.status.toLowerCase() == 'completed').length;
+              final totalExercises = exerciseRecords.where((record) => 
+                  record.date.year == date.year &&
+                  record.date.month == date.month &&
+                  record.date.day == date.day).length;
 
-      final totalExercises = exerciseRecords.where((record) => 
-          record.date.year == date.year &&
-          record.date.month == date.month &&
-          record.date.day == date.day).length;
-
-      cells.add(
-        GestureDetector(
-          onTap: () {
-            if (hasExercises) {
-              _showDayDetails(context, date, exerciseRecords, isDark);
+              rowCells.add(
+                GestureDetector(
+                  onTap: () {
+                    if (hasExercises) {
+                      _showDayDetails(context, date, exerciseRecords, isDark);
+                    }
+                  },
+                  child: Container(
+                    width: cellSize,
+                    height: cellSize,
+                    decoration: BoxDecoration(
+                      color: _getDayColor(isToday, hasExercises, completedExercises, partialExercises, totalExercises),
+                      borderRadius: BorderRadius.circular(8),
+                      border: isToday
+                          ? Border.all(color: const Color(0xFF8B2E2E), width: 2)
+                          : null,
+                      boxShadow: hasExercises ? [
+                        BoxShadow(
+                          color: const Color(0xFF8B2E2E).withOpacity(0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ] : null,
+                    ),
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: Text(
+                            currentDay.toString(),
+                            style: TextStyle(
+                              color: _getDayTextColor(isToday, hasExercises, isDark),
+                              fontWeight: hasExercises ? FontWeight.w700 : FontWeight.w500,
+                              fontSize: cellSize > 45 ? 14 : 12,
+                            ),
+                          ),
+                        ),
+                        // Show circle indicators for exercise completion status
+                        if (hasExercises && (completedExercises > 0 || partialExercises > 0))
+                          Positioned(
+                            top: 2,
+                            right: 2,
+                            child: Container(
+                              width: cellSize > 45 ? 8 : 6,
+                              height: cellSize > 45 ? 8 : 6,
+                              decoration: BoxDecoration(
+                                color: completedExercises > 0 
+                                    ? const Color(0xFF10B981) // Green for completed
+                                    : const Color(0xFFF59E0B), // Orange for partial
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+              currentDay++;
+            } else {
+              // Empty cell after last day of month
+              rowCells.add(SizedBox(width: cellSize, height: cellSize));
             }
-          },
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _getDayColor(isToday, hasExercises, completedExercises, totalExercises),
-              borderRadius: BorderRadius.circular(8),
-              border: isToday
-                  ? Border.all(color: const Color(0xFF8B2E2E), width: 2)
-                  : null,
-              boxShadow: hasExercises ? [
-                BoxShadow(
-                  color: const Color(0xFF8B2E2E).withOpacity(0.2),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ] : null,
+          }
+          
+          rows.add(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: rowCells,
             ),
-            child: Stack(
-              children: [
-                Center(
-                  child: Text(
-                    day.toString(),
-                    style: TextStyle(
-                      color: _getDayTextColor(isToday, hasExercises, isDark),
-                      fontWeight: hasExercises ? FontWeight.w700 : FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                if (hasExercises && completedExercises > 0)
-                  Positioned(
-                    top: 2,
-                    right: 2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: cells,
+          );
+        }
+        
+        return Column(
+          children: rows,
+        );
+      },
     );
   }
 
-  Color _getDayColor(bool isToday, bool hasExercises, int completedExercises, int totalExercises) {
+  Color _getDayColor(bool isToday, bool hasExercises, int completedExercises, int partialExercises, int totalExercises) {
     if (isToday) {
       return const Color(0xFF8B2E2E).withOpacity(0.1);
     }
@@ -348,9 +396,11 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
       if (completedExercises == totalExercises) {
         return const Color(0xFF10B981).withOpacity(0.2); // All completed - green
       } else if (completedExercises > 0) {
-        return const Color(0xFFF59E0B).withOpacity(0.2); // Partially completed - orange
+        return const Color(0xFF10B981).withOpacity(0.15); // Some completed - light green
+      } else if (partialExercises > 0) {
+        return const Color(0xFFF59E0B).withOpacity(0.2); // Only partial - orange
       } else {
-        return const Color(0xFFEF4444).withOpacity(0.2); // No completed - red
+        return const Color(0xFFEF4444).withOpacity(0.2); // No completed or partial - red
       }
     }
     

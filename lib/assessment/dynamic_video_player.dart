@@ -39,10 +39,14 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
   bool _hasError = false;
   String? _errorMessage;
   bool _isYouTubeShort = false;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
 
   @override
   void initState() {
     super.initState();
+    // Test video ID extraction for debugging
+    MuscleVideoMapping.testVideoIdExtraction();
     _initializePlayer();
   }
 
@@ -63,21 +67,28 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
       });
 
       final videoUrl = MuscleVideoMapping.getVideoUrl(widget.muscleName).trim();
+      print('DynamicVideoPlayer: Loading video for muscle: ${widget.muscleName}');
+      print('DynamicVideoPlayer: Video URL: $videoUrl');
       
       // Detect if this is a YouTube Short based on URL
       _isYouTubeShort = _detectYouTubeShort(videoUrl);
+      print('DynamicVideoPlayer: Is YouTube Short: $_isYouTubeShort');
       
       // Prefer the package's robust parser (handles Shorts and multiple formats),
       // then fall back to our extractor if needed.
       String? videoId = YoutubePlayerController.convertUrlToId(videoUrl);
+      print('DynamicVideoPlayer: Package parser video ID: $videoId');
       
       if (videoId == null || videoId.isEmpty) {
         videoId = MuscleVideoMapping.extractVideoId(videoUrl);
+        print('DynamicVideoPlayer: Custom extractor video ID: $videoId');
       }
       
       if (videoId == null || videoId.isEmpty) {
         throw Exception('Invalid YouTube URL or video ID: $videoUrl');
       }
+      
+      print('DynamicVideoPlayer: Final video ID: $videoId');
 
       _controller = YoutubePlayerController.fromVideoId(
         videoId: videoId,
@@ -90,8 +101,35 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
         ),
       );
       
+      // Add listener for player state changes
+      _controller.listen((event) {
+        print('DynamicVideoPlayer: Player event: ${event.runtimeType}');
+        print('DynamicVideoPlayer: Player state: ${event.playerState}');
+        
+        // Check for error states
+        if (event.playerState == PlayerState.unknown) {
+          print('DynamicVideoPlayer: Player error detected');
+          if (mounted) {
+            setState(() {
+              _hasError = true;
+              _errorMessage = 'Video unavailable - Error code 15';
+              _isLoading = false;
+            });
+            // Try fallback video after a short delay if we haven't exceeded retry limit
+            if (_retryCount < _maxRetries) {
+              Future.delayed(const Duration(seconds: 2), () {
+                if (mounted) {
+                  _retryCount++;
+                  _tryFallbackVideo();
+                }
+              });
+            }
+          }
+        }
+      });
+      
       // Add a small delay to ensure the controller is properly initialized
-      Future.delayed(const Duration(milliseconds: 100), () {
+      Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -110,7 +148,92 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
 
 
   void _retryLoad() {
-    _initializePlayer();
+    if (_retryCount < _maxRetries) {
+      _retryCount++;
+      print('DynamicVideoPlayer: Retry attempt $_retryCount of $_maxRetries');
+      // Try with a different video URL as fallback
+      _tryFallbackVideo();
+    } else {
+      print('DynamicVideoPlayer: Max retries reached, showing error');
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Unable to load video after multiple attempts. Please check your internet connection.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _tryFallbackVideo() {
+    try {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+        _errorMessage = null;
+      });
+
+      // Use the default video URL as fallback
+      final fallbackUrl = MuscleVideoMapping.defaultVideoUrl;
+      print('DynamicVideoPlayer: Trying fallback video: $fallbackUrl');
+      
+      // Detect if this is a YouTube Short based on URL
+      _isYouTubeShort = _detectYouTubeShort(fallbackUrl);
+      
+      // Extract video ID
+      String? videoId = YoutubePlayerController.convertUrlToId(fallbackUrl);
+      if (videoId == null || videoId.isEmpty) {
+        videoId = MuscleVideoMapping.extractVideoId(fallbackUrl);
+      }
+      
+      if (videoId == null || videoId.isEmpty) {
+        throw Exception('Invalid fallback video ID: $fallbackUrl');
+      }
+      
+      print('DynamicVideoPlayer: Fallback video ID: $videoId');
+
+      _controller = YoutubePlayerController.fromVideoId(
+        videoId: videoId,
+        autoPlay: widget.autoPlay,
+        params: YoutubePlayerParams(
+          showControls: widget.showControls,
+          mute: false,
+          loop: false,
+          enableCaption: true,
+        ),
+      );
+      
+      // Add listener for player state changes
+      _controller.listen((event) {
+        print('DynamicVideoPlayer: Fallback player state: ${event.playerState}');
+        
+        // Check for error states
+        if (event.playerState == PlayerState.unknown) {
+          print('DynamicVideoPlayer: Fallback video also failed');
+          if (mounted) {
+            setState(() {
+              _hasError = true;
+              _errorMessage = 'All videos unavailable. Please try again later.';
+              _isLoading = false;
+            });
+          }
+        }
+      });
+      
+      // Add a small delay to ensure the controller is properly initialized
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      });
+      
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Failed to load fallback video: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
   }
 
   /// Detect if the URL is a YouTube Short
@@ -120,6 +243,21 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
       return uri.host.contains('youtube.com') && uri.path.contains('/shorts/');
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Get user-friendly error message
+  String _getUserFriendlyErrorMessage() {
+    if (_errorMessage == null) return 'Failed to load video';
+    
+    if (_errorMessage!.contains('Error code 15')) {
+      return 'This video is unavailable. Trying alternative video...';
+    } else if (_errorMessage!.contains('Playback OD')) {
+      return 'Video playback error. Please try again later.';
+    } else if (_errorMessage!.contains('Please try again later')) {
+      return 'Video temporarily unavailable. Please try again later.';
+    } else {
+      return _errorMessage!;
     }
   }
 
@@ -204,7 +342,7 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
           ),
           const SizedBox(height: 8),
           Text(
-            _errorMessage ?? 'Failed to load video',
+            _getUserFriendlyErrorMessage(),
             style: GoogleFonts.ptSans(
               fontSize: 12,
               color: const Color(0xFF6B7280),
@@ -287,12 +425,16 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
   double _calculateVideoHeight(double availableWidth) {
     if (_isYouTubeShort) {
       // For YouTube Shorts, use 9:16 aspect ratio (portrait)
-      // But limit the width to a reasonable size for mobile
-      final maxWidth = availableWidth > 400 ? 400.0 : availableWidth;
-      return maxWidth * (16 / 9);
+      // Limit the width to ensure good mobile experience
+      final maxWidth = availableWidth > 350 ? 350.0 : availableWidth;
+      final calculatedHeight = maxWidth * (16 / 9);
+      print('DynamicVideoPlayer: Shorts - width: $maxWidth, height: $calculatedHeight (9:16 aspect ratio)');
+      return calculatedHeight;
     } else {
       // For normal videos, use 16:9 aspect ratio (landscape)
-      return availableWidth * (9 / 16);
+      final calculatedHeight = availableWidth * (9 / 16);
+      print('DynamicVideoPlayer: Regular video - width: $availableWidth, height: $calculatedHeight (16:9 aspect ratio)');
+      return calculatedHeight;
     }
   }
 }

@@ -121,17 +121,31 @@ class StretchingNotifier extends StateNotifier<StretchingState> {
       print('StretchingProvider: Loaded warmup routine: ${warmupRoutine != null}');
       print('StretchingProvider: Loaded cooldown routine: ${cooldownRoutine != null}');
       
+      // If no routines found with pain level, try without pain level filtering
+      if (warmupRoutine == null && cooldownRoutine == null) {
+        print('StretchingProvider: No routines found with pain level, trying without pain filtering');
+        await loadRoutinesForMuscle(muscleGroup);
+        return;
+      }
+      
       state = state.copyWith(
         currentWarmupRoutine: warmupRoutine,
         currentCooldownRoutine: cooldownRoutine,
       );
     } catch (e) {
       print('StretchingProvider: Error loading routines for $muscleGroup with pain level $painScale - $e');
-      // Set empty routines to prevent infinite loading
-      state = state.copyWith(
-        currentWarmupRoutine: null,
-        currentCooldownRoutine: null,
-      );
+      // Try fallback without pain level filtering
+      try {
+        print('StretchingProvider: Attempting fallback to load routines without pain level filtering');
+        await loadRoutinesForMuscle(muscleGroup);
+      } catch (fallbackError) {
+        print('StretchingProvider: Fallback also failed - $fallbackError');
+        // Set empty routines to prevent infinite loading
+        state = state.copyWith(
+          currentWarmupRoutine: null,
+          currentCooldownRoutine: null,
+        );
+      }
     }
   }
 

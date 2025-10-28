@@ -29,6 +29,7 @@ class BicepsAssessment {
 
     final romLevel = _evaluateROM(angle);
     final painScore = PainScaleMapping.mapToPainScale(romLevel);
+    final categoricalPainLevel = PainScaleMapping.mapToCategoricalPainLevel(romLevel);
     final displayLabel = _getROMLabel(angle, romLevel);
     final displayColor = PainScaleMapping.getScoreColor(painScore);
     final clinicalContext = _getClinicalContext(romLevel);
@@ -36,6 +37,7 @@ class BicepsAssessment {
     return AssessmentResult(
       romLevel: romLevel,
       painScore: painScore,
+      categoricalPainLevel: categoricalPainLevel,
       displayLabel: displayLabel,
       displayColor: displayColor,
       clinicalContext: clinicalContext,

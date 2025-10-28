@@ -464,58 +464,164 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                 ),
                 const SizedBox(height: 16),
 
-                // Camera Preview with 9:16 aspect ratio
-                Container(
-                  width: double.infinity,
-                  height: MediaQuery.of(context).size.width * (16 / 9),
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.4,
-                  ),
-                  child: _buildCameraPreview(isDark),
+                // Camera Preview with proper 9:16 aspect ratio and responsive sizing
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Calculate available width considering padding (16px on each side)
+                    final availableWidth = constraints.maxWidth - 32; // 16px padding on each side
+                    
+                    // Calculate height based on 9:16 aspect ratio
+                    final cameraHeight = availableWidth * (16 / 9);
+                    
+                    // Apply maximum height constraint (40% of screen height)
+                    final maxHeight = MediaQuery.of(context).size.height * 0.4;
+                    final finalHeight = cameraHeight > maxHeight ? maxHeight : cameraHeight;
+                    
+                    // Calculate final width to maintain aspect ratio if height was constrained
+                    final finalWidth = finalHeight * (9 / 16);
+                    
+                    return Center(
+                      child: Container(
+                        width: finalWidth,
+                        height: finalHeight,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+                          boxShadow: RecordingDesignSystem.shadowLarge,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _buildCameraPreview(isDark),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 10),
 
-                // Enhanced Timer Display
+                // Enhanced Timer Display with decorative elements
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: RecordingDesignSystem.spacingL,
-                    vertical: RecordingDesignSystem.spacingM,
-                  ),
+                  padding: const EdgeInsets.all(RecordingDesignSystem.spacingL),
                   decoration: BoxDecoration(
-                    color: RecordingDesignSystem.getSurfaceColor(context),
+                    gradient: LinearGradient(
+                      colors: [
+                        RecordingDesignSystem.getSurfaceColor(context),
+                        RecordingDesignSystem.getSurfaceColor(context).withOpacity(0.8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
                     border: Border.all(
-                      color: RecordingDesignSystem.primaryMedical.withOpacity(0.2),
+                      color: RecordingDesignSystem.primaryMedical.withOpacity(0.3),
                       width: 2,
                     ),
-                    boxShadow: RecordingDesignSystem.medicalShadow,
+                    boxShadow: RecordingDesignSystem.medicalShadowLarge,
                   ),
-                  child: StreamBuilder<Duration>(
-                    stream: StopwatchService.instance.timeStream,
-                    initialData: StopwatchService.instance.currentElapsed,
-                    builder: (context, snapshot) {
-                      final duration = snapshot.data!;
-                      final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-                      final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-                      return Text(
-                        '$minutes:$seconds',
-                        style: RecordingDesignSystem.displayMedium.copyWith(
-                          color: RecordingDesignSystem.primaryMedical,
-                          letterSpacing: 1.2,
+                  child: Column(
+                    children: [
+                      // Timer header with icon
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
+                            decoration: BoxDecoration(
+                              gradient: RecordingDesignSystem.primaryGradient,
+                              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                              boxShadow: RecordingDesignSystem.shadowMedium,
+                            ),
+                            child: Icon(
+                              RecordingDesignSystem.iconTimer,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: RecordingDesignSystem.spacingM),
+                          Text(
+                            'Exercise Timer',
+                            style: RecordingDesignSystem.titleMedium.copyWith(
+                              color: RecordingDesignSystem.getTextPrimaryColor(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: RecordingDesignSystem.spacingM),
+                      // Timer display
+                      StreamBuilder<Duration>(
+                        stream: StopwatchService.instance.timeStream,
+                        initialData: StopwatchService.instance.currentElapsed,
+                        builder: (context, snapshot) {
+                          final duration = snapshot.data!;
+                          final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+                          final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: RecordingDesignSystem.spacingL,
+                              vertical: RecordingDesignSystem.spacingM,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: RecordingDesignSystem.primaryGradient,
+                              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                              boxShadow: RecordingDesignSystem.medicalShadow,
+                            ),
+                            child: Text(
+                              '$minutes:$seconds',
+                              style: RecordingDesignSystem.displayMedium.copyWith(
+                                color: Colors.white,
+                                letterSpacing: 2.0,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: RecordingDesignSystem.spacingS),
+                      // Status indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: RecordingDesignSystem.spacingM,
+                          vertical: RecordingDesignSystem.spacingXS,
                         ),
-                      );
-                    },
+                        decoration: BoxDecoration(
+                          color: RecordingDesignSystem.successColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                          border: Border.all(
+                            color: RecordingDesignSystem.successColor.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              RecordingDesignSystem.iconPlay,
+                              color: RecordingDesignSystem.successColor,
+                              size: 16,
+                            ),
+                            const SizedBox(width: RecordingDesignSystem.spacingXS),
+                            Text(
+                              'Recording Active',
+                              style: RecordingDesignSystem.bodySmall.copyWith(
+                                color: RecordingDesignSystem.successColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
 
-                // Buttons with responsive layout
+                // Enhanced Control Buttons with decorative elements
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildCustomButton(
-                      icon: Icons.arrow_back,
+                    _buildEnhancedCustomButton(
+                      icon: RecordingDesignSystem.iconBack,
                       label: 'Back',
+                      gradient: RecordingDesignSystem.warningGradient,
+                      accentColor: RecordingDesignSystem.warningColor,
                       onTap: () async {
                         final rehabPlans = UserRehabilitation.instance.rehabPlans;
                         final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
@@ -571,8 +677,10 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                         }
                       },
                     ),
-                    _buildCircleButton(
-                      icon: Icons.pause,
+                    _buildEnhancedCircleButton(
+                      icon: RecordingDesignSystem.iconPause,
+                      gradient: RecordingDesignSystem.errorGradient,
+                      accentColor: RecordingDesignSystem.errorColor,
                       onTap: () async {
                           // Record current exercise as partial when pausing
                           try {
@@ -612,9 +720,11 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                         );
                       },
                     ),
-                    _buildCustomButton(
-                      icon: Icons.arrow_forward,
+                    _buildEnhancedCustomButton(
+                      icon: RecordingDesignSystem.iconForward,
                       label: (currentIndex + 1) < (rehabPlan?.exerciseReferences.length ?? 0) ? 'Proceed' : 'Finish',
+                      gradient: RecordingDesignSystem.successGradient,
+                      accentColor: RecordingDesignSystem.successColor,
                       onTap: () async {
                         final rehabPlans = UserRehabilitation.instance.rehabPlans;
                         final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
@@ -793,18 +903,24 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     );
   }
 
-  Widget _buildCustomButton({required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildEnhancedCustomButton({
+    required IconData icon, 
+    required String label, 
+    required LinearGradient gradient,
+    required Color accentColor,
+    required VoidCallback onTap
+  }) {
     return Flexible(
       child: Container(
         constraints: const BoxConstraints(minWidth: 100, maxWidth: 150),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [RecordingDesignSystem.primaryMedical, RecordingDesignSystem.secondaryMedical],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
+          gradient: gradient,
           borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
           boxShadow: RecordingDesignSystem.medicalShadow,
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+            width: 1,
+          ),
         ),
         child: Material(
           color: Colors.transparent,
@@ -816,21 +932,49 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                 horizontal: RecordingDesignSystem.spacingM,
                 vertical: RecordingDesignSystem.spacingM,
               ),
-              child: Row(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, color: Colors.white, size: 20),
-                  const SizedBox(width: RecordingDesignSystem.spacingS),
-                  Flexible(
-                    child: Text(
-                      label,
-                      style: RecordingDesignSystem.labelLarge.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(RecordingDesignSystem.spacingXS),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 18),
                       ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: RecordingDesignSystem.spacingS),
+                      Flexible(
+                        child: Text(
+                          label,
+                          style: RecordingDesignSystem.labelLarge.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: RecordingDesignSystem.spacingXS),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: RecordingDesignSystem.spacingS,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
+                    ),
+                    child: Icon(
+                      RecordingDesignSystem.iconInfo,
+                      color: Colors.white70,
+                      size: 12,
                     ),
                   ),
                 ],
@@ -842,32 +986,51 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     );
   }
 
-  Widget _buildCircleButton({required IconData icon, required VoidCallback onTap}) {
+  Widget _buildEnhancedCircleButton({
+    required IconData icon, 
+    required LinearGradient gradient,
+    required Color accentColor,
+    required VoidCallback onTap
+  }) {
     return Container(
-      width: 60,
-      height: 60,
+      width: 70,
+      height: 70,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [RecordingDesignSystem.successColor, const Color(0xFF34D399)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: gradient,
         boxShadow: [
           BoxShadow(
-            color: RecordingDesignSystem.successColor.withOpacity(0.3),
+            color: accentColor.withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
             spreadRadius: 1,
           ),
         ],
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 2,
+        ),
       ),
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
         child: InkWell(
           onTap: onTap,
-          child: Icon(icon, size: 28, color: Colors.white),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 28, color: Colors.white),
+              const SizedBox(height: 2),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.7),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

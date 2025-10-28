@@ -49,6 +49,7 @@ class BTrunkAssessment {
 
     final romLevel = _evaluateTrunkROM(angle);
     final painScore = PainScaleMapping.mapToPainScale(romLevel);
+    final categoricalPainLevel = PainScaleMapping.mapToCategoricalPainLevel(romLevel);
     final displayLabel = _getTrunkROMLabel(angle, romLevel, muscleType);
     final displayColor = PainScaleMapping.getScoreColor(painScore);
     final clinicalContext = _getTrunkClinicalContext(romLevel, muscleType);
@@ -56,6 +57,7 @@ class BTrunkAssessment {
     return AssessmentResult(
       romLevel: romLevel,
       painScore: painScore,
+      categoricalPainLevel: categoricalPainLevel,
       displayLabel: displayLabel,
       displayColor: displayColor,
       clinicalContext: clinicalContext,
