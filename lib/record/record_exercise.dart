@@ -37,6 +37,12 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   bool _showPainBanner = false;
   Timer? _painDetectionTimer;
   
+  // Track if page is active - prevents pain detection after navigation
+  bool _isPageActive = true;
+  
+  // Track if pain values are locked (after navigation)
+  bool _painValuesLocked = false;
+  
   // Severe pain dialog cooldown
   DateTime? _lastSeverePainDialogTime;
   static const Duration _severePainDialogCooldown = Duration(seconds: 15);
@@ -55,9 +61,19 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
   @override
   void dispose() {
+    // Stop pain detection and lock values
+    _stopPainDetection();
     _animationController.dispose();
     _painDetectionTimer?.cancel();
     super.dispose();
+  }
+  
+  // Stop pain detection
+  void _stopPainDetection() {
+    _isPageActive = false;
+    _painDetectionTimer?.cancel();
+    _painDetectionTimer = null;
+    _painValuesLocked = true; // Lock pain values to prevent further updates
   }
 
   Future<void> _initializeCamera() async {
@@ -98,10 +114,14 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   }
 
   void _startPainDetection() {
-    if (!_isPainDetectionEnabled || !_isCameraInitialized) return;
+    if (!_isPainDetectionEnabled || !_isCameraInitialized || !_isPageActive) return;
     
     _painDetectionTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) async {
-      if (!mounted || !_cameraService.isReady) return;
+      // Stop detection if page is no longer active
+      if (!_isPageActive || !mounted || !_cameraService.isReady) {
+        timer.cancel();
+        return;
+      }
       
       try {
         // For now, we'll use a simulated camera image since we need to implement
@@ -112,7 +132,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
           camera: _cameraService.controller!.description,
         );
         
-        if (mounted && result['error'] == null) {
+        if (_isPageActive && mounted && result['error'] == null) {
           _handlePainDetectionResult(result);
         }
       } catch (e) {
@@ -122,6 +142,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   }
 
   void _handlePainDetectionResult(Map<String, dynamic> result) {
+    // Don't process if page is no longer active or values are locked
+    if (!_isPageActive || _painValuesLocked) return;
+    
     final painLevel = result['painLevel'];
     final confidence = result['confidence'];
     
@@ -623,6 +646,8 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                       gradient: RecordingDesignSystem.warningGradient,
                       accentColor: RecordingDesignSystem.warningColor,
                       onTap: () async {
+                        // Stop pain detection before navigation
+                        _stopPainDetection();
                         final rehabPlans = UserRehabilitation.instance.rehabPlans;
                         final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
 
@@ -711,6 +736,8 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                           }
                         
                         StopwatchService.instance.pause();
+                        // Stop pain detection before navigation
+                        _stopPainDetection();
                         Navigator.push(
                           context,
                           MedicalPageRoute(
@@ -726,6 +753,8 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                       gradient: RecordingDesignSystem.successGradient,
                       accentColor: RecordingDesignSystem.successColor,
                       onTap: () async {
+                        // Stop pain detection before navigation
+                        _stopPainDetection();
                         final rehabPlans = UserRehabilitation.instance.rehabPlans;
                         final rehabPlan = rehabPlans.isNotEmpty ? rehabPlans.first : null;
 

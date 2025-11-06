@@ -1474,6 +1474,7 @@ Future<List<List<dynamic>>> loadCSVFromAsset(String path) async {
 }
 
 /// Checks if an exercise should be filtered out based on muscle injury data
+/// Only filters exercises if the injured muscle has pain level 8-10 (Severe)
 bool _checkMuscleInjuryFilter(List<dynamic> row, int Function(String) col) {
   try {
     // If no muscle injuries, include all exercises
@@ -1489,20 +1490,24 @@ bool _checkMuscleInjuryFilter(List<dynamic> row, int Function(String) col) {
       return true;
     }
     
-    // Check if any injured muscle appears in the Other_Muscles column
+    // Check if any severely injured muscle (pain level 8-10) appears in the Other_Muscles column
     for (String injuredMuscle in UserAssess.injuredMuscles) {
-      final injuredMuscleLower = injuredMuscle.toLowerCase().trim();
+      final painLevel = UserAssess.musclePainLevels[injuredMuscle] ?? 0;
       
-      // Check if the injured muscle appears in the Other_Muscles column
-      if (otherMusclesValue.contains(injuredMuscleLower)) {
-        // With the simplified yes/no system, any muscle in injuredMuscles is still painful
-        // and should be filtered out to avoid targeting injured muscles
-        print('Filtering out exercise ${row[col('Exercise')]} due to still painful muscle: $injuredMuscle');
-        return false; // Exclude exercises targeting still painful muscles
+      // Only filter if pain level is 8-10 (Severe)
+      if (painLevel >= 8) {
+        final injuredMuscleLower = injuredMuscle.toLowerCase().trim();
+        
+        // Check if the severely injured muscle appears in the Other_Muscles column
+        if (otherMusclesValue.contains(injuredMuscleLower)) {
+          print('Filtering out exercise ${row[col('Exercise')]} due to severely injured muscle ($injuredMuscle, pain level: $painLevel) in Other_Muscles');
+          return false; // Exclude exercises targeting severely injured muscles
+        }
       }
+      // For pain levels < 8, don't filter - user can choose if comfortable
     }
     
-    return true; // Include the exercise if no still painful muscles match
+    return true; // Include the exercise if no severely injured muscles match
   } catch (e) {
     print('Error in muscle injury filter: $e');
     return true; // Default to including the exercise if there's an error
@@ -1560,12 +1565,19 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
 
     print('Filtered exercises: ${filteredExercises.length} exercises found');
 
-    // Check if we need to show the muscle injury confirmation dialog
-    if (MuscleInjuryDialogService.shouldShowDialog(
-      filteredExerciseCount: filteredExercises.length,
-      injuredMuscles: UserAssess.injuredMuscles,
-      musclePainCategories: UserAssess.musclePainCategories,
-    )) {
+    // Get only severely injured muscles (pain level 8-10) for dialog display
+    final severelyInjuredMuscles = UserAssess.injuredMuscles.where((muscle) {
+      final painLevel = UserAssess.musclePainLevels[muscle] ?? 0;
+      return painLevel >= 8;
+    }).toList();
+    
+    final severelyInjuredMuscleCategories = <String, String>{};
+    for (final muscle in severelyInjuredMuscles) {
+      severelyInjuredMuscleCategories[muscle] = UserAssess.musclePainCategories[muscle] ?? 'Severe';
+    }
+
+    // Check if we need to show the muscle injury confirmation dialog (< 3 exercises)
+    if (filteredExercises.length < 3 && severelyInjuredMuscles.isNotEmpty) {
       print('Muscle injury dialog conditions met, showing confirmation dialog');
       
       // Check if context is still mounted before showing dialog
@@ -1578,8 +1590,8 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
       } else {
         final userChoice = await MuscleInjuryDialogService.showConfirmationDialog(
           context: context,
-          injuredMuscles: UserAssess.injuredMuscles,
-          musclePainCategories: UserAssess.musclePainCategories,
+          injuredMuscles: severelyInjuredMuscles,
+          musclePainCategories: severelyInjuredMuscleCategories,
           availableExerciseCount: filteredExercises.length,
         );
         
@@ -1593,10 +1605,13 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
         } else if (userChoice == MuscleInjuryChoice.cancel) {
           print('User cancelled, returning null');
           return null;
+        } else if (userChoice == MuscleInjuryChoice.treatmentsOnly) {
+          print('User chose to focus on treatments only, returning null (no exercises)');
+          return null; // Return null to indicate no exercises, treatments will be shown separately
         } else if (userChoice == MuscleInjuryChoice.includeAll) {
           print('User chose to include all exercises, re-filtering without muscle injury filtering');
           
-          // Re-filter without muscle injury filtering
+          // Re-filter without muscle injury filtering for severely injured muscles
           filteredExercises.clear();
           filteredExercises.addAll(data.where((row) {
             bool muscleMatch = row[col('Muscle_Involved')].toString().toLowerCase() == UserAssess.specificMuscle.toLowerCase().trim();
@@ -1608,18 +1623,20 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
             return muscleMatch && painLevelMatch && goalMatch;
           }).toList());
           
-          print('Re-filtered exercises: ${filteredExercises.length} exercises found (including injured muscle exercises)');
+          print('Re-filtered exercises: ${filteredExercises.length} exercises found (including severely injured muscle exercises)');
         } else if (userChoice == MuscleInjuryChoice.keepSafe) {
           print('User chose to keep safe exercises only, continuing with current filtered set');
         }
         
-        // Log the user choice for safety monitoring
-        MuscleInjuryDialogService.logUserChoice(
-          choice: userChoice!,
-          injuredMuscles: UserAssess.injuredMuscles,
-          musclePainCategories: UserAssess.musclePainCategories,
-          availableExerciseCount: filteredExercises.length,
-        );
+        // Log the user choice for safety monitoring (only if choice is not null)
+        if (userChoice != null) {
+          MuscleInjuryDialogService.logUserChoice(
+            choice: userChoice,
+            injuredMuscles: severelyInjuredMuscles,
+            musclePainCategories: severelyInjuredMuscleCategories,
+            availableExerciseCount: filteredExercises.length,
+          );
+        }
       }
     }
 

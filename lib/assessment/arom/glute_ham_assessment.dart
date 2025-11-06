@@ -145,13 +145,13 @@ class GluteHamAssessment {
   static String _getGlutealClinicalContext(String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Severe gluteal ROM limitation - Requires immediate attention';
+        return 'Severe';
       case 'moderate':
-        return 'Moderate gluteal ROM limitation - Monitor and consider intervention';
+        return 'Moderate';
       case 'low':
-        return 'Normal gluteal ROM - Maintain current activities';
+        return 'Low';
       default:
-        return 'Gluteal ROM assessment incomplete - Retry assessment';
+        return 'Low';
     }
   }
 
@@ -159,13 +159,13 @@ class GluteHamAssessment {
   static String _getHamstringClinicalContext(String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Severe hamstring ROM limitation - Requires immediate attention';
+        return 'Severe';
       case 'moderate':
-        return 'Moderate hamstring ROM limitation - Monitor and consider intervention';
+        return 'Moderate';
       case 'low':
-        return 'Normal hamstring ROM - Maintain current activities';
+        return 'Low';
       default:
-        return 'Hamstring ROM assessment incomplete - Retry assessment';
+        return 'Low';
     }
   }
 

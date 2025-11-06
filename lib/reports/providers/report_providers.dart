@@ -149,7 +149,8 @@ final selectedDateProvider = StateProvider<DateTime>((ref) {
 // Enhanced exercise records provider using the new data service
 final enhancedExerciseRecordsProvider = FutureProvider<List<ExerciseRecord>>((ref) async {
   final service = ref.read(reportsDataServiceProvider);
-  final history = await service.loadExerciseHistory();
+  // Force refresh to ensure we get all historical data from Firebase
+  final history = await service.loadExerciseHistory(forceRefresh: true);
   
   // Convert ExerciseHistory entries to ExerciseRecord format for the calendar
   return history.map((entry) => ExerciseRecord(

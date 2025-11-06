@@ -117,13 +117,13 @@ class BTrunkAssessment {
   static String _getTrunkClinicalContext(final String romLevel, final String muscleType) {
     switch (romLevel) {
       case 'severe':
-        return 'Severe $muscleType limitation - Requires immediate attention';
+        return 'Severe';
       case 'moderate':
-        return 'Moderate $muscleType limitation - Monitor and consider intervention';
+        return 'Moderate';
       case 'low':
-        return 'Mild $muscleType limitation - Continue monitoring';
+        return 'Low';
       default:
-        return '$muscleType assessment incomplete - Retry assessment';
+        return 'Low';
     }
   }
 

@@ -73,6 +73,12 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   Timer? _painDetectionTimer;
   DateTime? _lastPainProcessTime;
   
+  // Track if page is active - prevents pain detection after navigation
+  bool _isPageActive = true;
+  
+  // Track if pain values are locked (after navigation)
+  bool _painValuesLocked = false;
+  
   // Severe pain dialog cooldown
   DateTime? _lastSeverePainDialogTime;
   static const Duration _severePainDialogCooldown = Duration(seconds: 15);
@@ -217,22 +223,63 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         return;
       }
       
-      _controller = CameraController(
-        cameras[_selectedCameraIndex],  // Use the selected camera
-        ResolutionPreset.high,  // Set the camera resolution
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.yuv420,
-      );
-
-      await _controller.initialize();  // Initialize the camera
-      if (!mounted) return;
-      setState(() {
-        _isCameraInitialized = true;  // Camera is initialized
-      });
+      // Try to initialize camera with auto-switching on failure
+      bool initialized = false;
+      int attempts = 0;
+      int maxAttempts = cameras.length;
       
-      // Start image stream after a short delay to ensure camera is ready
-      await Future.delayed(const Duration(milliseconds: 500));
-      await _startImageStream();
+      while (!initialized && attempts < maxAttempts && mounted) {
+        try {
+          _controller = CameraController(
+            cameras[_selectedCameraIndex],  // Use the selected camera
+            ResolutionPreset.high,  // Set the camera resolution
+            enableAudio: false,
+            imageFormatGroup: ImageFormatGroup.yuv420,
+          );
+
+          await _controller.initialize();  // Initialize the camera
+          initialized = true;
+          
+          if (!mounted) return;
+          setState(() {
+            _isCameraInitialized = true;  // Camera is initialized
+          });
+          
+          // Start image stream after a short delay to ensure camera is ready
+          await Future.delayed(const Duration(milliseconds: 500));
+          await _startImageStream();
+          debugPrint('Camera initialized successfully with camera index: $_selectedCameraIndex');
+        } catch (e) {
+          debugPrint('Camera initialization error with camera $_selectedCameraIndex: $e');
+          // Try next camera
+          attempts++;
+          if (attempts < maxAttempts) {
+            _selectedCameraIndex = (_selectedCameraIndex + 1) % cameras.length;
+            debugPrint('Trying next camera: $_selectedCameraIndex');
+            // Dispose failed controller before retrying
+            try {
+              await _controller.dispose();
+            } catch (_) {}
+          }
+        }
+      }
+      
+      if (!initialized && mounted) {
+        debugPrint('Failed to initialize any camera after trying all available cameras');
+        setState(() {
+          _isCameraInitialized = false;
+        });
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Camera Unavailable'),
+            content: const Text('We could not access any camera. Please ensure camera permission is granted in system settings and that no other app is using the camera.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
+            ],
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('Camera initialization error: $e');
       if (mounted) {
@@ -321,11 +368,12 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           try {
             final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
             
-            if (mounted) {
+            if (mounted && _isPageActive && !_painValuesLocked) {
               setState(() {
                 _currentAssessmentResult = assessmentResult;
                 
                 // Update UserAssess for integration (persists during recording)
+                // Only update if page is active and values are not locked
                 UserAssess.painScale = assessmentResult.painScore;
                 UserAssess.painLevel = assessmentResult.clinicalContext;
                 
@@ -344,14 +392,14 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           }
         }
         
-        // Process pain detection with frame rate limiting
-        if (_isPainDetectionEnabled && _shouldProcessPainFrame()) {
+        // Process pain detection with frame rate limiting (only if page is active)
+        if (_isPageActive && _isPainDetectionEnabled && _shouldProcessPainFrame()) {
           try {
             final painResult = await _painService.detectFacialPain(
               image: image,
               camera: cameras[_selectedCameraIndex],
             );
-            if (mounted && painResult['error'] == null) {
+            if (_isPageActive && mounted && painResult['error'] == null) {
               _handlePainDetectionResult(painResult);
             }
           } catch (e) {
@@ -413,11 +461,12 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                   try {
                     final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
                     
-                    if (mounted) {
+                    if (mounted && _isPageActive && !_painValuesLocked) {
                       setState(() {
                         _currentAssessmentResult = assessmentResult;
                         
                         // Update UserAssess for integration (persists during recording)
+                        // Only update if page is active and values are not locked
                         UserAssess.painScale = assessmentResult.painScore;
                         UserAssess.painLevel = assessmentResult.clinicalContext;
                         
@@ -498,21 +547,33 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   // Start pain detection monitoring
   void _startPainDetection() {
-    if (!_isPainDetectionEnabled || !_isCameraInitialized) return;
+    if (!_isPainDetectionEnabled || !_isCameraInitialized || !_isPageActive) return;
     _painDetectionTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) async {
-      if (!mounted || !_controller.value.isInitialized) return;
+      // Stop detection if page is no longer active
+      if (!_isPageActive || !mounted || !_controller.value.isInitialized) {
+        timer.cancel();
+        return;
+      }
       try {
         final result = await _painService.detectFacialPain(
           image: null, // Will be handled by camera image stream
           camera: _controller.description,
         );
-        if (mounted && result['error'] == null) {
+        if (_isPageActive && mounted && result['error'] == null) {
           _handlePainDetectionResult(result);
         }
       } catch (e) {
         debugPrint('Pain detection error: $e');
       }
     });
+  }
+  
+  // Stop pain detection
+  void _stopPainDetection() {
+    _isPageActive = false;
+    _painDetectionTimer?.cancel();
+    _painDetectionTimer = null;
+    _painValuesLocked = true; // Lock pain values to prevent further updates
   }
 
   // Handle pain detection results
@@ -667,11 +728,11 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     }
   }
 
-  // Build pain detection status overlay
+  // Build pain detection status overlay - moved to top left
   Widget _buildPainDetectionOverlay() {
     return Positioned(
       top: 8,
-      right: 8,
+      left: 8,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -707,6 +768,47 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  // Build information button for assessment instructions
+  Widget _buildInstructionsButton() {
+    return Positioned(
+      top: 8,
+      right: 8,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: _showInstructionsDialog,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.help_outline,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -788,6 +890,62 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
         return Icons.sentiment_very_dissatisfied;
       default:
         return Icons.sentiment_neutral;
+    }
+  }
+
+  // Get background color based on detected pain level
+  Color _getPainBasedBackgroundColor() {
+    switch (_currentPainLevel) {
+      case 'Low':
+        return Colors.green.shade50;
+      case 'Moderate':
+        return Colors.orange.shade50;
+      case 'Severe':
+        return Colors.red.shade50;
+      default:
+        return Colors.grey.shade50;
+    }
+  }
+
+  // Get border color based on detected pain level
+  Color _getPainBasedBorderColor() {
+    switch (_currentPainLevel) {
+      case 'Low':
+        return Colors.green.shade400;
+      case 'Moderate':
+        return Colors.orange.shade400;
+      case 'Severe':
+        return Colors.red.shade400;
+      default:
+        return Colors.grey.shade400;
+    }
+  }
+
+  // Get accent color based on detected pain level
+  Color _getPainBasedAccentColor() {
+    switch (_currentPainLevel) {
+      case 'Low':
+        return Colors.green.shade600;
+      case 'Moderate':
+        return Colors.orange.shade600;
+      case 'Severe':
+        return Colors.red.shade600;
+      default:
+        return Colors.grey.shade600;
+    }
+  }
+
+  // Get text color based on detected pain level
+  Color _getPainBasedTextColor() {
+    switch (_currentPainLevel) {
+      case 'Low':
+        return Colors.green.shade800;
+      case 'Moderate':
+        return Colors.orange.shade800;
+      case 'Severe':
+        return Colors.red.shade800;
+      default:
+        return Colors.grey.shade800;
     }
   }
 
@@ -879,8 +1037,8 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   // Proceed to pain level input with detected or manual option
   void _proceedToPainLevelInput(String painLevel) {
-    if (painLevel != 'Manual') {
-      // Set the detected pain level in UserAssess
+    // Set the detected pain level in UserAssess before locking (if not already locked)
+    if (painLevel != 'Manual' && !_painValuesLocked) {
       switch (painLevel) {
         case 'Low':
           UserAssess.painScale = 2;
@@ -896,6 +1054,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           break;
       }
     }
+    
+    // Stop pain detection and lock values before navigation (prevents further updates)
+    _stopPainDetection();
     
     // Navigate directly to pain level input
     Navigator.push(
@@ -917,6 +1078,8 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   // Dispose of the camera controller when not needed
   @override
   void dispose() {
+    // Stop pain detection and lock values
+    _stopPainDetection();
     try { _controller.stopImageStream(); } catch (_) {}
     _painDetectionTimer?.cancel();
     _controller.dispose();
@@ -953,6 +1116,8 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           child: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
           onPressed: () async {
+            // Stop pain detection and lock values before navigation
+            _stopPainDetection();
             try { await _controller.stopImageStream(); } catch (_) {}
             await _controller.dispose();
             setState(() {
@@ -1178,6 +1343,8 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                               if (_isPainDetectionEnabled) _buildPainDetectionOverlay(),
                               // Pain banner for moderate pain
                               if (_showPainBanner) _buildModeratePainBanner(),
+                              // Information button for assessment instructions
+                              _buildInstructionsButton(),
                             ],
                           )
                         : Container(
@@ -1437,106 +1604,25 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                     ),
                   ),
 
-                // Enhanced instructions overlay - mobile optimized
+                // Enhanced assessment results panel - translucent and color-coded
                 Positioned(
-                  bottom: 100,
-                  left: 12,
-                  right: 12,
+                  bottom: 8,
+                  left: 8,
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    constraints: const BoxConstraints(maxWidth: 280),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.4), width: 1),
+                      color: _getPainBasedBackgroundColor().withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _getPainBasedBorderColor().withOpacity(0.6), 
+                        width: 1.5
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.2),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                        BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.12),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "Assessment Instructions",
-                              style: GoogleFonts.ptSans(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _getModeInstructions(),
-                          style: GoogleFonts.ptSans(
-                            fontWeight: FontWeight.w400,
-                            fontSize: 11,
-                            color: Colors.white.withOpacity(0.9),
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF8B2E2E).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.5), width: 0.8),
-                          ),
-                          child: Text(
-                            '${_selectedSide} Side',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Enhanced assessment results panel - mobile optimized
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 180),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.98),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.15), width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                        BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.06),
-                          blurRadius: 4,
-                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
@@ -1546,79 +1632,196 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              Icons.analytics,
-                              color: const Color(0xFF8B2E2E),
-                              size: 12,
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: _getPainBasedAccentColor().withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.analytics,
+                                color: _getPainBasedAccentColor(),
+                                size: 14,
+                              ),
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 6),
                             Text(
                               "Results",
-                              style: GoogleFonts.ptSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF1F2937),
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _getPainBasedTextColor(),
+                              ),
+                            ),
+                            const Spacer(),
+                            // Assessment mode indicator
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _enableVideoRecording 
+                                    ? const Color(0xFF8B2E2E).withOpacity(0.2)
+                                    : const Color(0xFF10B981).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: _enableVideoRecording 
+                                      ? const Color(0xFF8B2E2E).withOpacity(0.4)
+                                      : const Color(0xFF10B981).withOpacity(0.4),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _enableVideoRecording ? Icons.videocam : Icons.speed,
+                                    color: _enableVideoRecording ? const Color(0xFF8B2E2E) : const Color(0xFF10B981),
+                                    size: 10,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    _enableVideoRecording ? 'VIDEO' : 'REAL-TIME',
+                                    style: GoogleFonts.ptSans(
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w600,
+                                      color: _enableVideoRecording ? const Color(0xFF8B2E2E) : const Color(0xFF10B981),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         // Display assessment results using modular services
                         if (_currentAssessmentResult != null) ...[
-                          Text(
-                            _currentAssessmentResult!.displayLabel,
-                            style: GoogleFonts.ptSans(
-                              fontSize: 9,
-                              color: _currentAssessmentResult!.displayColor,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: _getPainBasedAccentColor().withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _getPainBasedAccentColor().withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle,
+                                      color: _getPainBasedAccentColor(),
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        _currentAssessmentResult!.displayLabel,
+                                        style: GoogleFonts.ptSans(
+                                          fontSize: 11,
+                                          color: _getPainBasedAccentColor(),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                if (_currentAssessmentResult!.additionalData['angle'] != null) ...[
+                                  Row(
+                                    children: [
+                                      Icon(Icons.straighten, color: _getPainBasedTextColor(), size: 12),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Angle: ${_currentAssessmentResult!.additionalData['angle'].toStringAsFixed(1)}°',
+                                        style: GoogleFonts.ptSans(
+                                          fontSize: 10,
+                                          color: _getPainBasedTextColor(),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                ],
+                                if (_currentAssessmentResult!.additionalData['absNormalizedDisplacement'] != null) ...[
+                                  Row(
+                                    children: [
+                                      Icon(Icons.trending_up, color: _getPainBasedTextColor(), size: 12),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Disp: ${_currentAssessmentResult!.additionalData['absNormalizedDisplacement'].toStringAsFixed(2)}',
+                                        style: GoogleFonts.ptSans(
+                                          fontSize: 10,
+                                          color: _getPainBasedTextColor(),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                ],
+                                if (_currentAssessmentResult!.alignment != null) ...[
+                                  Row(
+                                    children: [
+                                      Icon(Icons.align_horizontal_center, color: _getPainBasedTextColor(), size: 12),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          _currentAssessmentResult!.alignment!,
+                                          style: GoogleFonts.ptSans(
+                                            fontSize: 9,
+                                            color: _getPainBasedTextColor(),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                ],
+                                if (_currentAssessmentResult!.compensation != null) ...[
+                                  Row(
+                                    children: [
+                                      Icon(Icons.warning, color: _getPainBasedTextColor(), size: 12),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          _currentAssessmentResult!.compensation!,
+                                          style: GoogleFonts.ptSans(
+                                            fontSize: 9,
+                                            color: _getPainBasedTextColor(),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 3),
-                          if (_currentAssessmentResult!.additionalData['angle'] != null) ...[
-                            Text(
-                              'Angle: ${_currentAssessmentResult!.additionalData['angle'].toStringAsFixed(1)}°',
-                              style: GoogleFonts.ptSans(
-                                fontSize: 8,
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                          ],
-                          if (_currentAssessmentResult!.additionalData['absNormalizedDisplacement'] != null) ...[
-                            Text(
-                              'Disp: ${_currentAssessmentResult!.additionalData['absNormalizedDisplacement'].toStringAsFixed(2)}',
-                              style: GoogleFonts.ptSans(
-                                fontSize: 8,
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                          ],
-                          if (_currentAssessmentResult!.alignment != null) ...[
-                            Text(
-                              _currentAssessmentResult!.alignment!,
-                              style: GoogleFonts.ptSans(
-                                fontSize: 7,
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
-                          if (_currentAssessmentResult!.compensation != null) ...[
-                            Text(
-                              _currentAssessmentResult!.compensation!,
-                              style: GoogleFonts.ptSans(
-                                fontSize: 7,
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
                         ] else ...[
-                          Text(
-                            '${UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'Muscle'}: Not assessed',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 9,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.hourglass_empty, color: Colors.grey, size: 14),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'Muscle'}: Not assessed yet',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -1775,6 +1978,159 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   String _getModeInstructions() {
     return AssessmentService.getInstructions(_getAssessmentMode(), _selectedSide);
+  }
+
+  /// Show assessment instructions dialog
+  /// 
+  /// Displays the current assessment instructions in a clean dialog format
+  /// instead of overlaying them on the camera preview.
+  void _showInstructionsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Color(0xFF8B2E2E), size: 24),
+              const SizedBox(width: 8),
+              Text(
+                'Assessment Instructions',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  color: const Color(0xFF1F2937),
+                ),
+              ),
+            ],
+          ),
+          content: Container(
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Assessment mode indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B2E2E).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _enableVideoRecording ? Icons.videocam : Icons.speed,
+                        color: const Color(0xFF8B2E2E),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_enableVideoRecording ? 'Video' : 'Real-time'} Assessment',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF8B2E2E),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Muscle and side information
+                Row(
+                  children: [
+                    Icon(Icons.accessibility, color: const Color(0xFF6B7280), size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'Muscle Assessment'} (${_selectedSide} Side)',
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Instructions
+                Text(
+                  'Instructions:',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _getModeInstructions(),
+                  style: GoogleFonts.ptSans(
+                    fontSize: 13,
+                    color: const Color(0xFF6B7280),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Tips section
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline, color: const Color(0xFF8B2E2E), size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Tips:',
+                            style: GoogleFonts.ptSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF8B2E2E),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '• Ensure good lighting\n• Position yourself in the center of the frame\n• Move slowly and deliberately\n• Keep the camera steady',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 11,
+                          color: const Color(0xFF6B7280),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Got it',
+                style: GoogleFonts.ptSans(
+                  color: const Color(0xFF8B2E2E),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// Show comprehensive help dialog for muscle-specific assessment guidance

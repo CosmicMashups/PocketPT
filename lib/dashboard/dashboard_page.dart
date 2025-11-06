@@ -43,6 +43,46 @@ class _DashboardPageState extends State<DashboardPage>
   bool _isLoading = true;
   String? _loadError;
   late AnimationController _animationController;
+  
+  // Cache for exercise and treatment futures to prevent recreation on every build
+  final Map<String, Future<Exercise?>> _exerciseFutureCache = {};
+  final Map<String, Future<Treatment?>> _treatmentFutureCache = {};
+  
+  Future<Exercise?> _getCachedExerciseFuture(String exerciseId) {
+    if (!_exerciseFutureCache.containsKey(exerciseId)) {
+      _exerciseFutureCache[exerciseId] = ExerciseDataService.getExerciseById(exerciseId)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('Dashboard: Timeout loading exercise $exerciseId');
+              return null;
+            },
+          )
+          .catchError((error) {
+            debugPrint('Dashboard: Error loading exercise $exerciseId: $error');
+            return null;
+          });
+    }
+    return _exerciseFutureCache[exerciseId]!;
+  }
+  
+  Future<Treatment?> _getCachedTreatmentFuture(String treatmentId) {
+    if (!_treatmentFutureCache.containsKey(treatmentId)) {
+      _treatmentFutureCache[treatmentId] = ExerciseDataService.getTreatmentById(treatmentId)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              debugPrint('Dashboard: Timeout loading treatment $treatmentId');
+              return null;
+            },
+          )
+          .catchError((error) {
+            debugPrint('Dashboard: Error loading treatment $treatmentId: $error');
+            return null;
+          });
+    }
+    return _treatmentFutureCache[treatmentId]!;
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -70,11 +110,18 @@ class _DashboardPageState extends State<DashboardPage>
   }
   
   void _onRehabilitationPlanChanged() {
-    if (mounted) {
-      setState(() {
-        // Trigger rebuild when rehabilitation plans change
-      });
-    }
+    // Clear caches when plans change to ensure fresh data
+    _exerciseFutureCache.clear();
+    _treatmentFutureCache.clear();
+    
+    // Defer setState to avoid calling during build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          // Trigger rebuild when rehabilitation plans change
+        });
+      }
+    });
   }
 
   @override
@@ -102,8 +149,12 @@ class _DashboardPageState extends State<DashboardPage>
     }
     final data = _gatherDashboardData();
 
-    // Refresh notifications based on current globals
-    _refreshNotifications();
+    // Refresh notifications based on current globals (deferred to post-frame to avoid setState during build)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshNotifications();
+      }
+    });
 
     final hasCompletedAssessment = data['hasCompletedAssessment'] ?? false;
     if (!hasCompletedAssessment) {
@@ -411,6 +462,9 @@ class _DashboardPageState extends State<DashboardPage>
                         radius: 32,
                         backgroundImage: AssetImage('assets/images/pfp/${UserDataNotifier.instance.profilePicture}'),
                         backgroundColor: Colors.grey[200],
+                        onBackgroundImageError: (exception, stackTrace) {
+                          debugPrint('Dashboard: Error loading profile picture: $exception');
+                        },
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -556,31 +610,40 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildNewDashboardContent(BuildContext context, Map<String, dynamic> data) {
-    // Initialize the notifier with current data
-    UserDataNotifier.instance.initialize();
-    
-    // Defer heavy operations to after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      // Note: UserDataNotifier is already initialized in _loadData(), so we don't need to initialize here
+      // Defer heavy operations to after first frame
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
           if (mounted) {
             _maybeShowDailyAssessmentDialog(context);
             await _maybeShowDailyPainChangeDialog(context);
             _maybeShowRegeneratePlanDialog(context);
           }
-        });
-    
-    // Get current exercise directly from rehabilitation plans
-    final rehabilitationPlans = UserDataNotifier.instance.rehabPlans.isNotEmpty 
-        ? UserDataNotifier.instance.rehabPlans 
-        : UserRehabilitation.instance.rehabPlans;
-    
-    ExerciseReference? currentExerciseRef;
-    if (rehabilitationPlans.isNotEmpty && rehabilitationPlans.first.exerciseReferences.isNotEmpty) {
-      currentExerciseRef = rehabilitationPlans.first.exerciseReferences.first;
-    }
-    
-    double progress = ExerciseHistory.calculateTodaysProgressPercentage();
+        } catch (e) {
+          debugPrint('Dashboard: Error in post-frame callbacks: $e');
+        }
+      });
+      
+      // Get current exercise directly from rehabilitation plans
+      final rehabilitationPlans = UserDataNotifier.instance.rehabPlans.isNotEmpty 
+          ? UserDataNotifier.instance.rehabPlans 
+          : UserRehabilitation.instance.rehabPlans;
+      
+      ExerciseReference? currentExerciseRef;
+      if (rehabilitationPlans.isNotEmpty && rehabilitationPlans.first.exerciseReferences.isNotEmpty) {
+        currentExerciseRef = rehabilitationPlans.first.exerciseReferences.first;
+      }
+      
+      double progress = 0.0;
+      try {
+        progress = ExerciseHistory.calculateTodaysProgressPercentage();
+      } catch (e) {
+        debugPrint('Dashboard: Error calculating progress: $e');
+        progress = 0.0;
+      }
 
-    return Scaffold(
+      return Scaffold(
       backgroundColor: const Color(0xFFF8F6F4),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -617,6 +680,9 @@ class _DashboardPageState extends State<DashboardPage>
                         radius: 32,
                         backgroundImage: AssetImage('assets/images/pfp/${UserDataNotifier.instance.profilePicture}'),
                         backgroundColor: Colors.grey[200],
+                        onBackgroundImageError: (exception, stackTrace) {
+                          debugPrint('Dashboard: Error loading profile picture: $exception');
+                        },
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -690,7 +756,7 @@ class _DashboardPageState extends State<DashboardPage>
               
               // Progress Card
               Container(
-                height: 220,
+                constraints: const BoxConstraints(minHeight: 220),
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
@@ -712,31 +778,36 @@ class _DashboardPageState extends State<DashboardPage>
                       ],
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PROGRESS',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18,
-                          letterSpacing: 1.2,
-                          color: Colors.white,
+                  child: SizedBox(
+                    height: 220,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PROGRESS',
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                            letterSpacing: 1.2,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
+                        const SizedBox(height: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Use FutureBuilder to load actual exercise data
                                 FutureBuilder<Exercise?>(
+                                  key: currentExerciseRef != null 
+                                      ? ValueKey('exercise_${currentExerciseRef.exerciseId}')
+                                      : const ValueKey('exercise_null'),
                                   future: currentExerciseRef != null 
-                                      ? ExerciseDataService.getExerciseById(currentExerciseRef.exerciseId)
+                                      ? _getCachedExerciseFuture(currentExerciseRef.exerciseId)
                                       : Future.value(null),
                                   builder: (context, snapshot) {
                                     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -747,6 +818,19 @@ class _DashboardPageState extends State<DashboardPage>
                                           fontSize: 22,
                                           color: Colors.white,
                                         ),
+                                      );
+                                    }
+                                    
+                                    if (snapshot.hasError) {
+                                      return Text(
+                                        'Error loading exercise',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 22,
+                                          color: Colors.white,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       );
                                     }
                                     
@@ -874,6 +958,7 @@ class _DashboardPageState extends State<DashboardPage>
                         ),
                       ),
                     ],
+                    ),
                   ),
                 ),
               ),
@@ -1167,8 +1252,45 @@ class _DashboardPageState extends State<DashboardPage>
                                     const SizedBox(height: 10),
                                     ...plan.exerciseReferences.map(
                                       (exerciseRef) => FutureBuilder<Exercise?>(
-                                        future: ExerciseDataService.getExerciseById(exerciseRef.exerciseId),
+                                        key: ValueKey('exercise_${exerciseRef.exerciseId}'),
+                                        future: _getCachedExerciseFuture(exerciseRef.exerciseId),
                                         builder: (context, snapshot) {
+                                          if (snapshot.connectionState == ConnectionState.waiting) {
+                                            return const Row(
+                                              children: [
+                                                SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text('Loading...', style: TextStyle(fontSize: 12)),
+                                              ],
+                                            );
+                                          }
+                                          if (snapshot.hasError) {
+                                            return Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.error_outline,
+                                                  size: 18,
+                                                  color: Colors.red.shade300,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Error loading exercise ${exerciseRef.exerciseId}',
+                                                    style: GoogleFonts.ptSans(
+                                                      color: Colors.red.shade300,
+                                                      fontSize: 12,
+                                                    ),
+                                                    softWrap: true,
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          }
                                           final exerciseName = snapshot.hasData && snapshot.data != null
                                               ? snapshot.data!.exerciseName
                                               : 'Exercise ${exerciseRef.exerciseId}';
@@ -1203,8 +1325,45 @@ class _DashboardPageState extends State<DashboardPage>
                                       const SizedBox(height: 8),
                                       ...UserRehabilitation.instance.treatmentReferences!.map(
                                         (treatmentRef) => FutureBuilder<Treatment?>(
-                                          future: ExerciseDataService.getTreatmentById(treatmentRef.treatmentId),
+                                          key: ValueKey('treatment_${treatmentRef.treatmentId}'),
+                                          future: _getCachedTreatmentFuture(treatmentRef.treatmentId),
                                           builder: (context, snapshot) {
+                                            if (snapshot.connectionState == ConnectionState.waiting) {
+                                              return const Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                                  ),
+                                                  SizedBox(width: 8),
+                                                  Text('Loading...', style: TextStyle(fontSize: 12)),
+                                                ],
+                                              );
+                                            }
+                                            if (snapshot.hasError) {
+                                              return Row(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Icon(
+                                                    Icons.error_outline,
+                                                    size: 18,
+                                                    color: Colors.red.shade300,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Error loading treatment ${treatmentRef.treatmentId}',
+                                                      style: GoogleFonts.ptSans(
+                                                        color: Colors.red.shade300,
+                                                        fontSize: 12,
+                                                      ),
+                                                      softWrap: true,
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            }
                                             final treatmentName = snapshot.hasData && snapshot.data != null
                                                 ? snapshot.data!.treatmentName
                                                 : 'Treatment ${treatmentRef.treatmentId}';
@@ -1248,6 +1407,66 @@ class _DashboardPageState extends State<DashboardPage>
         ),
       ),
     );
+    } catch (e, stackTrace) {
+      debugPrint('Dashboard: Error building new dashboard content: $e');
+      debugPrint('Dashboard: Stack trace: $stackTrace');
+      // Return a safe fallback UI
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F6F4),
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading dashboard',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Please try refreshing or contact support if the issue persists.',
+                    style: GoogleFonts.ptSans(
+                      fontSize: 14,
+                      color: const Color(0xFF6B7280),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _isLoading = true;
+                    });
+                    _loadData();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B2E2E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: Text(
+                    'Retry',
+                    style: GoogleFonts.ptSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildInfoCard({

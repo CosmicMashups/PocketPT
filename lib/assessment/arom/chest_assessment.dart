@@ -75,13 +75,13 @@ class ChestAssessment {
   static String _getClinicalContext(String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Severe chest ROM limitation - Requires immediate attention';
+        return 'Severe';
       case 'moderate':
-        return 'Moderate chest ROM limitation - Monitor and consider intervention';
+        return 'Moderate';
       case 'good':
-        return 'Normal chest ROM - Maintain current activities';
+        return 'Low';
       default:
-        return 'Chest ROM assessment incomplete - Retry assessment';
+        return 'Low';
     }
   }
 

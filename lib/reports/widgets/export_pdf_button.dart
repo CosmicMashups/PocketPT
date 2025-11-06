@@ -39,11 +39,14 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
   }
   
   void _onRehabilitationPlanChanged() {
-    if (mounted) {
-      setState(() {
-        // Trigger rebuild when rehabilitation plans change
-      });
-    }
+    // Defer setState to avoid calling during build phase
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          // Trigger rebuild when rehabilitation plans change
+        });
+      }
+    });
   }
 
   @override
@@ -290,6 +293,12 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
     _animationController.repeat();
 
     try {
+      // Force refresh data from Firebase before exporting to ensure all historical data is included
+      final service = ReportsDataService.instance;
+      final refreshedData = await service.loadAllReportsData(forceRefresh: true);
+      
+      // Use refreshed data for PDF export
+      final reportsDataToExport = refreshedData;
       final pdf = pw.Document();
       final now = DateTime.now();
       final formattedDate = DateFormat('MMMM d, yyyy').format(now);
@@ -350,11 +359,11 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                       style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                     ),
                     pw.Text(
-                      'Data last updated: ${DateFormat('MMMM d, yyyy at h:mm a').format(reportsData.lastUpdated)}',
+                      'Data last updated: ${DateFormat('MMMM d, yyyy at h:mm a').format(reportsDataToExport.lastUpdated)}',
                       style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                     ),
                     pw.Text(
-                      'Total records: ${reportsData.painHistory.length} pain entries, ${reportsData.exerciseHistory.length} exercise entries',
+                      'Total records: ${reportsDataToExport.painHistory.length} pain entries, ${reportsDataToExport.exerciseHistory.length} exercise entries',
                       style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                     ),
                   ],
@@ -388,7 +397,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                             style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                           ),
                           pw.Text(
-                            reportsData.totalCompletedExercises.toString(),
+                            reportsDataToExport.totalCompletedExercises.toString(),
                             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
                           ),
                         ],
@@ -411,7 +420,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                             style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                           ),
                           pw.Text(
-                            reportsData.averagePainLevel.toStringAsFixed(1),
+                            reportsDataToExport.averagePainLevel.toStringAsFixed(1),
                             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
                           ),
                         ],
@@ -438,7 +447,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                             style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                           ),
                           pw.Text(
-                            '${(reportsData.exerciseCompletionRate * 100).toStringAsFixed(1)}%',
+                            '${(reportsDataToExport.exerciseCompletionRate * 100).toStringAsFixed(1)}%',
                             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
                           ),
                         ],
@@ -461,7 +470,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                             style: pw.TextStyle(fontSize: 12, color: PdfColors.grey600),
                           ),
                           pw.Text(
-                            reportsData.painTrend > 0 ? 'Increasing' : reportsData.painTrend < 0 ? 'Decreasing' : 'Stable',
+                            reportsDataToExport.painTrend > 0 ? 'Increasing' : reportsDataToExport.painTrend < 0 ? 'Decreasing' : 'Stable',
                             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
                           ),
                         ],
@@ -481,7 +490,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                 ),
               ),
               pw.SizedBox(height: 10),
-              if (reportsData.painHistory.isEmpty)
+              if (reportsDataToExport.painHistory.isEmpty)
                 pw.Text(
                   'No pain records found.',
                   style: pw.TextStyle(color: PdfColors.grey600),
@@ -512,7 +521,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                         ),
                       ],
                     ),
-                    ...reportsData.painHistory.take(30).map((record) => pw.TableRow(
+                    ...reportsDataToExport.painHistory.take(30).map((record) => pw.TableRow(
                       children: [
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
@@ -541,7 +550,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                 ),
               ),
               pw.SizedBox(height: 10),
-              if (reportsData.exerciseHistory.isEmpty)
+              if (reportsDataToExport.exerciseHistory.isEmpty)
                 pw.Text(
                   'No exercise records found.',
                   style: pw.TextStyle(color: PdfColors.grey600),
@@ -587,7 +596,7 @@ class _ExportPDFButtonState extends ConsumerState<ExportPDFButton> with TickerPr
                         ),
                       ],
                     ),
-                    ...reportsData.exerciseHistory.take(30).map((record) => pw.TableRow(
+                    ...reportsDataToExport.exerciseHistory.take(30).map((record) => pw.TableRow(
                       children: [
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),

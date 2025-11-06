@@ -36,7 +36,6 @@ import 'exercise/edit_plan.dart';
 import 'record/pre_record_page.dart';
 import 'profile/profile_page.dart';
 import 'reports/report_page.dart';
-import 'test_persistence_page.dart';
 import 'widgets/responsive_loading_screen.dart';
 import 'core/animations.dart';
 
@@ -840,7 +839,6 @@ class _HomePageState extends State<HomePage> {
         children: _pages,
       ),
 
-      floatingActionButton: kDebugMode ? _buildDebugFab(context) : null,
 
 
       bottomNavigationBar: CurvedNavigationBar(
@@ -875,35 +873,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Builds the debug floating action button for testing
-  Widget _buildDebugFab(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: kMainColor.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MedicalPageRoute(
-              child: const TestPersistencePage(),
-              settings: const RouteSettings(name: '/test-persistence'),
-            ),
-          );
-        },
-        backgroundColor: kMainColor,
-        child: const Icon(Icons.bug_report, color: Colors.white),
-        tooltip: 'Test Persistence',
-      ),
-    );
-  }
 
   /// Builds navigation items for the curved navigation bar
   List<Widget> _buildNavigationItems() {

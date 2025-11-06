@@ -7,6 +7,10 @@ import '../models/stretching_routine.dart';
 class StretchingDataService {
   static List<StretchingExercise>? _cachedExercises;
   static List<StretchingRoutine>? _cachedRoutines;
+  static final Map<String, String> _displayNameByKey = {};
+
+  /// Normalize strings for robust matching (case-insensitive, trimmed)
+  static String _norm(String value) => value.trim().toLowerCase();
 
   /// Load all stretching exercises from CSV
   static Future<List<StretchingExercise>> loadStretchingExercises() async {
@@ -18,7 +22,13 @@ class StretchingDataService {
     try {
       print('StretchingDataService: Loading stretching exercises from CSV...');
       final csvData = await rootBundle.loadString('assets/data/stretching_exercises.csv');
-      final List<List<dynamic>> csvTable = const CsvToListConverter().convert(csvData);
+      List<List<dynamic>> csvTable = const [];
+      try {
+        csvTable = const CsvToListConverter().convert(csvData);
+      } catch (e) {
+        print('StretchingDataService: ERROR parsing CSV: $e');
+        rethrow;
+      }
 
       if (csvTable.isEmpty) {
         print('StretchingDataService: CSV file is empty');
@@ -62,35 +72,35 @@ class StretchingDataService {
       final exercises = await loadStretchingExercises();
       final routines = <StretchingRoutine>[];
 
-      // Group exercises by muscle group and type
+      // Group exercises by muscle group and type (using normalized keys with preserved display names)
       final groupedExercises = <String, Map<String, List<StretchingExercise>>>{};
       
       for (final exercise in exercises) {
-        if (!groupedExercises.containsKey(exercise.muscleGroup)) {
-          groupedExercises[exercise.muscleGroup] = {};
-        }
-        if (!groupedExercises[exercise.muscleGroup]!.containsKey(exercise.exerciseType)) {
-          groupedExercises[exercise.muscleGroup]![exercise.exerciseType] = [];
-        }
-        groupedExercises[exercise.muscleGroup]![exercise.exerciseType]!.add(exercise);
+        final muscleKey = _norm(exercise.muscleGroup);
+        final typeKey = _norm(exercise.exerciseType);
+        _displayNameByKey.putIfAbsent(muscleKey, () => exercise.muscleGroup);
+
+        groupedExercises.putIfAbsent(muscleKey, () => {});
+        groupedExercises[muscleKey]!.putIfAbsent(typeKey, () => []);
+        groupedExercises[muscleKey]![typeKey]!.add(exercise);
       }
 
       // Create routines for each muscle group and type combination
-      for (final muscleGroup in groupedExercises.keys) {
-        for (final exerciseType in groupedExercises[muscleGroup]!.keys) {
-          final routineExercises = groupedExercises[muscleGroup]![exerciseType]!;
+      for (final muscleKey in groupedExercises.keys) {
+        for (final typeKey in groupedExercises[muscleKey]!.keys) {
+          final routineExercises = groupedExercises[muscleKey]![typeKey]!;
           if (routineExercises.isNotEmpty) {
             final totalDuration = routineExercises.fold(0, (sum, exercise) => sum + exercise.recommendedDuration);
             
             routines.add(StretchingRoutine(
-              routineId: '${muscleGroup}_${exerciseType}',
-              muscleGroup: muscleGroup,
-              routineType: exerciseType,
+              routineId: '${_displayNameByKey[muscleKey] ?? muscleKey}_${typeKey}',
+              muscleGroup: _displayNameByKey[muscleKey] ?? muscleKey,
+              routineType: typeKey,
               exercises: routineExercises,
               totalDuration: totalDuration,
               difficultyLevel: _getMostCommonDifficulty(routineExercises),
-              description: '${exerciseType.capitalize()} routine for $muscleGroup',
-              generalInstructions: _getGeneralInstructions(exerciseType),
+              description: '${typeKey.capitalize()} routine for ${_displayNameByKey[muscleKey] ?? muscleKey}',
+              generalInstructions: _getGeneralInstructions(typeKey),
             ));
           }
         }
@@ -110,8 +120,11 @@ class StretchingDataService {
   static Future<StretchingRoutine?> getRoutineForMuscle(String muscleGroup, String routineType) async {
     final routines = await loadStretchingRoutines();
     try {
-      return routines.firstWhere((routine) => 
-        routine.muscleGroup == muscleGroup && routine.routineType == routineType);
+      final mKey = _norm(muscleGroup);
+      final tKey = _norm(routineType);
+      final match = routines.firstWhere((routine) => 
+        _norm(routine.muscleGroup) == mKey && _norm(routine.routineType) == tKey);
+      return match;
     } catch (e) {
       print('StretchingDataService: No routine found for $muscleGroup $routineType');
       return null;
@@ -160,8 +173,12 @@ class StretchingDataService {
   /// Get exercises for specific muscle group and type
   static Future<List<StretchingExercise>> getExercisesForMuscle(String muscleGroup, String routineType) async {
     final exercises = await loadStretchingExercises();
-    return exercises.where((exercise) => 
-      exercise.muscleGroup == muscleGroup && exercise.exerciseType == routineType).toList();
+    final mKey = _norm(muscleGroup);
+    final tKey = _norm(routineType);
+    final filtered = exercises.where((exercise) =>
+      _norm(exercise.muscleGroup) == mKey && _norm(exercise.exerciseType) == tKey).toList();
+    print('StretchingDataService: getExercisesForMuscle($muscleGroup,$routineType) -> ${filtered.length} matches');
+    return filtered;
   }
 
   /// Get exercises for specific muscle group, type, and pain level
@@ -182,9 +199,11 @@ class StretchingDataService {
       }
       
       // Filter exercises based on muscle group, type, and pain level
+      final mKey = _norm(muscleGroup);
+      final tKey = _norm(routineType);
       final filteredExercises = exercises.where((exercise) {
         // Check muscle group and type match
-        if (exercise.muscleGroup != muscleGroup || exercise.exerciseType != routineType) {
+        if (_norm(exercise.muscleGroup) != mKey || _norm(exercise.exerciseType) != tKey) {
           return false;
         }
         
@@ -198,11 +217,20 @@ class StretchingDataService {
       if (filteredExercises.isEmpty) {
         print('StretchingDataService: No exercises found with pain level filtering, trying without pain level');
         final exercisesWithoutPainFilter = exercises.where((exercise) {
-          return exercise.muscleGroup == muscleGroup && exercise.exerciseType == routineType;
+          return _norm(exercise.muscleGroup) == mKey && _norm(exercise.exerciseType) == tKey;
         }).toList();
         
         print('StretchingDataService: Found ${exercisesWithoutPainFilter.length} exercises without pain level filtering');
-        return exercisesWithoutPainFilter;
+        if (exercisesWithoutPainFilter.isNotEmpty) {
+          return exercisesWithoutPainFilter;
+        }
+        // Final fallback: if generic or unknown muscle group, allow any muscle group for the routine type
+        if (mKey.isEmpty || mKey == 'general') {
+          final anyGroup = exercises.where((exercise) => _norm(exercise.exerciseType) == tKey).toList();
+          print('StretchingDataService: Generic muscle group fallback yielded ${anyGroup.length} exercises');
+          return anyGroup;
+        }
+        return [];
       }
       
       return filteredExercises;

@@ -76,13 +76,13 @@ class QuadricepsAssessment {
   static String _getClinicalContext(String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Severe quadriceps ROM limitation - Requires immediate attention';
+        return 'Severe';
       case 'moderate':
-        return 'Moderate quadriceps ROM limitation - Monitor and consider intervention';
+        return 'Moderate';
       case 'low':
-        return 'Normal quadriceps ROM - Maintain current activities';
+        return 'Low';
       default:
-        return 'Quadriceps ROM assessment incomplete - Retry assessment';
+        return 'Low';
     }
   }
 

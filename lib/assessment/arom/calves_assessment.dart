@@ -114,13 +114,13 @@ class CalvesAssessment {
   static String _getClinicalContext(String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Severe ROM limitation - Requires immediate attention';
+        return 'Severe';
       case 'moderate':
-        return 'Moderate ROM limitation - Monitor and consider intervention';
+        return 'Moderate';
       case 'good':
-        return 'Normal ROM - Maintain current activities';
+        return 'Low';
       default:
-        return 'ROM assessment incomplete - Retry assessment';
+        return 'Low';
     }
   }
 }

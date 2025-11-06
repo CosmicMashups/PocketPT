@@ -857,42 +857,131 @@ class UserAssess {
     }
   }
 
-  // Hive persistence methods are replaced with local variable sync
+  // Hive persistence methods
   static Future<void> saveToHive() async {
-    // Mirror current fields to AssessmentData
-    lastModified = DateTime.now();
-    AssessmentData.rehabGoal = rehabGoal;
-    AssessmentData.generalMuscle = generalMuscle;
-    AssessmentData.specificMuscle = specificMuscle;
-    AssessmentData.painScale = painScale;
-    AssessmentData.painLevel = painLevel;
-    AssessmentData.painType = painType;
-    AssessmentData.painDuration = painDuration;
-    AssessmentData.isInjured = isInjured;
-    AssessmentData.isAssessed = isAssessed;
-    AssessmentData.injuredMuscles = injuredMuscles;
-    AssessmentData.musclePainLevels = musclePainLevels;
-    AssessmentData.musclePainCategories = musclePainCategories;
-    AssessmentData.muscleStillPainful = muscleStillPainful;
-    debugPrint('UserAssess.saveToHive: synced to AssessmentData (local-only)');
+    try {
+      // Check if Hive box is open
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('UserAssess.saveToHive: Hive box not open, attempting to open...');
+        await openRehabBox();
+      }
+      
+      final box = Hive.box('rehabBox');
+      
+      // Create HiveUserAssess object and save to Hive
+      final hiveUserAssess = HiveUserAssess(
+        rehabGoal: rehabGoal,
+        generalMuscle: generalMuscle,
+        specificMuscle: specificMuscle,
+        painScale: painScale,
+        painLevel: painLevel,
+        painType: painType,
+        painDuration: painDuration,
+        isInjured: isInjured,
+        isAssessed: isAssessed,
+      );
+      
+      await box.put('userAssess', hiveUserAssess);
+      
+      // Also sync to AssessmentData for backward compatibility
+      lastModified = DateTime.now();
+      AssessmentData.rehabGoal = rehabGoal;
+      AssessmentData.generalMuscle = generalMuscle;
+      AssessmentData.specificMuscle = specificMuscle;
+      AssessmentData.painScale = painScale;
+      AssessmentData.painLevel = painLevel;
+      AssessmentData.painType = painType;
+      AssessmentData.painDuration = painDuration;
+      AssessmentData.isInjured = isInjured;
+      AssessmentData.isAssessed = isAssessed;
+      AssessmentData.injuredMuscles = injuredMuscles;
+      AssessmentData.musclePainLevels = musclePainLevels;
+      AssessmentData.musclePainCategories = musclePainCategories;
+      AssessmentData.muscleStillPainful = muscleStillPainful;
+      
+      debugPrint('UserAssess.saveToHive: Saved to Hive and synced to AssessmentData');
+      debugPrint('UserAssess.saveToHive: specificMuscle = "$specificMuscle"');
+    } catch (e) {
+      debugPrint('UserAssess.saveToHive: Error saving to Hive: $e');
+      rethrow;
+    }
   }
 
   static Future<void> loadFromHive() async {
-    // Mirror current AssessmentData values into UserAssess
-    rehabGoal = AssessmentData.rehabGoal;
-    generalMuscle = AssessmentData.generalMuscle;
-    specificMuscle = AssessmentData.specificMuscle;
-    painScale = AssessmentData.painScale;
-    painLevel = AssessmentData.painLevel;
-    painType = AssessmentData.painType;
-    painDuration = AssessmentData.painDuration;
-    isInjured = AssessmentData.isInjured;
-    isAssessed = AssessmentData.isAssessed;
-    injuredMuscles = AssessmentData.injuredMuscles;
-    musclePainLevels = AssessmentData.musclePainLevels;
-    musclePainCategories = AssessmentData.musclePainCategories;
-    muscleStillPainful = AssessmentData.muscleStillPainful;
-    debugPrint('UserAssess.loadFromHive: loaded from AssessmentData (local-only)');
+    try {
+      // Check if Hive box is open
+      if (!Hive.isBoxOpen('rehabBox')) {
+        debugPrint('UserAssess.loadFromHive: Hive box not open, attempting to open...');
+        await openRehabBox();
+      }
+      
+      final box = Hive.box('rehabBox');
+      final hiveUserAssess = box.get('userAssess');
+      
+      // Load from Hive first if available
+      if (hiveUserAssess is HiveUserAssess) {
+        debugPrint('UserAssess.loadFromHive: Loading from Hive (userAssess key)');
+        
+        // Update UserAssess from Hive data
+        rehabGoal = hiveUserAssess.rehabGoal;
+        generalMuscle = hiveUserAssess.generalMuscle;
+        specificMuscle = hiveUserAssess.specificMuscle;
+        painScale = hiveUserAssess.painScale;
+        painLevel = hiveUserAssess.painLevel;
+        painType = hiveUserAssess.painType;
+        painDuration = hiveUserAssess.painDuration;
+        isInjured = hiveUserAssess.isInjured;
+        isAssessed = hiveUserAssess.isAssessed;
+        
+        // Also sync to AssessmentData
+        AssessmentData.rehabGoal = rehabGoal;
+        AssessmentData.generalMuscle = generalMuscle;
+        AssessmentData.specificMuscle = specificMuscle;
+        AssessmentData.painScale = painScale;
+        AssessmentData.painLevel = painLevel;
+        AssessmentData.painType = painType;
+        AssessmentData.painDuration = painDuration;
+        AssessmentData.isInjured = isInjured;
+        AssessmentData.isAssessed = isAssessed;
+        
+        debugPrint('UserAssess.loadFromHive: Loaded from Hive successfully');
+        debugPrint('UserAssess.loadFromHive: specificMuscle = "$specificMuscle"');
+        return; // Successfully loaded from Hive, don't need Firebase
+      } else {
+        debugPrint('UserAssess.loadFromHive: No Hive data found (userAssess key), will try Firebase if needed');
+        // If no Hive data, fall back to mirroring AssessmentData (for backward compatibility)
+        rehabGoal = AssessmentData.rehabGoal;
+        generalMuscle = AssessmentData.generalMuscle;
+        specificMuscle = AssessmentData.specificMuscle;
+        painScale = AssessmentData.painScale;
+        painLevel = AssessmentData.painLevel;
+        painType = AssessmentData.painType;
+        painDuration = AssessmentData.painDuration;
+        isInjured = AssessmentData.isInjured;
+        isAssessed = AssessmentData.isAssessed;
+        injuredMuscles = AssessmentData.injuredMuscles;
+        musclePainLevels = AssessmentData.musclePainLevels;
+        musclePainCategories = AssessmentData.musclePainCategories;
+        muscleStillPainful = AssessmentData.muscleStillPainful;
+      }
+    } catch (e) {
+      debugPrint('UserAssess.loadFromHive: Error loading from Hive: $e');
+      debugPrint('UserAssess.loadFromHive: Falling back to AssessmentData mirror');
+      // Fallback to mirroring AssessmentData on error
+      rehabGoal = AssessmentData.rehabGoal;
+      generalMuscle = AssessmentData.generalMuscle;
+      specificMuscle = AssessmentData.specificMuscle;
+      painScale = AssessmentData.painScale;
+      painLevel = AssessmentData.painLevel;
+      painType = AssessmentData.painType;
+      painDuration = AssessmentData.painDuration;
+      isInjured = AssessmentData.isInjured;
+      isAssessed = AssessmentData.isAssessed;
+      injuredMuscles = AssessmentData.injuredMuscles;
+      musclePainLevels = AssessmentData.musclePainLevels;
+      musclePainCategories = AssessmentData.musclePainCategories;
+      muscleStillPainful = AssessmentData.muscleStillPainful;
+    }
   }
 }
 

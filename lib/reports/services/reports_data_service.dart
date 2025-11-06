@@ -80,7 +80,7 @@ class ReportsDataService {
   Future<List<ExerciseRecordEntry>> loadExerciseHistory({bool forceRefresh = false}) async {
     const cacheKey = 'exercise_history';
     
-    // Check cache first
+    // Check cache first (but skip if forceRefresh is true)
     if (!forceRefresh && _isCacheValid(cacheKey)) {
       return _cache[cacheKey] as List<ExerciseRecordEntry>;
     }
@@ -89,7 +89,8 @@ class ReportsDataService {
     _exerciseHistoryError = null;
 
     try {
-      final history = await _repository.getExerciseHistory();
+      // Pass forceRefresh to repository to ensure Firebase is loaded
+      final history = await _repository.getExerciseHistory(forceRefresh: forceRefresh);
       
       // Update cache
       _cache[cacheKey] = history;
@@ -115,7 +116,7 @@ class ReportsDataService {
   Future<List<PainRecordEntry>> loadPainHistory({bool forceRefresh = false}) async {
     const cacheKey = 'pain_history';
     
-    // Check cache first
+    // Check cache first (but skip if forceRefresh is true)
     if (!forceRefresh && _isCacheValid(cacheKey)) {
       return _cache[cacheKey] as List<PainRecordEntry>;
     }
@@ -124,7 +125,8 @@ class ReportsDataService {
     _painHistoryError = null;
 
     try {
-      final history = await _repository.getPainHistory();
+      // Pass forceRefresh to repository to ensure Firebase is loaded
+      final history = await _repository.getPainHistory(forceRefresh: forceRefresh);
       
       // Update cache
       _cache[cacheKey] = history;
