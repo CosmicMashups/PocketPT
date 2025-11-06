@@ -7,6 +7,7 @@ import '../data/globals.dart';
 import '../core/medical_design_system.dart';
 import '../data/custom_exercise_service.dart';
 import 'exercise_list.dart' as exList;
+import 'exercise_detail.dart';
 
 class EditPlanPage extends StatefulWidget {
   const EditPlanPage({super.key});
@@ -189,8 +190,12 @@ class _EditPlanPageState extends State<EditPlanPage> {
     final rehabPlan = UserRehabilitation.instance.rehabPlans.isNotEmpty
         ? UserRehabilitation.instance.rehabPlans.first
         : null;
+    
+    // Check if there are treatments even when no plan exists (treatments-only case)
+    final hasTreatments = UserRehabilitation.instance.treatmentReferences != null &&
+        UserRehabilitation.instance.treatmentReferences!.isNotEmpty;
 
-    if (rehabPlan == null) {
+    if (rehabPlan == null && !hasTreatments) {
       return Scaffold(
         body: Container(
           decoration: BoxDecoration(
@@ -366,32 +371,63 @@ class _EditPlanPageState extends State<EditPlanPage> {
       );
     }
 
-  Widget _buildPlanContent(RehabilitationPlan rehabPlan, bool isDark) {
+  Widget _buildPlanContent(RehabilitationPlan? rehabPlan, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          _buildPlanStats(rehabPlan, isDark),
-          const SizedBox(height: 20),
+          // Only show plan stats if plan exists
+          if (rehabPlan != null) ...[
+            _buildPlanStats(rehabPlan, isDark),
+            const SizedBox(height: 20),
+          ],
 
-              // Exercise List
-          Text(
-            'Exercises',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: mainColor,
-              letterSpacing: 0.3,
+              // Exercise List (only if plan exists)
+          if (rehabPlan != null) ...[
+            Text(
+              'Exercises',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: mainColor,
+                letterSpacing: 0.3,
+              ),
             ),
+            const SizedBox(height: 12),
+            rehabPlan.exerciseReferences.isEmpty
+                ? _buildEmptyState(isDark)
+                : _buildExerciseList(rehabPlan, isDark),
+            const SizedBox(height: 16),
+            _buildAddExerciseButtons(),
+            const SizedBox(height: 28),
+          ] else ...[
+            // Show message when no exercises but treatments exist
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue.shade700, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'No exercises in your plan. Focus on the recommended treatments below.',
+                      style: TextStyle(
+                        color: Colors.blue.shade800,
+                        fontSize: 14,
+                      ),
                     ),
-              const SizedBox(height: 12),
-          rehabPlan.exerciseReferences.isEmpty
-              ? _buildEmptyState(isDark)
-              : _buildExerciseList(rehabPlan, isDark),
-          const SizedBox(height: 16),
-              _buildAddExerciseButtons(),
-          const SizedBox(height: 28),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+          ],
 
               // Treatments Section
               if (_isLoadingTreatments)
@@ -557,8 +593,40 @@ class _EditPlanPageState extends State<EditPlanPage> {
       decoration: MedicalDesignSystem.medicalCardAccentDecoration,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // Add exercise detail view
+        onTap: () async {
+          // Navigate to exercise detail page
+          if (_exercises != null) {
+            try {
+              final exercise = _exercises!.firstWhere(
+                (ex) => ex.id == exerciseRef.exerciseId,
+                orElse: () => exList.Exercise(
+                  id: exerciseRef.exerciseId,
+                  name: _getExerciseName(exerciseRef.exerciseId),
+                  description: '',
+                  muscle: '',
+                  painLevel: '',
+                  goal: '',
+                  rep: exerciseRef.repetitions,
+                  set: exerciseRef.sets,
+                  imageUrl: '',
+                  videoUrl: '',
+                  otherMuscles: '',
+                ),
+              );
+              
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ExerciseDetailPage(
+                    exercise: exercise,
+                    isSelecting: false, // Don't show Select button
+                  ),
+                ),
+              );
+            } catch (e) {
+              debugPrint('Error navigating to exercise detail: $e');
+            }
+          }
         },
         splashColor: MedicalDesignSystem.primaryBrand.withOpacity(0.1),
         highlightColor: MedicalDesignSystem.primaryBrand.withOpacity(0.05),
@@ -1323,23 +1391,88 @@ class _EditPlanPageState extends State<EditPlanPage> {
   }
 
   Widget _buildTreatmentCard(Treatment treatment) {
-    return MedicalDesignSystem.medicalCardWithHeader(
-      title: treatment.treatmentName,
-      icon: MedicalIcons.medicalServices,
-      iconColor: MedicalDesignSystem.primaryBrand,
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            treatment.description,
-            style: MedicalDesignSystem.bodyStyle,
+    return InkWell(
+      onTap: () {
+        _showTreatmentDetail(treatment);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: MedicalDesignSystem.medicalCardWithHeader(
+        title: treatment.treatmentName,
+        icon: MedicalIcons.medicalServices,
+        iconColor: MedicalDesignSystem.primaryBrand,
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              treatment.description,
+              style: MedicalDesignSystem.bodyStyle,
+            ),
+            const SizedBox(height: 16),
+            MedicalDesignSystem.medicalStatusBadge(
+              text: 'Pain Level: ${treatment.painLevel}',
+              status: MedicalStatus.warning,
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTreatmentDetail(Treatment treatment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(MedicalIcons.medicalServices, color: MedicalDesignSystem.primaryBrand),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                treatment.treatmentName,
+                style: MedicalDesignSystem.headerStyle,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Description',
+                style: MedicalDesignSystem.subheaderStyle,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                treatment.description,
+                style: MedicalDesignSystem.bodyStyle,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Details',
+                style: MedicalDesignSystem.subheaderStyle,
+              ),
+              const SizedBox(height: 8),
+              MedicalDesignSystem.medicalStatusBadge(
+                text: 'Pain Level: ${treatment.painLevel}',
+                status: MedicalStatus.warning,
+              ),
+              const SizedBox(height: 8),
+              MedicalDesignSystem.medicalStatusBadge(
+                text: 'Pain Duration: ${treatment.painDuration}',
+                status: MedicalStatus.info,
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          MedicalDesignSystem.medicalStatusBadge(
-            text: 'Pain Level: ${treatment.painLevel}',
-            status: MedicalStatus.warning,
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: MedicalDesignSystem.primaryMedicalButton,
+            child: const Text('Close'),
           ),
-          const SizedBox(height: 16),
         ],
       ),
     );

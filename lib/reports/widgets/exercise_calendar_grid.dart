@@ -220,28 +220,36 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
         final cellWidth = (availableWidth - (6 * 4)) / 7;
         final cellSize = cellWidth.clamp(32.0, 60.0); // Min 32px, Max 60px
         
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: weekdays
-              .map((day) => Container(
-                    width: cellSize,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.white10 : const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Center(
-                      child: Text(
-                        day,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white70 : const Color(0xFF6B7280),
-                          fontSize: cellSize > 45 ? 12 : 10,
+        // Calculate total width needed for the calendar
+        final totalWidth = (cellSize * 7) + (6 * 4); // 7 cells + 6 gaps
+        
+        return Center(
+          child: SizedBox(
+            width: totalWidth,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: weekdays
+                  .map((day) => Container(
+                        width: cellSize,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(6),
                         ),
-                      ),
-                    ),
-                  ))
-              .toList(),
+                        child: Center(
+                          child: Text(
+                            day,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white70 : const Color(0xFF6B7280),
+                              fontSize: cellSize > 45 ? 12 : 10,
+                            ),
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
         );
       },
     );
@@ -279,34 +287,44 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
             } else if (currentDay <= daysInMonth) {
               // Day cell
               final date = DateTime(selectedDate.year, selectedDate.month, currentDay);
+              // Normalize date to midnight for comparison
+              final dateNormalized = DateTime(date.year, date.month, date.day);
               
-              // Check if there are exercises on this date
-              final hasExercises = exerciseRecords.any((record) => 
-                  record.date.year == date.year &&
-                  record.date.month == date.month &&
-                  record.date.day == date.day);
+              // Check if there are exercises on this date (normalize record dates to midnight)
+              final hasExercises = exerciseRecords.any((record) {
+                final recordDateNormalized = DateTime(record.date.year, record.date.month, record.date.day);
+                return recordDateNormalized.year == dateNormalized.year &&
+                    recordDateNormalized.month == dateNormalized.month &&
+                    recordDateNormalized.day == dateNormalized.day;
+              });
 
               final isToday = date.year == DateTime.now().year &&
                   date.month == DateTime.now().month &&
                   date.day == DateTime.now().day;
 
-              // Count completed and partial exercises for this date
-              final completedExercises = exerciseRecords.where((record) => 
-                  record.date.year == date.year &&
-                  record.date.month == date.month &&
-                  record.date.day == date.day &&
-                  record.status.toLowerCase() == 'completed').length;
+              // Count completed and partial exercises for this date (normalize dates)
+              final completedExercises = exerciseRecords.where((record) {
+                final recordDateNormalized = DateTime(record.date.year, record.date.month, record.date.day);
+                return recordDateNormalized.year == dateNormalized.year &&
+                    recordDateNormalized.month == dateNormalized.month &&
+                    recordDateNormalized.day == dateNormalized.day &&
+                    record.status.toLowerCase() == 'completed';
+              }).length;
 
-              final partialExercises = exerciseRecords.where((record) => 
-                  record.date.year == date.year &&
-                  record.date.month == date.month &&
-                  record.date.day == date.day &&
-                  record.status.toLowerCase() == 'partial').length;
+              final partialExercises = exerciseRecords.where((record) {
+                final recordDateNormalized = DateTime(record.date.year, record.date.month, record.date.day);
+                return recordDateNormalized.year == dateNormalized.year &&
+                    recordDateNormalized.month == dateNormalized.month &&
+                    recordDateNormalized.day == dateNormalized.day &&
+                    record.status.toLowerCase() == 'partial';
+              }).length;
 
-              final totalExercises = exerciseRecords.where((record) => 
-                  record.date.year == date.year &&
-                  record.date.month == date.month &&
-                  record.date.day == date.day).length;
+              final totalExercises = exerciseRecords.where((record) {
+                final recordDateNormalized = DateTime(record.date.year, record.date.month, record.date.day);
+                return recordDateNormalized.year == dateNormalized.year &&
+                    recordDateNormalized.month == dateNormalized.month &&
+                    recordDateNormalized.day == dateNormalized.day;
+              }).length;
 
               rowCells.add(
                 GestureDetector(
@@ -347,16 +365,29 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
                         // Show circle indicators for exercise completion status
                         if (hasExercises && (completedExercises > 0 || partialExercises > 0))
                           Positioned(
-                            top: 2,
-                            right: 2,
+                            top: 4,
+                            right: 4,
                             child: Container(
-                              width: cellSize > 45 ? 8 : 6,
-                              height: cellSize > 45 ? 8 : 6,
+                              width: cellSize > 45 ? 12 : 10,
+                              height: cellSize > 45 ? 12 : 10,
                               decoration: BoxDecoration(
                                 color: completedExercises > 0 
                                     ? const Color(0xFF10B981) // Green for completed
                                     : const Color(0xFFF59E0B), // Orange for partial
                                 shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: completedExercises > 0 
+                                        ? const Color(0xFF10B981).withOpacity(0.5)
+                                        : const Color(0xFFF59E0B).withOpacity(0.5),
+                                    blurRadius: 3,
+                                    spreadRadius: 0.5,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -380,8 +411,16 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
           );
         }
         
-        return Column(
-          children: rows,
+        // Calculate total width needed for the calendar
+        final totalWidth = (cellSize * 7) + (6 * 4); // 7 cells + 6 gaps
+        
+        return Center(
+          child: SizedBox(
+            width: totalWidth,
+            child: Column(
+              children: rows,
+            ),
+          ),
         );
       },
     );
@@ -420,10 +459,14 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
   }
 
   void _showDayDetails(BuildContext context, DateTime date, List<ExerciseRecord> exerciseRecords, bool isDark) {
-    final dayRecords = exerciseRecords.where((record) => 
-        record.date.year == date.year &&
-        record.date.month == date.month &&
-        record.date.day == date.day).toList();
+    // Normalize date to midnight for comparison
+    final dateNormalized = DateTime(date.year, date.month, date.day);
+    final dayRecords = exerciseRecords.where((record) {
+      final recordDateNormalized = DateTime(record.date.year, record.date.month, record.date.day);
+      return recordDateNormalized.year == dateNormalized.year &&
+          recordDateNormalized.month == dateNormalized.month &&
+          recordDateNormalized.day == dateNormalized.day;
+    }).toList();
 
     showDialog(
       context: context,

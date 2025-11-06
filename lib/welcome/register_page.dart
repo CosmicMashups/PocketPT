@@ -60,6 +60,14 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
 
   /// Handle user registration
   Future<void> _handleRegistration() async {
+    // Check password match before form validation
+    if (_passwordController.text.trim() != _confirmPasswordController.text.trim()) {
+      setState(() {
+        _errorMessage = 'Passwords do not match. Please ensure both passwords are identical.';
+      });
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) return;
 
     if (!_agreedToTerms) {
@@ -198,36 +206,48 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 2,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 6),
                                 ),
                               ],
                             ),
-                            child: Image.asset(
-                              'assets/images/logo.png',
-                              width: 100,
-                              height: 100,
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/logo/pocketpt.png',
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 20),
                           Flexible(
-                            child: Text(
-                              'Join PocketPT',
-                              style: GoogleFonts.poppins(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            child: Image.asset(
+                              'assets/images/logo/branding.png',
+                              height: 44,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Text(
+                                  'Join PocketPT',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -417,6 +437,12 @@ class _RegisterPageState extends State<RegisterPage> with TickerProviderStateMix
                             isPassword: true,
                             icon: Icons.lock,
                             controller: _passwordController,
+                            onPasswordChanged: () {
+                              // Re-validate confirm password when password changes
+                              if (_formKey.currentState != null) {
+                                _formKey.currentState!.validate();
+                              }
+                            },
                           ),
                           const SizedBox(height: 14),
 
@@ -713,6 +739,7 @@ class ReusableInputField extends StatefulWidget {
   final IconData? icon;
   final TextEditingController? controller;
   final String? Function(String?)? validator;
+  final VoidCallback? onPasswordChanged;
 
   const ReusableInputField({
     super.key,
@@ -721,6 +748,7 @@ class ReusableInputField extends StatefulWidget {
     this.icon,
     this.controller,
     this.validator,
+    this.onPasswordChanged,
   });
 
   @override
@@ -729,6 +757,9 @@ class ReusableInputField extends StatefulWidget {
 
 class _ReusableInputFieldState extends State<ReusableInputField> {
   late bool isObscured;
+  bool hasMinLength = false;
+  bool hasUppercase = false;
+  bool hasSymbol = false;
 
   @override
   void initState() {
@@ -744,84 +775,158 @@ class _ReusableInputFieldState extends State<ReusableInputField> {
     return null;
   }
 
+  void _updatePasswordRequirements(String value) {
+    setState(() {
+      hasMinLength = value.length >= 8;
+      hasUppercase = RegExp(r'[A-Z]').hasMatch(value);
+      hasSymbol = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: widget.controller,
-      obscureText: widget.isPassword ? isObscured : false,
-      validator: widget.isPassword ? _validatePassword : widget.validator,
-      style: GoogleFonts.ptSans(
-        fontSize: 16,
-        color: const Color(0xFF1F2937),
-      ),
-      decoration: InputDecoration(
-        labelText: widget.label,
-        labelStyle: GoogleFonts.ptSans(
-          color: const Color(0xFF6B7280),
-          fontSize: 14,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: widget.controller,
+          obscureText: widget.isPassword ? isObscured : false,
+          validator: widget.isPassword ? _validatePassword : widget.validator,
+          onChanged: (value) {
+            if (widget.isPassword && widget.label == 'Password') {
+              _updatePasswordRequirements(value);
+              // Trigger re-validation of confirm password
+              if (widget.onPasswordChanged != null) {
+                widget.onPasswordChanged!();
+              }
+            }
+          },
+          style: GoogleFonts.ptSans(
+            fontSize: 16,
+            color: const Color(0xFF1F2937),
+          ),
+          decoration: InputDecoration(
+            labelText: widget.label,
+            labelStyle: GoogleFonts.ptSans(
+              color: const Color(0xFF6B7280),
+              fontSize: 14,
+            ),
+            prefixIcon: widget.icon != null 
+                ? Icon(
+                    widget.icon, 
+                    color: const Color(0xFF6B7280),
+                    size: 20,
+                  ) 
+                : null,
+            suffixIcon: widget.isPassword
+                ? IconButton(
+                    icon: Icon(
+                      isObscured ? Icons.visibility_off : Icons.visibility,
+                      color: const Color(0xFF6B7280),
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        isObscured = !isObscured;
+                      });
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: const Color(0xFFF9FAFB),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFE5E7EB),
+                width: 1,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFE5E7EB),
+                width: 1,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFF8B2E2E),
+                width: 2,
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFDC2626),
+                width: 1,
+              ),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFDC2626),
+                width: 2,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
         ),
-        prefixIcon: widget.icon != null 
-            ? Icon(
-                widget.icon, 
-                color: const Color(0xFF6B7280),
-                size: 20,
-              ) 
-            : null,
-        suffixIcon: widget.isPassword
-            ? IconButton(
-                icon: Icon(
-                  isObscured ? Icons.visibility_off : Icons.visibility,
-                  color: const Color(0xFF6B7280),
-                  size: 20,
+        // Password help text (only for Password field, not Confirm Password)
+        if (widget.isPassword && widget.label == 'Password') ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Password must contain:',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF6B7280),
+                  ),
                 ),
-                onPressed: () {
-                  setState(() {
-                    isObscured = !isObscured;
-                  });
-                },
-              )
-            : null,
-        filled: true,
-        fillColor: const Color(0xFFF9FAFB),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFFE5E7EB),
-            width: 1,
+                const SizedBox(height: 8),
+                _buildRequirementRow('At least 8 characters', hasMinLength),
+                _buildRequirementRow('One uppercase letter (A-Z)', hasUppercase),
+                _buildRequirementRow('One symbol (!@#\$%^&*)', hasSymbol),
+              ],
+            ),
           ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFFE5E7EB),
-            width: 1,
+        ],
+      ],
+    );
+  }
+
+  Widget _buildRequirementRow(String text, bool isMet) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Icon(
+            isMet ? Icons.check_circle : Icons.circle_outlined,
+            size: 16,
+            color: isMet ? const Color(0xFF10B981) : const Color(0xFF9CA3AF),
           ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFF8B2E2E),
-            width: 2,
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: GoogleFonts.ptSans(
+              fontSize: 12,
+              color: isMet ? const Color(0xFF10B981) : const Color(0xFF6B7280),
+            ),
           ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFFDC2626),
-            width: 1,
-          ),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: Color(0xFFDC2626),
-            width: 2,
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
+        ],
       ),
     );
   }

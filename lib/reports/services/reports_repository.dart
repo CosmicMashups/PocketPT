@@ -44,20 +44,40 @@ class ReportsRepository {
   }
 
   /// Get exercise history from local storage with Firebase sync
-  Future<List<ExerciseRecordEntry>> getExerciseHistory() async {
+  Future<List<ExerciseRecordEntry>> getExerciseHistory({bool forceRefresh = false}) async {
     try {
       debugPrint('ReportsRepository: Loading exercise history...');
       
-      // Load from Hive
-      await ExerciseHistory.loadFromHive();
+      final user = _auth.currentUser;
+      
+      // If user is authenticated and not guest, try to load from Firebase first to get all historical data
+      if (user != null && !UserDetails.isGuest) {
+        try {
+          debugPrint('ReportsRepository: Loading exercise history from Firebase...');
+          await ExerciseHistory.loadFromFirebase();
+          debugPrint('ReportsRepository: Loaded ${ExerciseHistory.entries.length} exercise history entries from Firebase');
+          
+          // Save to Hive for offline access
+          await ExerciseHistory.saveToHive();
+        } catch (e) {
+          debugPrint('ReportsRepository: Error loading from Firebase, falling back to Hive: $e');
+          // Fall back to Hive if Firebase fails
+          await ExerciseHistory.loadFromHive();
+        }
+      } else {
+        // For guests or unauthenticated users, load from Hive only
+        await ExerciseHistory.loadFromHive();
+      }
+      
       final history = ExerciseHistory.entries;
+      debugPrint('ReportsRepository: Loaded ${history.length} exercise history entries total');
       
-      debugPrint('ReportsRepository: Loaded ${history.length} exercise history entries');
-      
-      // Attempt Firebase sync in background
-      _syncExerciseHistoryToFirebase(history).catchError((e) {
-        debugPrint('ReportsRepository: Firebase sync failed: $e');
-      });
+      // Attempt Firebase sync in background (only if not already synced)
+      if (!forceRefresh && user != null && !UserDetails.isGuest) {
+        _syncExerciseHistoryToFirebase(history).catchError((e) {
+          debugPrint('ReportsRepository: Firebase sync failed: $e');
+        });
+      }
       
       return history;
       
@@ -68,20 +88,40 @@ class ReportsRepository {
   }
 
   /// Get pain history from local storage with Firebase sync
-  Future<List<PainRecordEntry>> getPainHistory() async {
+  Future<List<PainRecordEntry>> getPainHistory({bool forceRefresh = false}) async {
     try {
       debugPrint('ReportsRepository: Loading pain history...');
       
-      // Load from Hive
-      await PainHistory.loadFromHive();
+      final user = _auth.currentUser;
+      
+      // If user is authenticated and not guest, try to load from Firebase first to get all historical data
+      if (user != null && !UserDetails.isGuest) {
+        try {
+          debugPrint('ReportsRepository: Loading pain history from Firebase...');
+          await PainHistory.loadFromFirebase();
+          debugPrint('ReportsRepository: Loaded ${PainHistory.entries.length} pain history entries from Firebase');
+          
+          // Save to Hive for offline access
+          await PainHistory.saveToHive();
+        } catch (e) {
+          debugPrint('ReportsRepository: Error loading from Firebase, falling back to Hive: $e');
+          // Fall back to Hive if Firebase fails
+          await PainHistory.loadFromHive();
+        }
+      } else {
+        // For guests or unauthenticated users, load from Hive only
+        await PainHistory.loadFromHive();
+      }
+      
       final history = PainHistory.entries;
+      debugPrint('ReportsRepository: Loaded ${history.length} pain history entries total');
       
-      debugPrint('ReportsRepository: Loaded ${history.length} pain history entries');
-      
-      // Attempt Firebase sync in background
-      _syncPainHistoryToFirebase(history).catchError((e) {
-        debugPrint('ReportsRepository: Firebase sync failed: $e');
-      });
+      // Attempt Firebase sync in background (only if not already synced)
+      if (!forceRefresh && user != null && !UserDetails.isGuest) {
+        _syncPainHistoryToFirebase(history).catchError((e) {
+          debugPrint('ReportsRepository: Firebase sync failed: $e');
+        });
+      }
       
       return history;
       

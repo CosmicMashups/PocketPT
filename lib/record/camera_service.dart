@@ -32,6 +32,7 @@ class CameraService {
   List<CameraDescription>? get cameras => _cameras;
 
   /// Initialize camera with proper error handling and lifecycle management
+  /// Automatically tries different cameras if one fails
   Future<bool> initialize() async {
     if (_isInitializing) {
       debugPrint('CameraService: Already initializing, waiting for completion...');
@@ -62,28 +63,53 @@ class CameraService {
         throw Exception('No cameras available on this device');
       }
 
-      // Create camera controller with medium resolution for optimal performance
-      _controller = CameraController(
-        _cameras![0],
-        ResolutionPreset.medium,
-        enableAudio: false, // Disable audio to reduce resource usage
-      );
-
-      // Initialize the controller
-      await _controller!.initialize();
+      // Try to initialize camera with auto-switching on failure
+      bool initialized = false;
+      int cameraIndex = 0;
+      int maxAttempts = _cameras!.length;
       
-      if (_isDisposed) {
-        // Camera was disposed during initialization
-        await _disposeController();
-        return false;
-      }
+      while (!initialized && cameraIndex < maxAttempts) {
+        try {
+          // Create camera controller with medium resolution for optimal performance
+          _controller = CameraController(
+            _cameras![cameraIndex],
+            ResolutionPreset.medium,
+            enableAudio: false, // Disable audio to reduce resource usage
+          );
 
-      debugPrint('CameraService: Camera initialized successfully');
-      _initializationController.add(true);
-      return true;
+          // Initialize the controller
+          await _controller!.initialize();
+          
+          if (_isDisposed) {
+            // Camera was disposed during initialization
+            await _disposeController();
+            return false;
+          }
+
+          initialized = true;
+          debugPrint('CameraService: Camera initialized successfully with camera index: $cameraIndex');
+          _initializationController.add(true);
+          return true;
+        } catch (e) {
+          debugPrint('CameraService: Camera initialization failed with camera $cameraIndex: $e');
+          // Try next camera
+          cameraIndex++;
+          // Dispose failed controller before retrying
+          await _disposeController();
+          if (cameraIndex < maxAttempts) {
+            debugPrint('CameraService: Trying next camera: $cameraIndex');
+          }
+        }
+      }
+      
+      // If we get here, all cameras failed
+      debugPrint('CameraService: Failed to initialize any camera after trying all available cameras');
+      _errorController.add('Failed to initialize any camera after trying all available cameras');
+      _initializationController.add(false);
+      return false;
 
     } catch (e) {
-      debugPrint('CameraService: Camera initialization failed: $e');
+      debugPrint('CameraService: Camera initialization error: $e');
       _errorController.add(e.toString());
       _initializationController.add(false);
       

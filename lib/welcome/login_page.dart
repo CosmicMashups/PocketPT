@@ -433,22 +433,27 @@ class _LoginPageState extends State<LoginPage> {
                               verticalOffset: 50.0,
                               child: FadeInAnimation(
                                 child: Container(
-                                  padding: const EdgeInsets.all(20),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(20),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2,
+                                    ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.1),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 4),
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 15,
+                                        offset: const Offset(0, 6),
                                       ),
                                     ],
                                   ),
-                                  child: HeroElements.animatedLogo(
-                                    heroTag: HeroElements.logoHeroTag,
-                                    size: 120.0,
-                                    showGlow: true,
+                                  child: ClipOval(
+                                    child: Image.asset(
+                                      'assets/images/logo/pocketpt.png',
+                                      width: 120,
+                                      height: 120,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -456,16 +461,23 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const SizedBox(height: 24),
                           Flexible(
-                            child: Text(
-                              'PocketPT',
-                              style: GoogleFonts.poppins(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            child: Image.asset(
+                              'assets/images/logo/branding.png',
+                              height: 48,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Text(
+                                  'PocketPT',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(height: 8),

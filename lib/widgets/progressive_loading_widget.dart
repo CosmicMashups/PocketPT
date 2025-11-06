@@ -139,6 +139,7 @@ class LoadingOverlay extends StatelessWidget {
                         width: 60,
                         height: 60,
                         child: Stack(
+                          alignment: Alignment.center,
                           children: [
                             CircularProgressIndicator(
                               value: progress,
@@ -146,14 +147,12 @@ class LoadingOverlay extends StatelessWidget {
                               backgroundColor: Colors.grey[300],
                               valueColor: AlwaysStoppedAnimation<Color>(kMainColor),
                             ),
-                            Center(
-                              child: Text(
-                                '${(progress! * 100).toInt()}%',
-                                style: GoogleFonts.ptSans(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: kMainColor,
-                                ),
+                            Text(
+                              '${(progress! * 100).toInt()}%',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: kMainColor,
                               ),
                             ),
                           ],

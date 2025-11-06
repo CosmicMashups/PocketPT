@@ -256,22 +256,27 @@ class _SimpleEmailVerificationPageState extends State<SimpleEmailVerificationPag
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 2,
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 15,
+                                offset: const Offset(0, 6),
                               ),
                             ],
                           ),
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 100,
-                            height: 100,
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/logo/pocketpt.png',
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),

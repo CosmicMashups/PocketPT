@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+import 'package:hive/hive.dart';
 import '../data/globals.dart';
 import '../core/animations.dart';
 import '../welcome/login_page.dart';
 import '../data/functions.dart';
-import '../data/data_management_widget.dart';
 import '../data/data_persistence_service.dart';
 import '../data/auth_persistence_service.dart';
 import '../data/user_data_notifier.dart';
@@ -597,23 +597,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           ),
           const SizedBox(height: 16),
           
-          // Data Management
-          _buildActionItem(
-            'Data Management',
-            'Export or manage your data',
-            Icons.storage,
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DataManagementWidget(),
-                ),
-              );
-            },
-          ),
-          
-          const SizedBox(height: 16),
-          
           // Logout/Exit Guest Mode
           _buildActionItem(
             isGuest ? 'Exit Guest Mode' : 'Logout',
@@ -795,6 +778,16 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         
         // Sign out from Firebase
         await _auth.signOut();
+        
+        // Clear all Hive data for next user
+        try {
+          if (Hive.isBoxOpen('rehabBox')) {
+            await Hive.box('rehabBox').clear();
+            debugPrint('ProfilePage: Cleared all Hive data on logout');
+          }
+        } catch (e) {
+          debugPrint('ProfilePage: Error clearing Hive data: $e');
+        }
       }
 
       // Close loading dialog

@@ -83,14 +83,12 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
         plan = await generateRehabilitationPlanFromCSV(context);
         print('GeneratePlan: Plan generated: ${plan != null ? "Success" : "Failed"}');
         
-        // Handle case where user cancelled the muscle injury dialog
+        // Handle case where user cancelled the muscle injury dialog or chose treatments only
         if (plan == null) {
-          print('GeneratePlan: Plan generation cancelled by user, showing appropriate message');
-          setState(() {
-            _error = "Plan generation was cancelled. You can return to the assessment to modify your muscle injury information or try again.";
-            _isLoading = false;
-          });
-          return;
+          // Check if user chose treatments only (not cancelled)
+          // This will be handled by showing treatments only in the UI
+          print('GeneratePlan: Plan generation returned null (user may have chosen treatments only or cancelled)');
+          // Don't show error immediately - let treatments be generated and shown
         }
       } else {
         print('GeneratePlan: Skipping plan generation due to severe pain/recent injury');
@@ -129,7 +127,8 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
         });
         // Keep plans only in memory for now (no persistence here)
       } else {
-        print('GeneratePlan: Showing successful plan state');
+        // Handle both cases: plan exists OR treatments only (plan null but treatments exist)
+        print('GeneratePlan: Showing plan state (plan: ${plan != null}, treatments: ${treatmentReferences?.length ?? 0})');
         UserRehabilitation.instance.rehabPlans = plan != null ? [plan] : [];
         setState(() {
           _rehabPlan = plan;
@@ -457,6 +456,23 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                               return Text('Error loading treatments: ${snapshot.error}');
                             }
                             final treatments = snapshot.data ?? [];
+                            if (treatments.isEmpty) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFFCD34D)),
+                                ),
+                                child: Text(
+                                  'No treatment details available.',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 14,
+                                    color: const Color(0xFF92400E),
+                                  ),
+                                ),
+                              );
+                            }
                             return Column(
                               children: treatments.map((t) => _buildTreatmentCard(t)).toList(),
                             );
@@ -506,13 +522,76 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                               return const Center(child: CircularProgressIndicator());
                             }
                             if (snapshot.hasError) {
-                              return Text('Error loading exercises: ${snapshot.error}');
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFFECACA)),
+                                ),
+                                child: Text(
+                                  'Error loading exercises: ${snapshot.error}',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 14,
+                                    color: const Color(0xFFDC2626),
+                                  ),
+                                ),
+                              );
                             }
                             final exercises = snapshot.data ?? [];
+                            if (exercises.isEmpty) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF3C7),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFFCD34D)),
+                                ),
+                                child: Text(
+                                  'No exercise details available.',
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 14,
+                                    color: const Color(0xFF92400E),
+                                  ),
+                                ),
+                              );
+                            }
                             return Column(
                               children: exercises.map((e) => _buildExerciseCard(e)).toList(),
                             );
                           },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                // Show message if no exercises or treatments
+                if ((_rehabPlan == null || _rehabPlan!.exerciseReferences.isEmpty) &&
+                    (_treatmentReferences == null || _treatmentReferences!.isEmpty)) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFFCD34D), width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline,
+                          color: Color(0xFF92400E),
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'No exercises or treatments available at this time. Please try again or contact support.',
+                            style: GoogleFonts.ptSans(
+                              fontSize: 14,
+                              color: const Color(0xFF92400E),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -763,7 +842,6 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
               ),
               child: Column(
                 children: [
-                  _buildDetailRow(Icons.accessibility_new, 'Target Muscle', exercise.muscle),
                   _buildDetailRow(Icons.favorite, 'Pain Level', exercise.painLevel),
                   _buildDetailRow(Icons.flag, 'Goal', exercise.goal),
                   if (exercise.videoUrl.isNotEmpty)
@@ -843,7 +921,6 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
               ),
               child: Column(
                 children: [
-                  _buildDetailRow(Icons.accessibility_new, 'Target Muscles', treatment.musclesInvolved),
                   _buildDetailRow(Icons.health_and_safety, 'Pain Level', treatment.painLevel),
                   _buildDetailRow(Icons.timer, 'Pain Duration', treatment.painDuration),
                 ],

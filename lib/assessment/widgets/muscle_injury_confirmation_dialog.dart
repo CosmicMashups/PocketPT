@@ -115,7 +115,7 @@ class MuscleInjuryConfirmationDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'We found only $availableExerciseCount exercises that avoid your injured muscles.',
+            'Limited exercises available due to severe injuries.',
             style: GoogleFonts.ptSans(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -124,7 +124,7 @@ class MuscleInjuryConfirmationDialog extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Would you like to include exercises that target your previously injured muscles? This may help with your rehabilitation but could cause discomfort.',
+            'We found only $availableExerciseCount exercises that avoid your severely injured muscles (pain level 8-10). You can include exercises that target these muscles if you\'re comfortable, or focus on treatments only.',
             style: GoogleFonts.ptSans(
               fontSize: 14,
               color: detailColor,
@@ -170,6 +170,8 @@ class MuscleInjuryConfirmationDialog extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: injuredMuscles.map((muscle) {
+              final category = musclePainCategories[muscle] ?? 'Unknown';
+              final isSevere = category == 'Severe';
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -202,7 +204,7 @@ class MuscleInjuryConfirmationDialog extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        "Still Painful",
+                        isSevere ? "Severe" : category,
                         style: GoogleFonts.ptSans(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -327,6 +329,40 @@ class MuscleInjuryConfirmationDialog extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   'No, Keep Safe Exercises Only',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        
+        // Treatments Only Button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () {
+              debugPrint('MuscleInjuryConfirmationDialog: User chose treatmentsOnly');
+              Navigator.of(context).pop(MuscleInjuryChoice.treatmentsOnly);
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: warningColor,
+              side: BorderSide(color: warningColor, width: 2),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.medical_services, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Focus on Treatments Only',
                   style: GoogleFonts.ptSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

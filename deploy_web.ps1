@@ -4,11 +4,12 @@
 Write-Host "Building Flutter web application..." -ForegroundColor Green
 
 # Build the web application optimized for GitHub Pages
+# IMPORTANT: Use the exact repository name casing in base-href
 # Attempt with pwa-strategy to avoid service worker caching; if unsupported, retry without it
-flutter build web --debug --base-href /pocketpt/ --pwa-strategy none
+flutter build web --debug --base-href /PocketPT/ --pwa-strategy none
 if ($LASTEXITCODE -ne 0) {
   Write-Host "Retrying build without --pwa-strategy (not supported on this Flutter)" -ForegroundColor Yellow
-  flutter build web --debug --base-href /pocketpt/
+  flutter build web --debug --base-href /PocketPT/
 }
 
 # Ensure GitHub Pages does not use Jekyll and SPA routing works
@@ -28,63 +29,29 @@ if ($LASTEXITCODE -eq 0) {
     
     # Check if we're in a git repository
     if (Test-Path ".git") {
-        Write-Host "Deploying using gh-pages worktree..." -ForegroundColor Cyan
+        Write-Host "Deploying using git subtree split..." -ForegroundColor Cyan
 
         # Sanity checks for critical files
         if (-not (Test-Path "build/web/index.html")) { throw "Missing build/web/index.html" }
         if (-not (Test-Path "build/web/flutter_bootstrap.js")) { throw "Missing build/web/flutter_bootstrap.js" }
-        if (-not (Test-Path "build/web/manifest.json")) { Write-Host "Warning: manifest.json missing" -ForegroundColor Yellow }
 
-        # Ensure gh-pages branch exists locally (tracking remote if present)
-        git show-ref --verify --quiet refs/heads/gh-pages
-        if ($LASTEXITCODE -ne 0) {
-          git fetch origin gh-pages 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            git branch gh-pages origin/gh-pages
-          } else {
-            git branch gh-pages
-          }
-        }
+        # Force add web build (in case parent build is ignored)
+        git add -f build/web/
 
-        # Prepare worktree directory (handle stale registrations)
-        $deployDir = ".gh-pages"
-        git worktree prune 2>$null
-        if (Test-Path $deployDir) {
-          git worktree remove $deployDir --force 2>$null
-          Remove-Item -Recurse -Force $deployDir -ErrorAction SilentlyContinue
-        }
-        git worktree add -f $deployDir gh-pages
-        if ($LASTEXITCODE -ne 0) { throw "Failed to create gh-pages worktree" }
+        # Create temporary deploy commit
+        git commit -m "chore(deploy): web build" --allow-empty --no-verify
 
-        # Clean worktree contents (filesystem and git index)
-        Get-ChildItem -Path $deployDir -Force | Where-Object { $_.Name -ne ".git" } | Remove-Item -Recurse -Force
-        Push-Location $deployDir
-        git rm -r -q --cached . 2>$null
-        git clean -fdx -q
-        Pop-Location
+        # Split subtree and push to gh-pages
+        git subtree split --prefix build/web -b gh-pages-temp
+        if ($LASTEXITCODE -ne 0) { throw "Failed to create subtree branch" }
 
-        # Copy build output (use robocopy for reliability on Windows, includes all files)
-        $src = (Resolve-Path "build/web").Path
-        $dst = (Resolve-Path $deployDir).Path
-        robocopy "$src" "$dst" /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
+        git push origin gh-pages-temp:gh-pages --force
+        if ($LASTEXITCODE -ne 0) { throw "Failed to push to gh-pages" }
 
-        # Verify critical files exist after copy
-        if (-not (Test-Path "$deployDir/index.html")) { throw "index.html missing in gh-pages" }
-        if (-not (Test-Path "$deployDir/flutter_bootstrap.js")) { throw "flutter_bootstrap.js missing in gh-pages" }
-        if (-not (Test-Path "$deployDir/manifest.json")) { Write-Host "Warning: manifest.json missing in gh-pages" -ForegroundColor Yellow }
-        if (-not (Test-Path "$deployDir/splash/img/light-background.png")) { Write-Host "Warning: splash images missing in gh-pages" -ForegroundColor Yellow }
-
-        Push-Location $deployDir
-        git add -A
-        git status -s | Measure-Object | ForEach-Object { Write-Host ("Staged changes: " + $_.Count) }
-        git commit -m "deploy: update web build" --allow-empty --no-verify
-        Write-Host ("gh-pages commit: " + (git rev-parse --short HEAD)) -ForegroundColor Cyan
-        git push -u origin gh-pages --force
-        Write-Host ("Remote gh-pages head: " + ((git ls-remote --heads origin gh-pages) -split "\s+" | Select-Object -First 1)) -ForegroundColor Cyan
-        Pop-Location
-
-        # Detach worktree
-        git worktree remove $deployDir --force
+        # Cleanup
+        git branch -D gh-pages-temp
+        git reset --soft HEAD~1
+        git restore --staged build/web 2>$null
 
         Write-Host "Deployment completed successfully!" -ForegroundColor Green
         Write-Host "Your web app should be available at: https://yourusername.github.io/pocketpt" -ForegroundColor Cyan

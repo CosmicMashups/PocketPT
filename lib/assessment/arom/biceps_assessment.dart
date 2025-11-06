@@ -76,13 +76,13 @@ class BicepsAssessment {
   static String _getClinicalContext(String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Severe biceps ROM limitation - Requires immediate attention';
+        return 'Severe';
       case 'moderate':
-        return 'Moderate biceps ROM limitation - Monitor and consider intervention';
+        return 'Moderate';
       case 'low':
-        return 'Normal biceps ROM - Maintain current activities';
+        return 'Low';
       default:
-        return 'Biceps ROM assessment incomplete - Retry assessment';
+        return 'Low';
     }
   }
 

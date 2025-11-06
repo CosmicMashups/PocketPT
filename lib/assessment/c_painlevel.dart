@@ -123,11 +123,6 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                     // Pain Scale
                     _buildPainScale(),
 
-                    const SizedBox(height: 24),
-
-                    // Pain Level Description
-                    if (selectedPainLevel > 0) _buildPainDescription(),
-
                     const SizedBox(height: 32),
 
                     // Next Button
@@ -329,70 +324,6 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
     );
   }
 
-  Widget _buildPainDescription() {
-    final description = _getPainDescription(selectedPainLevel);
-    final color = _getPainColor(selectedPainLevel);
-    final categoricalLevel = _getCategoricalPainLevel(selectedPainLevel);
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  _getPainIcon(selectedPainLevel),
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  description,
-                  style: GoogleFonts.ptSans(
-                    fontSize: 14,
-                    color: color,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              "Category: $categoricalLevel (for exercise filtering)",
-              style: GoogleFonts.ptSans(
-                fontSize: 12,
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Color _getPainColor(int level) {
     if (level <= 2) return successColor;
@@ -601,49 +532,73 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
   Widget _buildPainLevelDisplay() {
     final categoricalLevel = _getCategoricalPainLevel(selectedPainLevel);
     final color = _getPainColor(selectedPainLevel);
+    final description = _getPainDescription(selectedPainLevel);
     
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: color.withOpacity(0.3),
           width: 1,
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
         children: [
-          Icon(
-            _getPainIcon(selectedPainLevel),
-            color: color,
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            "Pain Level: $selectedPainLevel",
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              categoricalLevel,
-              style: GoogleFonts.ptSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+          // Pain level header with icon and number
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  _getPainIcon(selectedPainLevel),
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
+              const SizedBox(width: 16),
+              Text(
+                "Pain Level: $selectedPainLevel",
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  categoricalLevel,
+                  style: GoogleFonts.ptSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Pain description
+          Text(
+            description,
+            style: GoogleFonts.ptSans(
+              fontSize: 14,
+              color: color,
+              fontWeight: FontWeight.w500,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

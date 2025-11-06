@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../stretching/providers/stretching_provider.dart';
 import '../stretching/widgets/exercise_instruction_widget.dart';
 import '../stretching/widgets/routine_progress_widget.dart';
@@ -27,24 +29,105 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
   static const mainColor = Color(0xFF8B2E2E);
   static const subColor = Color(0xFFC24A4A);
   static const detailColor = Color(0xFF6B7280);
+  bool _loadAttempted = false;
+  String? _specificMuscle;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // First, try to load specificMuscle from Hive (userAssess key)
+      try {
+        await UserAssess.loadFromHive();
+        _specificMuscle = UserAssess.specificMuscle.isNotEmpty 
+            ? UserAssess.specificMuscle 
+            : null;
+        
+        // If Hive value is "General" or empty, load from Firebase
+        if (_specificMuscle == null || _specificMuscle!.isEmpty || _specificMuscle!.toLowerCase() == 'general') {
+          print('WarmupStretchingPage: Hive value is "${_specificMuscle ?? "empty"}", loading from Firebase');
+          
+          // Load from Firebase if Hive doesn't have valid data
+          try {
+            final User? currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser != null) {
+              final DocumentSnapshot doc = await FirebaseFirestore.instance
+                  .collection('assessment')
+                  .doc(currentUser.uid)
+                  .get();
+              
+              if (doc.exists) {
+                final data = doc.data() as Map<String, dynamic>;
+                final firebaseMuscle = data['specificMuscle'] as String? ?? '';
+                
+                // Only use Firebase value if it's not empty and not "General"
+                if (firebaseMuscle.isNotEmpty && firebaseMuscle.toLowerCase() != 'general') {
+                  _specificMuscle = firebaseMuscle;
+                  UserAssess.specificMuscle = _specificMuscle!;
+                  await UserAssess.saveToHive();
+                  print('WarmupStretchingPage: Loaded specificMuscle from Firebase: "$_specificMuscle"');
+                } else {
+                  print('WarmupStretchingPage: Firebase value is also "${firebaseMuscle}", keeping Hive value or using fallback');
+                }
+              }
+            }
+          } catch (e) {
+            print('WarmupStretchingPage: Error loading specificMuscle from Firebase: $e');
+          }
+        } else {
+          print('WarmupStretchingPage: Loaded specificMuscle from Hive: "$_specificMuscle"');
+        }
+      } catch (e) {
+        print('WarmupStretchingPage: Error loading from Hive: $e');
+        // Try Firebase as fallback
+        try {
+          final User? currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            final DocumentSnapshot doc = await FirebaseFirestore.instance
+                .collection('assessment')
+                .doc(currentUser.uid)
+                .get();
+            
+            if (doc.exists) {
+              final data = doc.data() as Map<String, dynamic>;
+              final firebaseMuscle = data['specificMuscle'] as String? ?? '';
+              
+              // Only use Firebase value if it's not empty and not "General"
+              if (firebaseMuscle.isNotEmpty && firebaseMuscle.toLowerCase() != 'general') {
+                _specificMuscle = firebaseMuscle;
+                UserAssess.specificMuscle = _specificMuscle!;
+                await UserAssess.saveToHive();
+                print('WarmupStretchingPage: Loaded specificMuscle from Firebase (fallback): "$_specificMuscle"');
+              }
+            }
+          }
+        } catch (firebaseError) {
+          print('WarmupStretchingPage: Error loading from Firebase: $firebaseError');
+        }
+      }
+      
+      // Use specificMuscle from Hive/Firebase, fallback to UserAssess, then widget parameter
+      final muscleGroupToUse = _specificMuscle?.isNotEmpty == true 
+          ? _specificMuscle! 
+          : (UserAssess.specificMuscle.isNotEmpty 
+              ? UserAssess.specificMuscle 
+              : widget.muscleGroup);
+      
+      print('WarmupStretchingPage: Final muscleGroupToUse: "$muscleGroupToUse"');
+      
       // Get pain scale from assessment data
       final painScale = UserAssess.painScale;
-      print('WarmupStretchingPage: Loading routines for ${widget.muscleGroup} with pain level $painScale');
+      print('WarmupStretchingPage: Loading routines for $muscleGroupToUse with pain level $painScale');
       
       try {
         await ref.read(stretchingProvider.notifier).loadRoutinesForMuscleWithPainLevel(
-          widget.muscleGroup, painScale);
+          muscleGroupToUse, painScale);
         
         // Check if routines were loaded successfully
         final stretchingState = ref.read(stretchingProvider);
         if (stretchingState.currentWarmupRoutine == null) {
           print('WarmupStretchingPage: No warmup routine found with pain level, trying without pain filtering');
-          await ref.read(stretchingProvider.notifier).loadRoutinesForMuscle(widget.muscleGroup);
+          await ref.read(stretchingProvider.notifier).loadRoutinesForMuscle(muscleGroupToUse);
           
           // Check again after fallback
           final updatedState = ref.read(stretchingProvider);
@@ -56,9 +139,17 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
         print('WarmupStretchingPage: Error loading routines: $e');
         // Try fallback without pain level filtering
         try {
-          await ref.read(stretchingProvider.notifier).loadRoutinesForMuscle(widget.muscleGroup);
+          await ref.read(stretchingProvider.notifier).loadRoutinesForMuscle(muscleGroupToUse);
         } catch (fallbackError) {
           print('WarmupStretchingPage: Fallback also failed: $fallbackError');
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _loadAttempted = true;
+          });
+        } else {
+          _loadAttempted = true;
         }
       }
     });
@@ -107,14 +198,12 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
           final routine = stretchingState.currentWarmupRoutine;
 
           if (routine == null) {
-            // Check if we're still loading or if no routines were found
-            final isLoading = stretchingState.currentWarmupRoutine == null && 
-                            stretchingState.currentCooldownRoutine == null;
-            if (isLoading) {
+            // Show loading until we've attempted to load
+            if (!_loadAttempted) {
               return _buildLoadingState();
-            } else {
-              return _buildNoRoutineState();
             }
+            // After attempts completed and still null, show no routine state
+            return _buildNoRoutineState();
           }
 
           return SafeArea(
@@ -194,7 +283,7 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'No warm-up routines were found for ${widget.muscleGroup}.\nYou can proceed directly to your exercise.',
+            'No warm-up routines were found for ${_specificMuscle?.isNotEmpty == true ? _specificMuscle! : (UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : widget.muscleGroup)}.\nYou can proceed directly to your exercise.',
             style: GoogleFonts.ptSans(
               fontSize: 16,
               color: detailColor,
@@ -305,7 +394,7 @@ class _WarmupStretchingPageState extends ConsumerState<WarmupStretchingPage> {
                     ),
                     const SizedBox(height: RecordingDesignSystem.spacingXS),
                     Text(
-                      "Warm-up stretching for ${widget.muscleGroup}",
+                      "Warm-up stretching for ${_specificMuscle?.isNotEmpty == true ? _specificMuscle! : (UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : widget.muscleGroup)}",
                       style: RecordingDesignSystem.bodyMedium.copyWith(
                         color: RecordingDesignSystem.getTextSecondaryColor(context),
                       ),
