@@ -10,7 +10,7 @@
 - [x] 2.2 Design info banner for moderate pain detection
 - [x] 2.3 Create severe pain dialog with continue/rest options
 - [x] 2.4 Add pain detection status to camera preview overlay
-- [ ] 2.5 Implement smooth animations for pain feedback
+- [x] 2.5 Implement smooth animations for pain feedback
 
 ## 3. Intervention Logic Implementation
 - [x] 3.1 Implement Low pain handling (ignore/no action)
@@ -21,8 +21,8 @@
 
 ## 4. Exercise Flow Integration
 - [x] 4.1 Integrate pain detection with existing exercise recording flow
-- [ ] 4.2 Add pain level to exercise completion data
-- [ ] 4.3 Update exercise history to include pain detection results
+- [x] 4.2 Add pain level to exercise completion data
+- [x] 4.3 Update exercise history to include pain detection results
 - [x] 4.4 Ensure pain detection doesn't interfere with exercise timing
 - [ ] 4.5 Add pain detection to exercise validation
 

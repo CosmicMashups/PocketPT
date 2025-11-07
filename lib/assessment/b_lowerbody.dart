@@ -253,12 +253,13 @@ class _AssessLowerBodyState extends State<AssessLowerBody> {
                     const Color(0xFF10B981),
                   ),
                   
-                  _buildMuscleOption(
-                    'Ankle',
-                    'Composed of muscles and tendons that enable foot movement and balance.',
-                    Icons.airline_seat_legroom_extra,
-                    const Color(0xFFF59E0B),
-                  ),
+                  // Temporarily hidden
+                  // _buildMuscleOption(
+                  //   'Ankle',
+                  //   'Composed of muscles and tendons that enable foot movement and balance.',
+                  //   Icons.airline_seat_legroom_extra,
+                  //   const Color(0xFFF59E0B),
+                  // ),
                   
                   _buildMuscleOption(
                     'Gluteals',

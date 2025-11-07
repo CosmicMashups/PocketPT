@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'a_goal1.dart';
+import '../tutorials/tutorial_config.dart';
 class AssessPrelim extends StatelessWidget {
   const AssessPrelim({super.key});
 
@@ -190,6 +191,7 @@ class AssessPrelim extends StatelessWidget {
                   ],
                 ),
                 child: ElevatedButton(
+                  key: TutorialAnchors.assessmentPrelimStart,
                   onPressed: () {
                     Navigator.push(
                       context,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
@@ -7,12 +9,12 @@ import '../data/simple_auth_service.dart';
 import '../data/guest_mode_service.dart';
 import '../data/optimized_data_service.dart';
 import '../widgets/progressive_loading_widget.dart';
-import '../widgets/hero_elements.dart';
 import '../core/animations.dart';
 import 'email_verification_page.dart';
 import 'register_page.dart';
 import 'forgot_password_page.dart';
 import '../main.dart';
+import '../tutorials/tutorial_config.dart';
 /// Login page with progressive loading and streamlined flow
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -41,6 +43,10 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
+    // Show one-time web disclaimer when landing on login page (prototype notice)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowWebPrototypeDisclaimer();
+    });
   }
 
   @override
@@ -48,6 +54,58 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  /// Show a one-time disclaimer on web: prototype-only with Guest access
+  Future<void> _maybeShowWebPrototypeDisclaimer() async {
+    if (!kIsWeb) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      const key = 'web_prototype_disclaimer_shown_v1';
+      final alreadyShown = prefs.getBool(key) ?? false;
+      if (alreadyShown) return;
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return AlertDialog(
+            title: const Text('Prototype Notice'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'This web version is a prototype to preview how PocketPT works.',
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'To experience the full capabilities, please install the Android APK application.',
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'On the web, only "Continue as Guest" is available. Login and account creation are disabled because Firebase requires app hosting.',
+                ),
+              ],
+            ),
+            backgroundColor: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await prefs.setBool(key, true);
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+                child: const Text('Got it'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (_) {
+      // Fail-safe: ignore errors and continue
+    }
   }
 
   /// Handle email/password sign in with optimized flow
@@ -110,6 +168,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   /// Handle Google sign in with optimized flow
+  // ignore: unused_element
   Future<void> _handleGoogleSignIn() async {
     if (mounted) {
       setState(() {
@@ -696,6 +755,7 @@ class _LoginPageState extends State<LoginPage> {
                           ],
                         ),
                         child: ElevatedButton(
+                          key: TutorialAnchors.welcomeSignIn,
                           onPressed: _isLoading ? null : _handleEmailSignIn,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
@@ -749,6 +809,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                         ),
                       ),
+                      
                       const SizedBox(height: 20),
                       
                       Row(
@@ -777,48 +838,50 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
-                      
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-                            width: 1,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: OutlinedButton.icon(
-                          icon: Image.asset(
-                            'assets/images/logo/google.png',
-                            height: 20,
-                          ),
-                          label: Text(
-                            'Continue with Google',
-                            style: GoogleFonts.ptSans(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                              color: const Color(0xFF1F2937),
-                            ),
-                          ),
-                          onPressed: _isLoading ? null : _handleGoogleSignIn,
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide.none,
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                        ),
-                      ),
+
+                      // Temporarily hidden: Google Sign In button
+                      // const SizedBox(height: 24),
+                      // 
+                      // Container(
+                      //   width: double.infinity,
+                      //   decoration: BoxDecoration(
+                      //     color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+                      //     borderRadius: BorderRadius.circular(16),
+                      //     border: Border.all(
+                      //       color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+                      //       width: 1,
+                      //     ),
+                      //     boxShadow: [
+                      //       BoxShadow(
+                      //         color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                      //         blurRadius: 4,
+                      //         offset: const Offset(0, 2),
+                      //       ),
+                      //     ],
+                      //   ),
+                      //   child: OutlinedButton.icon(
+                      //     icon: Image.asset(
+                      //       'assets/images/logo/google.png',
+                      //       height: 20,
+                      //     ),
+                      //     label: Text(
+                      //       'Continue with Google',
+                      //       style: GoogleFonts.ptSans(
+                      //         fontWeight: FontWeight.w600,
+                      //         fontSize: 16,
+                      //         color: const Color(0xFF1F2937),
+                      //       ),
+                      //     ),
+                      //     onPressed: _isLoading ? null : _handleGoogleSignIn,
+                      //     style: OutlinedButton.styleFrom(
+                      //       side: BorderSide.none,
+                      //       padding: const EdgeInsets.symmetric(vertical: 18),
+                      //       shape: RoundedRectangleBorder(
+                      //         borderRadius: BorderRadius.circular(16),
+                      //       ),
+                      //     ),
+                      //   ),
+                      // ),
                       const SizedBox(height: 20),
 
                       // Continue as Guest Button
@@ -840,6 +903,7 @@ class _LoginPageState extends State<LoginPage> {
                           ],
                         ),
                         child: OutlinedButton.icon(
+                          key: TutorialAnchors.welcomeGuest,
                           icon: const Icon(
                             Icons.person_outline,
                             color: Color(0xFF6B7280),
@@ -877,6 +941,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                           child: RichText(
+                            key: TutorialAnchors.welcomeRegister,
                             textAlign: TextAlign.center,
                             text: TextSpan(
                               style: GoogleFonts.ptSans(

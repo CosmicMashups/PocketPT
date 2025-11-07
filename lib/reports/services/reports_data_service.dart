@@ -24,22 +24,26 @@ class ReportsDataService {
   bool _isLoadingRehabPlans = false;
   bool _isLoadingExerciseHistory = false;
   bool _isLoadingPainHistory = false;
+  bool _isLoadingAssessmentData = false;
   
   // Error states
   String? _rehabPlansError;
   String? _exerciseHistoryError;
   String? _painHistoryError;
+  String? _assessmentDataError;
 
   // Getters for loading states
   bool get isLoadingRehabPlans => _isLoadingRehabPlans;
   bool get isLoadingExerciseHistory => _isLoadingExerciseHistory;
   bool get isLoadingPainHistory => _isLoadingPainHistory;
-  bool get isLoading => _isLoadingRehabPlans || _isLoadingExerciseHistory || _isLoadingPainHistory;
+  bool get isLoadingAssessmentData => _isLoadingAssessmentData;
+  bool get isLoading => _isLoadingRehabPlans || _isLoadingExerciseHistory || _isLoadingPainHistory || _isLoadingAssessmentData;
 
   // Getters for error states
   String? get rehabPlansError => _rehabPlansError;
   String? get exerciseHistoryError => _exerciseHistoryError;
   String? get painHistoryError => _painHistoryError;
+  String? get assessmentDataError => _assessmentDataError;
 
   /// Load rehabilitation plans with error handling and caching
   Future<List<RehabilitationPlan>> loadRehabPlans({bool forceRefresh = false}) async {
@@ -142,6 +146,41 @@ class ReportsDataService {
       // Return cached data if available
       if (_cache.containsKey(cacheKey)) {
         return _cache[cacheKey] as List<PainRecordEntry>;
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Load assessment data from Firebase with error handling and caching
+  Future<Map<String, dynamic>?> loadAssessmentData({bool forceRefresh = false}) async {
+    const cacheKey = 'assessment_data';
+    
+    // Check cache first (but skip if forceRefresh is true)
+    if (!forceRefresh && _isCacheValid(cacheKey)) {
+      return _cache[cacheKey] as Map<String, dynamic>?;
+    }
+
+    _isLoadingAssessmentData = true;
+    _assessmentDataError = null;
+
+    try {
+      final assessmentData = await _repository.getAssessmentDataFromFirebase(forceRefresh: forceRefresh);
+      
+      // Update cache
+      _cache[cacheKey] = assessmentData;
+      _cacheTimestamps[cacheKey] = DateTime.now();
+      
+      _isLoadingAssessmentData = false;
+      return assessmentData;
+      
+    } catch (e) {
+      _assessmentDataError = 'Failed to load assessment data: ${e.toString()}';
+      _isLoadingAssessmentData = false;
+      
+      // Return cached data if available
+      if (_cache.containsKey(cacheKey)) {
+        return _cache[cacheKey] as Map<String, dynamic>?;
       }
       
       rethrow;
@@ -279,4 +318,10 @@ final exerciseHistoryProvider = FutureProvider<List<ExerciseRecordEntry>>((ref) 
 final painHistoryProvider = FutureProvider<List<PainRecordEntry>>((ref) async {
   final service = ref.read(reportsDataServiceProvider);
   return await service.loadPainHistory();
+});
+
+/// Provider for assessment data
+final assessmentDataProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
+  final service = ref.read(reportsDataServiceProvider);
+  return await service.loadAssessmentData();
 });

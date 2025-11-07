@@ -162,15 +162,16 @@ class _AssessUploadState extends State<AssessUpload> {
                     const SizedBox(height: 24),
 
                     // Upload Options
-                    _buildUploadOption(
-                      'Take Photo',
-                      'Capture a photo of the affected area',
-                      Icons.camera_alt,
-                      mainColor,
-                      _isProcessing ? null : () => _takePhoto(),
-                      isLoading: _isProcessing,
-                    ),
-                    const SizedBox(height: 16),
+                    // Temporarily hidden - Take Photo option
+                    // _buildUploadOption(
+                    //   'Take Photo',
+                    //   'Capture a photo of the affected area',
+                    //   Icons.camera_alt,
+                    //   mainColor,
+                    //   _isProcessing ? null : () => _takePhoto(),
+                    //   isLoading: _isProcessing,
+                    // ),
+                    // const SizedBox(height: 16),
                     _buildUploadOption(
                       'Record Video',
                       'Record a video showing your range of motion',
@@ -178,15 +179,16 @@ class _AssessUploadState extends State<AssessUpload> {
                       subColor,
                       () => _recordVideo(),
                     ),
-                    const SizedBox(height: 16),
-                    _buildUploadOption(
-                      'Upload from Gallery',
-                      'Select existing photos or videos from your device',
-                      Icons.photo_library,
-                      successColor,
-                      _isProcessing ? null : () => _selectFromGallery(),
-                      isLoading: _isProcessing,
-                    ),
+                    // const SizedBox(height: 16),
+                    // Temporarily hidden - Upload from Gallery option
+                    // _buildUploadOption(
+                    //   'Upload from Gallery',
+                    //   'Select existing photos or videos from your device',
+                    //   Icons.photo_library,
+                    //   successColor,
+                    //   _isProcessing ? null : () => _selectFromGallery(),
+                    //   isLoading: _isProcessing,
+                    // ),
                     const SizedBox(height: 24),
 
                     // Media Preview Section

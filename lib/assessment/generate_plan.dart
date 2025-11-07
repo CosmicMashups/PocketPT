@@ -384,7 +384,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Your Personalized Treatment Plan',
+                  'Your Rehabilitation Plan',
                   style: GoogleFonts.poppins(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
@@ -505,7 +505,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                             ),
                             const SizedBox(width: 12),
                             Text(
-                              'Recommended Exercises',
+                              'Exercises',
                               style: GoogleFonts.poppins(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,

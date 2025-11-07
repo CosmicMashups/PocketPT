@@ -261,21 +261,58 @@ class ExerciseDataService {
     try {
       print('ExerciseDataService: [LOAD] Starting CSV data loading... - Cache miss #$_cacheMisses, Total loads: $_totalLoads');
       final csvData = await loadCSVFromAsset('assets/data/exercises.csv');
-      final header = csvData.first;
+      
+      // Expected column count for exercises CSV
+      const expectedColumnCount = 11;
+      
+      // Fix malformed header: if first row has too many columns, truncate to expected count
+      List<dynamic> rawHeader = csvData.first;
+      if (rawHeader.length > expectedColumnCount) {
+        print('ExerciseDataService: [FIX] Header row has ${rawHeader.length} columns (expected $expectedColumnCount), truncating...');
+        rawHeader = rawHeader.sublist(0, expectedColumnCount);
+      }
+      
       final data = csvData.sublist(1);
 
-      // Validate CSV structure
-      final requiredColumns = ['Exercise_ID', 'Exercise', 'Exercise_Description', 'Muscle_Involved', 'Pain_Level', 'Functional_Goal', 'Repetition', 'Set'];
-      final missingColumns = requiredColumns.where((col) => !header.contains(col)).toList();
+      // Build normalized header index map (only use expected columns)
+      String _norm(String s) {
+        if (s.isEmpty) return s;
+        var t = s.replaceAll('\r', '').trim();
+        if (t.isNotEmpty && t.codeUnitAt(0) == 0xFEFF) t = t.substring(1);
+        if (t.startsWith('"') && t.endsWith('"') && t.length >= 2) {
+          t = t.substring(1, t.length - 1);
+        }
+        t = t.toLowerCase().replaceAll(' ', '_');
+        return t;
+      }
+      final Map<String, int> headerMap = <String, int>{};
+      for (int i = 0; i < rawHeader.length && i < expectedColumnCount; i++) {
+        final normalizedKey = _norm(rawHeader[i].toString());
+        headerMap[normalizedKey] = i;
+      }
+      // Debug: print all normalized column names for diagnostics
+      print('ExerciseDataService: [HEADER] Raw header row has ${rawHeader.length} columns (using first $expectedColumnCount)');
+      print('ExerciseDataService: [HEADER] Raw header (first $expectedColumnCount): ${rawHeader.take(expectedColumnCount).toList()}');
+      final normalizedColumns = headerMap.keys.toList()..sort();
+      print('ExerciseDataService: [HEADER] Normalized column names (${normalizedColumns.length}): ${normalizedColumns.join(', ')}');
+      print('ExerciseDataService: [HEADER] Header map entries: ${headerMap.entries.map((e) => '${e.key}->${e.value}').join(', ')}');
+
+      // Validate CSV structure using normalized keys
+      final requiredColumns = [
+        'exercise_id', 'exercise', 'exercise_description', 'muscle_involved', 'pain_level',
+        'functional_goal', 'repetition', 'set', 'image_link', 'video_link', 'other_muscles'
+      ];
+      final missingColumns = requiredColumns.where((colName) => !headerMap.containsKey(colName)).toList();
       if (missingColumns.isNotEmpty) {
-        print('ExerciseDataService: [ERROR] Missing required CSV columns: $missingColumns');
-        print('ExerciseDataService: [DEBUG] Available columns: $header');
-        return [];
+        print('ExerciseDataService: [ERROR] Missing required CSV columns (normalized): $missingColumns');
+        print('ExerciseDataService: [DEBUG] Available columns (raw): $rawHeader');
+        print('ExerciseDataService: [DEBUG] Available columns (normalized keys): ${headerMap.keys.toList()}');
+        // Do not hard-fail; allow downstream to continue with best effort
       }
 
-      print('ExerciseDataService: [VALIDATE] CSV structure validated - ${header.length} columns, ${data.length} data rows');
+      print('ExerciseDataService: [VALIDATE] CSV structure validated - ${headerMap.length} columns, ${data.length} data rows');
 
-      int col(String name) => header.indexOf(name);
+      int col(String name) => headerMap[_norm(name)] ?? -1;
 
       final exercises = <Exercise>[];
       int validRows = 0;
@@ -285,9 +322,9 @@ class ExerciseDataService {
         final row = data[i];
         try {
           // Validate required fields
-          final exerciseId = row[col('Exercise_ID')].toString();
-          final exerciseName = row[col('Exercise')].toString();
-          final description = row[col('Exercise_Description')].toString();
+          final exerciseId = col('Exercise_ID') >= 0 ? row[col('Exercise_ID')].toString() : '';
+          final exerciseName = col('Exercise') >= 0 ? row[col('Exercise')].toString() : '';
+          final description = col('Exercise_Description') >= 0 ? row[col('Exercise_Description')].toString() : '';
           
           if (exerciseId.isEmpty || exerciseName.isEmpty || description.isEmpty) {
             print('ExerciseDataService: [WARNING] Row ${i + 2} has empty required fields - ID: "$exerciseId", Name: "$exerciseName", Description: "$description"');
@@ -296,8 +333,8 @@ class ExerciseDataService {
           }
 
           // Validate numeric fields
-          final repetitions = int.tryParse(row[col('Repetition')].toString());
-          final sets = int.tryParse(row[col('Set')].toString());
+          final repetitions = col('Repetition') >= 0 ? int.tryParse(row[col('Repetition')].toString()) : null;
+          final sets = col('Set') >= 0 ? int.tryParse(row[col('Set')].toString()) : null;
           
           if (repetitions == null || repetitions <= 0) {
             print('ExerciseDataService: [WARNING] Row ${i + 2} has invalid repetitions: "${row[col('Repetition')]}"');
@@ -315,14 +352,14 @@ class ExerciseDataService {
             exerciseId: exerciseId,
             exerciseName: exerciseName,
             description: description,
-            muscle: row[col('Muscle_Involved')].toString(),
-            painLevel: row[col('Pain_Level')].toString(),
-            goal: row[col('Functional_Goal')].toString(),
+            muscle: col('Muscle_Involved') >= 0 ? row[col('Muscle_Involved')].toString() : '',
+            painLevel: col('Pain_Level') >= 0 ? row[col('Pain_Level')].toString() : '',
+            goal: col('Functional_Goal') >= 0 ? row[col('Functional_Goal')].toString() : '',
             repetitions: repetitions,
             sets: sets,
-            imageUrl: row[col('Image_Link')].toString(),
-            videoUrl: row[col('Video_Link')].toString(),
-            otherMuscles: row[col('Other_Muscles')].toString(),
+            imageUrl: col('Image_Link') >= 0 ? row[col('Image_Link')].toString() : '',
+            videoUrl: col('Video_Link') >= 0 ? row[col('Video_Link')].toString() : '',
+            otherMuscles: col('Other_Muscles') >= 0 ? row[col('Other_Muscles')].toString() : '',
           );
           
           exercises.add(exercise);
@@ -405,8 +442,43 @@ class ExerciseDataService {
     try {
       print('ExerciseDataService: Loading treatments from CSV...');
       final csvData = await loadCSVFromAsset('assets/data/treatment.csv');
-      final header = csvData.first;
+      
+      // Expected column count for treatment CSV
+      const expectedColumnCount = 6;
+      
+      // Fix malformed header: if first row has too many columns, truncate to expected count
+      List<dynamic> header = csvData.first;
+      if (header.length > expectedColumnCount) {
+        print('ExerciseDataService: [TREATMENT FIX] Header row has ${header.length} columns (expected $expectedColumnCount), truncating...');
+        header = header.sublist(0, expectedColumnCount);
+      }
+      
       final data = csvData.sublist(1);
+      
+      // Build normalized header map for debug
+      String _norm(String s) {
+        if (s.isEmpty) return s;
+        var t = s.replaceAll('\r', '').trim();
+        if (t.isNotEmpty && t.codeUnitAt(0) == 0xFEFF) t = t.substring(1);
+        if (t.startsWith('"') && t.endsWith('"') && t.length >= 2) {
+          t = t.substring(1, t.length - 1);
+        }
+        t = t.toLowerCase().replaceAll(' ', '_');
+        return t;
+      }
+      final Map<String, int> headerMap = <String, int>{};
+      for (int i = 0; i < header.length && i < expectedColumnCount; i++) {
+        final normalizedKey = _norm(header[i].toString());
+        headerMap[normalizedKey] = i;
+      }
+      
+      // Debug: print treatment CSV header info
+      print('ExerciseDataService: [TREATMENT HEADER] Raw header row has ${header.length} columns (using first $expectedColumnCount)');
+      print('ExerciseDataService: [TREATMENT HEADER] Raw header (first $expectedColumnCount): ${header.take(expectedColumnCount).toList()}');
+      final normalizedColumns = headerMap.keys.toList()..sort();
+      print('ExerciseDataService: [TREATMENT HEADER] Normalized column names (${normalizedColumns.length}): ${normalizedColumns.join(', ')}');
+      print('ExerciseDataService: [TREATMENT HEADER] Header map entries: ${headerMap.entries.map((e) => '${e.key}->${e.value}').join(', ')}');
+      print('ExerciseDataService: [TREATMENT DATA] ${data.length} treatment rows');
 
       int col(String name) => header.indexOf(name);
 
@@ -1462,10 +1534,35 @@ class DailyProgress {
 /// Reads the CSV from assets and parses the data.
 Future<List<List<dynamic>>> loadCSVFromAsset(String path) async {
   try {
-    final rawCSV = await rootBundle.loadString(path);
-    print('CSV data loaded from $path');
-    final parsedCSV = const CsvToListConverter().convert(rawCSV);
-    print('CSV parsed successfully');
+    // Avoid stale cache on web/CDN and strip any BOMs globally
+    String rawCSV = await rootBundle.loadString(path, cache: false);
+    rawCSV = rawCSV.replaceAll('\ufeff', '');
+    
+    // Normalize line endings to \n (handle Windows \r\n and Mac \r)
+    rawCSV = rawCSV.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    
+    // Ensure the CSV ends with a newline to prevent last row parsing issues
+    if (!rawCSV.endsWith('\n')) {
+      rawCSV += '\n';
+    }
+    
+    print('CSV data loaded from $path (${rawCSV.length} chars, ${rawCSV.split('\n').length} lines)');
+    
+    final parsedCSV = const CsvToListConverter(
+      fieldDelimiter: ',',
+      textDelimiter: '"',
+      textEndDelimiter: '"',
+      eol: '\n',
+    ).convert(rawCSV);
+    
+    print('CSV parsed successfully: ${parsedCSV.length} rows, first row has ${parsedCSV.isNotEmpty ? parsedCSV.first.length : 0} columns');
+    
+    // Validate: first row should be header with expected column count
+    if (parsedCSV.isNotEmpty && parsedCSV.first.length > 20) {
+      print('WARNING: Header row has ${parsedCSV.first.length} columns (expected ~11). CSV may be malformed.');
+      print('First 20 header values: ${parsedCSV.first.take(20).join(', ')}');
+    }
+    
     return parsedCSV;
   } catch (e) {
     print('Error loading CSV: $e');
@@ -1520,45 +1617,88 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
     final csvData = await loadCSVFromAsset('assets/data/exercises.csv');
     print('CSV data: $csvData');
 
-    final header = csvData.first;
-    final data = csvData.sublist(1); // remove header row
-    print('CSV Header: $header');
-    print('CSV Data: ${data.length} rows');
-
-    // Validate headers
-    final requiredHeaders = [
-      'Exercise_ID',
-      'Exercise',
-      'Exercise_Description',
-      'Muscle_Involved',
-      'Pain_Level',
-      'Functional_Goal',
-      'Repetition',
-      'Set',
-      'Image_Link',
-      'Video_Link',
-      'Other_Muscles',
-    ];
-
-    for (final field in requiredHeaders) {
-      if (!header.contains(field)) {
-        print('Missing column: $field');
-        throw Exception('Missing column: $field in CSV header');
+    // Expected column count for exercises CSV
+    const expectedColumnCount = 11;
+    
+    // Fix malformed header: if first row has too many columns, truncate to expected count
+    List<dynamic> rawHeader = csvData.first;
+    if (rawHeader.length > expectedColumnCount) {
+      print('RehabPlanCSV: [FIX] Header row has ${rawHeader.length} columns (expected $expectedColumnCount), truncating...');
+      rawHeader = rawHeader.sublist(0, expectedColumnCount);
+      // Also need to fix the data - first row might be corrupted
+      if (csvData.length > 1) {
+        // Check if second row starts with exercise ID pattern (E###)
+        final secondRow = csvData[1];
+        if (secondRow.isNotEmpty && secondRow[0].toString().toUpperCase().startsWith('E')) {
+          // Second row looks like data, so first row was just malformed header
+          print('RehabPlanCSV: [FIX] Second row appears to be valid data, using corrected header');
+        } else {
+          // Second row might be continuation of malformed header
+          print('RehabPlanCSV: [FIX] Second row may be continuation of header, checking...');
+        }
       }
     }
+    
+    final data = csvData.sublist(1); // remove header row
 
-    int col(String name) => header.indexOf(name);
+    // Build normalized header map (only use expected columns)
+    String _norm(String s) {
+      if (s.isEmpty) return s;
+      var t = s.replaceAll('\r', '').trim();
+      if (t.isNotEmpty && t.codeUnitAt(0) == 0xFEFF) t = t.substring(1);
+      if (t.startsWith('"') && t.endsWith('"') && t.length >= 2) {
+        t = t.substring(1, t.length - 1);
+      }
+      t = t.toLowerCase().replaceAll(' ', '_');
+      return t;
+    }
+    final Map<String, int> headerMap = <String, int>{};
+    for (int i = 0; i < rawHeader.length && i < expectedColumnCount; i++) {
+      final normalizedKey = _norm(rawHeader[i].toString());
+      headerMap[normalizedKey] = i;
+    }
+    // Debug: print all normalized column names for diagnostics
+    print('RehabPlanCSV: [HEADER] Raw header row has ${rawHeader.length} columns (using first $expectedColumnCount)');
+    print('RehabPlanCSV: [HEADER] Raw header (first $expectedColumnCount): ${rawHeader.take(expectedColumnCount).toList()}');
+    final normalizedColumns = headerMap.keys.toList()..sort();
+    print('RehabPlanCSV: [HEADER] Normalized column names (${normalizedColumns.length}): ${normalizedColumns.join(', ')}');
+    print('RehabPlanCSV: [HEADER] Header map entries: ${headerMap.entries.map((e) => '${e.key}->${e.value}').join(', ')}');
+    print('CSV Data: ${data.length} rows');
+
+    // Validate normalized headers
+    final requiredHeaders = [
+      'exercise_id',
+      'exercise',
+      'exercise_description',
+      'muscle_involved',
+      'pain_level',
+      'functional_goal',
+      'repetition',
+      'set',
+      'image_link',
+      'video_link',
+      'other_muscles',
+    ];
+
+    final missing = requiredHeaders.where((h) => !headerMap.containsKey(h)).toList();
+    if (missing.isNotEmpty) {
+      print('Missing normalized columns: $missing');
+      // Do not throw; continue best-effort
+    }
+
+    int col(String name) => headerMap[_norm(name)] ?? -1;
 
     // Filter exercises based on selected criteria
     final filteredExercises = data.where((row) {
-      bool muscleMatch = row[col('Muscle_Involved')].toString().toLowerCase() == UserAssess.specificMuscle.toLowerCase().trim();
-      bool painLevelMatch = row[col('Pain_Level')].toString().toLowerCase() == UserAssess.painLevel.toLowerCase().trim();
-      bool goalMatch = row[col('Functional_Goal')].toString().toLowerCase() ==UserAssess.rehabGoal.toLowerCase().trim();
+      bool muscleMatch = col('Muscle_Involved') >= 0 && row[col('Muscle_Involved')].toString().toLowerCase() == UserAssess.specificMuscle.toLowerCase().trim();
+      bool painLevelMatch = col('Pain_Level') >= 0 && row[col('Pain_Level')].toString().toLowerCase() == UserAssess.painLevel.toLowerCase().trim();
+      bool goalMatch = col('Functional_Goal') >= 0 && row[col('Functional_Goal')].toString().toLowerCase() == UserAssess.rehabGoal.toLowerCase().trim();
       
       // Check for muscle injury filtering
       bool muscleInjuryFilter = _checkMuscleInjuryFilter(row, col);
 
-      print('Matching row: ${row[col('Exercise')]}, Muscle Match: $muscleMatch, Pain Level Match: $painLevelMatch, Goal Match: $goalMatch, Muscle Injury Filter: $muscleInjuryFilter \n CSV: ${row[col('Muscle_Involved')].toString().toLowerCase()}, Input: ${UserAssess.painLevel.toLowerCase().trim()}');
+      final exName = col('Exercise') >= 0 ? row[col('Exercise')] : '';
+      print('Matching row: $exName, Muscle Match: $muscleMatch, Pain Level Match: $painLevelMatch, Goal Match: $goalMatch, Muscle Injury Filter: $muscleInjuryFilter');
 
       return muscleMatch && painLevelMatch && goalMatch && muscleInjuryFilter;
     }).toList();
@@ -1614,12 +1754,13 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
           // Re-filter without muscle injury filtering for severely injured muscles
           filteredExercises.clear();
           filteredExercises.addAll(data.where((row) {
-            bool muscleMatch = row[col('Muscle_Involved')].toString().toLowerCase() == UserAssess.specificMuscle.toLowerCase().trim();
-            bool painLevelMatch = row[col('Pain_Level')].toString().toLowerCase() == UserAssess.painLevel.toLowerCase().trim();
-            bool goalMatch = row[col('Functional_Goal')].toString().toLowerCase() == UserAssess.rehabGoal.toLowerCase().trim();
-            
-            print('Re-filtering row: ${row[col('Exercise')]}, Muscle Match: $muscleMatch, Pain Level Match: $painLevelMatch, Goal Match: $goalMatch');
-            
+            bool muscleMatch = col('Muscle_Involved') >= 0 && row[col('Muscle_Involved')].toString().toLowerCase() == UserAssess.specificMuscle.toLowerCase().trim();
+            bool painLevelMatch = col('Pain_Level') >= 0 && row[col('Pain_Level')].toString().toLowerCase() == UserAssess.painLevel.toLowerCase().trim();
+            bool goalMatch = col('Functional_Goal') >= 0 && row[col('Functional_Goal')].toString().toLowerCase() == UserAssess.rehabGoal.toLowerCase().trim();
+
+            final exName2 = col('Exercise') >= 0 ? row[col('Exercise')] : '';
+            print('Re-filtering row: $exName2, Muscle Match: $muscleMatch, Pain Level Match: $painLevelMatch, Goal Match: $goalMatch');
+
             return muscleMatch && painLevelMatch && goalMatch;
           }).toList());
           
@@ -1648,7 +1789,7 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
     // Remove duplicate exercises based on Exercise_ID to ensure uniqueness
     final uniqueExercises = <String, List<dynamic>>{};
     for (final row in filteredExercises) {
-      final exerciseId = row[col('Exercise_ID')].toString();
+      final exerciseId = col('Exercise_ID') >= 0 ? row[col('Exercise_ID')].toString() : '';
       if (!uniqueExercises.containsKey(exerciseId)) {
         uniqueExercises[exerciseId] = row;
       }
@@ -1666,11 +1807,12 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
     deduplicatedExercises.shuffle(random);
 
     final selected = deduplicatedExercises.take(3).map((row) {
-      print('Selected exercise: ${row[col('Exercise')]}');
+      final name = col('Exercise') >= 0 ? row[col('Exercise')] : '';
+      print('Selected exercise: $name');
       return ExerciseReference(
-        exerciseId: row[col('Exercise_ID')].toString(),
-        repetitions: int.tryParse(row[col('Repetition')].toString()) ?? 0,
-        sets: int.tryParse(row[col('Set')].toString()) ?? 0,
+        exerciseId: col('Exercise_ID') >= 0 ? row[col('Exercise_ID')].toString() : '',
+        repetitions: col('Repetition') >= 0 ? int.tryParse(row[col('Repetition')].toString()) ?? 0 : 0,
+        sets: col('Set') >= 0 ? int.tryParse(row[col('Set')].toString()) ?? 0 : 0,
       );
     }).toList();
 

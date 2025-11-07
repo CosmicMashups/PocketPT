@@ -14,7 +14,41 @@ import 'hive_models.dart';
 // Enhanced Hive box opening with better error handling and adapter registration
 Future<Box> openRehabBox() async {
   try {
-    // Ensure critical adapters are registered before opening the box
+    // Ensure all adapters are registered before opening the box
+    // This is critical for web platform where adapters may not be registered in main.dart
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(HiveDailyProgressAdapter());
+    }
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(HivePainRecordEntryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
+      Hive.registerAdapter(HiveExerciseRecordEntryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(3)) {
+      Hive.registerAdapter(HiveUserProgressAdapter());
+    }
+    if (!Hive.isAdapterRegistered(4)) {
+      Hive.registerAdapter(HiveUserAssessAdapter());
+    }
+    if (!Hive.isAdapterRegistered(5)) {
+      Hive.registerAdapter(HiveUserSettingsAdapter());
+    }
+    if (!Hive.isAdapterRegistered(6)) {
+      Hive.registerAdapter(HiveUserDetailsAdapter());
+    }
+    if (!Hive.isAdapterRegistered(7)) {
+      Hive.registerAdapter(HiveActiveProgramAdapter());
+    }
+    if (!Hive.isAdapterRegistered(8)) {
+      Hive.registerAdapter(HiveRehabilitationPlanAdapter());
+    }
+    if (!Hive.isAdapterRegistered(9)) {
+      Hive.registerAdapter(HiveExerciseReferenceAdapter());
+    }
+    if (!Hive.isAdapterRegistered(10)) {
+      Hive.registerAdapter(HiveTreatmentReferenceAdapter());
+    }
     if (!Hive.isAdapterRegistered(11)) {
       Hive.registerAdapter(HiveExerciseIdsAdapter());
     }
@@ -991,6 +1025,8 @@ class UserSettings {
   static bool isStreakAlert = true;
   static bool isExerciseReminder = true; // 08:00 AM exercise reminder toggle
   static TimeOfDay exerciseReminderTime = const TimeOfDay(hour: 8, minute: 0);
+  static bool showModeratePainBanner = true; // Show moderate pain banner during exercises/assessments
+  static bool showSeverePainDialog = true; // Show severe pain dialog during exercises/assessments
   static DateTime? lastModified;
 
   // Firebase instances
@@ -1014,6 +1050,8 @@ class UserSettings {
         'isExerciseReminder': isExerciseReminder,
         'exerciseReminderHour': exerciseReminderTime.hour,
         'exerciseReminderMinute': exerciseReminderTime.minute,
+        'showModeratePainBanner': showModeratePainBanner,
+        'showSeverePainDialog': showSeverePainDialog,
         'lastUpdated': FieldValue.serverTimestamp(),
         'userId': currentUser.uid,
       });
@@ -1049,6 +1087,8 @@ class UserSettings {
           hour: data['exerciseReminderHour'] ?? 8,
           minute: data['exerciseReminderMinute'] ?? 0,
         );
+        showModeratePainBanner = data['showModeratePainBanner'] ?? true;
+        showSeverePainDialog = data['showSeverePainDialog'] ?? true;
         
         debugPrint('UserSettings.loadFromFirebase: Successfully loaded settings from Firebase');
         
@@ -1082,6 +1122,8 @@ class UserSettings {
         'isExerciseReminder': isExerciseReminder,
         'exerciseReminderHour': exerciseReminderTime.hour,
         'exerciseReminderMinute': exerciseReminderTime.minute,
+        'showModeratePainBanner': showModeratePainBanner,
+        'showSeverePainDialog': showSeverePainDialog,
         'lastModified': lastModified?.millisecondsSinceEpoch,
       };
       
@@ -1113,6 +1155,8 @@ class UserSettings {
           hour: userSettingsData['exerciseReminderHour'] ?? 8,
           minute: userSettingsData['exerciseReminderMinute'] ?? 0,
         );
+        showModeratePainBanner = userSettingsData['showModeratePainBanner'] ?? true;
+        showSeverePainDialog = userSettingsData['showSeverePainDialog'] ?? true;
         
         // Load lastModified timestamp
         final lastModifiedTimestamp = userSettingsData['lastModified'];
@@ -1122,7 +1166,7 @@ class UserSettings {
           lastModified = null;
         }
         
-        debugPrint('Loaded user settings from Hive: daily reminder: $isDailyReminder, exercise reminder: $isExerciseReminder at ${exerciseReminderTime.hour}:${exerciseReminderTime.minute.toString().padLeft(2, '0')}, lastModified: $lastModified');
+        debugPrint('Loaded user settings from Hive: daily reminder: $isDailyReminder, exercise reminder: $isExerciseReminder at ${exerciseReminderTime.hour}:${exerciseReminderTime.minute.toString().padLeft(2, '0')}, showModeratePainBanner: $showModeratePainBanner, showSeverePainDialog: $showSeverePainDialog, lastModified: $lastModified');
       } else {
         debugPrint('No user settings found in Hive, using defaults');
         lastModified = null;
@@ -1212,6 +1256,8 @@ class ExerciseRecordEntry {
   final int reps;
   final int durationSeconds;
   final String status; // 'completed', 'skipped', 'partial'
+  final int? painScale; // Optional: Pain scale (0-10) detected during exercise
+  final String? painLevel; // Optional: Pain level ('Low', 'Moderate', 'Severe') detected during exercise
 
   const ExerciseRecordEntry({
     required this.date,
@@ -1221,6 +1267,8 @@ class ExerciseRecordEntry {
     required this.reps,
     required this.durationSeconds,
     required this.status,
+    this.painScale,
+    this.painLevel,
   });
 }
 
@@ -1526,6 +1574,8 @@ class ExerciseHistory {
     required int reps,
     required int durationSeconds,
     required String status,
+    int? painScale,
+    String? painLevel,
     DateTime? now,
   }) {
     final DateTime today = _toDateOnly(now ?? DateTime.now());
@@ -1542,6 +1592,8 @@ class ExerciseHistory {
       reps: reps,
       durationSeconds: durationSeconds,
       status: status,
+      painScale: painScale,
+      painLevel: painLevel,
     );
 
     entries.add(newEntry);
@@ -1601,6 +1653,8 @@ class ExerciseHistory {
         'reps': entry.reps,
         'durationSeconds': entry.durationSeconds,
         'status': entry.status,
+        if (entry.painScale != null) 'painScale': entry.painScale,
+        if (entry.painLevel != null) 'painLevel': entry.painLevel,
       }).toList();
       
       await _firestore.collection('exerciseHistory').doc(currentUser.uid).set({
@@ -1644,6 +1698,8 @@ class ExerciseHistory {
           reps: entryData['reps'] ?? 0,
           durationSeconds: entryData['durationSeconds'] ?? 0,
           status: entryData['status'] ?? 'completed',
+          painScale: entryData['painScale'] as int?,
+          painLevel: entryData['painLevel'] as String?,
         )));
         
         debugPrint('ExerciseHistory.loadFromFirebase: Successfully loaded ${entries.length} exercise history entries from Firebase');
@@ -1686,6 +1742,8 @@ class ExerciseHistory {
           'reps': entry.reps,
           'durationSeconds': entry.durationSeconds,
           'status': entry.status,
+          if (entry.painScale != null) 'painScale': entry.painScale,
+          if (entry.painLevel != null) 'painLevel': entry.painLevel,
         }).toList();
         
         await box.put('exerciseHistory', exerciseHistoryList);
@@ -1784,6 +1842,8 @@ class ExerciseHistory {
             reps: entry['reps'] ?? 0,
             durationSeconds: entry['durationSeconds'] ?? 0,
             status: entry['status'] ?? 'completed',
+            painScale: entry['painScale'] as int?,
+            painLevel: entry['painLevel'] as String?,
           );
         }));
         debugPrint('Loaded ${entries.length} exercise history entries from Hive');
@@ -1803,6 +1863,8 @@ class ExerciseHistory {
     required int reps,
     required int durationSeconds,
     required String status,
+    int? painScale,
+    String? painLevel,
     DateTime? now,
   }) async {
     recordToday(
@@ -1812,9 +1874,55 @@ class ExerciseHistory {
       reps: reps,
       durationSeconds: durationSeconds,
       status: status,
+      painScale: painScale,
+      painLevel: painLevel,
       now: now,
     );
+    
+    // Attempt to save to both Firebase and Hive simultaneously
+    // Firebase failure is acceptable, but Hive must succeed for the operation to proceed
+    
+    // Start Firebase save (non-blocking, errors are acceptable)
+    Future<void>? firebaseSaveFuture;
+    if (!UserDetails.isGuest && _auth.currentUser != null) {
+      firebaseSaveFuture = saveToFirebase().then((_) {
+        debugPrint('ExerciseHistory.recordTodayAndSave: Successfully saved to Firebase');
+      }).catchError((e) {
+        debugPrint('ExerciseHistory.recordTodayAndSave: Firebase save failed (non-critical): $e');
+        // Firebase failure is acceptable, operation will proceed if Hive succeeds
+      });
+    } else {
+      debugPrint('ExerciseHistory.recordTodayAndSave: User is guest or not authenticated, saving to Hive only');
+    }
+    
+    // Save to Hive - this must succeed for the operation to proceed
+    // If Hive save fails, the exception will be thrown and operation will fail
     await saveToHive();
+    debugPrint('ExerciseHistory.recordTodayAndSave: Successfully saved to Hive');
+    
+    // Reload from Hive to ensure in-memory state matches what's persisted
+    // This ensures the data is immediately available for the calendar and other views
+    // The reload ensures ExerciseHistory.entries is synchronized with Hive storage
+    try {
+      await loadFromHive();
+      debugPrint('ExerciseHistory.recordTodayAndSave: Reloaded from Hive, ${entries.length} entries now in memory');
+    } catch (e) {
+      debugPrint('ExerciseHistory.recordTodayAndSave: Warning - failed to reload from Hive: $e');
+      // Don't fail the operation if reload fails, data is already saved
+      // The in-memory entries were already updated by recordToday() above
+    }
+    
+    // Wait for Firebase save to complete (if it was started), but don't fail if it errors
+    // At this point, Hive save has succeeded, so we can proceed regardless of Firebase status
+    if (firebaseSaveFuture != null) {
+      try {
+        await firebaseSaveFuture;
+      } catch (e) {
+        // Already logged in the catchError above, just ensure we don't throw
+        // Hive save succeeded, so operation can proceed even if Firebase failed
+        debugPrint('ExerciseHistory.recordTodayAndSave: Firebase save completed with error (non-critical): $e');
+      }
+    }
   }
 
   // Calculate today's exercise progress percentage based on current rehabilitation plan
@@ -1847,6 +1955,8 @@ class ExerciseHistory {
           reps: exerciseRef.repetitions,
           durationSeconds: 0,
           status: 'not_started',
+          painScale: null,
+          painLevel: null,
         ),
       );
       
@@ -1896,6 +2006,8 @@ class ExerciseHistory {
           reps: exerciseRef.repetitions,
           durationSeconds: 0,
           status: 'not_started',
+          painScale: null,
+          painLevel: null,
         ),
       );
       

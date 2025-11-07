@@ -1,0 +1,51 @@
+{
+  "dashboard_notifications_badge": {
+    "title": "Check Alerts",
+    "description": "Open the bell to review reminders, pain alerts, and plan updates.",
+    "long_text": "Notifications cover assessment prompts, plan changes, and adherence nudges."
+  },
+  "dashboard_progress_cta": {
+    "title": "Resume Session",
+    "description": "Tap to jump back into your guided exercise recording or start today’s routine.",
+    "long_text": "This button launches the recording flow with your next prescribed exercise."
+  },
+  "assessment_preliminary_start": {
+    "title": "Begin Assessment",
+    "description": "Start your clinical assessment to tailor plans to your goals and symptoms.",
+    "long_text": "We will guide you through goals, pain checks, history, and camera assessments."
+  },
+  "record_camera_toggle": {
+    "title": "Switch Camera",
+    "description": "Swap between front and rear cameras without leaving the recording session."
+  },
+  "record_pause_button": {
+    "title": "Pause & Rest",
+    "description": "Pause recording to log partial progress and review instructions."
+  },
+  "record_finish_button": {
+    "title": "Finish & Save",
+    "description": "Complete the set to review cooldown guidance and save metrics."
+  },
+  "reports_export_pdf": {
+    "title": "Export Reports",
+    "description": "Generate a PDF summary with pain charts and adherence stats for your clinician."
+  },
+  "welcome_sign_in": {
+    "title": "Sign In Securely",
+    "description": "Authenticate with your email to sync rehab plans and progress."
+  },
+  "welcome_guest_mode": {
+    "title": "Preview as Guest",
+    "description": "Explore core flows without creating an account. Data stays on-device."
+  },
+  "welcome_register_link": {
+    "title": "Create Account",
+    "description": "Need full tracking? Open registration to set up your secure profile."
+  },
+  "profile_logout_action": {
+    "title": "Sign Out Safely",
+    "description": "Use Logout to end your session and protect medical data.",
+    "long_text": "We automatically sync progress before signing out so you can resume later."
+  }
+}
+

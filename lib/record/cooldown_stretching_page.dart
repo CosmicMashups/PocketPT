@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../stretching/providers/stretching_provider.dart';
-import '../stretching/widgets/exercise_instruction_widget.dart';
-import '../stretching/widgets/routine_progress_widget.dart';
+import '../stretching/widgets/combined_progress_instruction_widget.dart';
 import '../data/rehabilitation_plan.dart';
 import '../data/globals.dart';
 import '../home_dialog.dart';
@@ -143,6 +142,7 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
       // Get pain scale from assessment data
       final painScale = UserAssess.painScale;
       print('CooldownStretchingPage: Loading routines for $muscleGroupToUse with pain level $painScale');
+      print('CooldownStretchingPage: [CSV LOAD] This will trigger loading of stretching_exercises.csv');
       
       try {
         await ref.read(stretchingProvider.notifier).loadRoutinesForMuscleWithPainLevel(
@@ -152,19 +152,50 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
         final stretchingState = ref.read(stretchingProvider);
         if (stretchingState.currentCooldownRoutine == null) {
           print('CooldownStretchingPage: No cooldown routine found with pain level, trying without pain filtering');
+          print('CooldownStretchingPage: [CSV LOAD] Retrying without pain level filter - will use cached CSV if already loaded');
           await ref.read(stretchingProvider.notifier).loadRoutinesForMuscle(muscleGroupToUse);
           
           // Check again after fallback
           final updatedState = ref.read(stretchingProvider);
           if (updatedState.currentCooldownRoutine == null) {
             print('CooldownStretchingPage: Still no cooldown routine found, will show appropriate message');
+          } else {
+            // Initialize routine after loading (doesn't start timer until readiness confirmed)
+            ref.read(stretchingProvider.notifier).startRoutine(updatedState.currentCooldownRoutine!);
+            // Show readiness dialog
+            if (mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _showReadinessDialog(context, ref);
+              });
+            }
+          }
+        } else {
+          // Initialize routine after loading (doesn't start timer until readiness confirmed)
+          ref.read(stretchingProvider.notifier).startRoutine(stretchingState.currentCooldownRoutine!);
+          // Show readiness dialog
+          if (mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _showReadinessDialog(context, ref);
+            });
           }
         }
       } catch (e) {
         print('CooldownStretchingPage: Error loading routines: $e');
+        print('CooldownStretchingPage: [CSV LOAD] Error occurred, attempting fallback - will use cached CSV if available');
         // Try fallback without pain level filtering
         try {
           await ref.read(stretchingProvider.notifier).loadRoutinesForMuscle(muscleGroupToUse);
+          final fallbackState = ref.read(stretchingProvider);
+          if (fallbackState.currentCooldownRoutine != null) {
+            // Initialize routine after loading (doesn't start timer until readiness confirmed)
+            ref.read(stretchingProvider.notifier).startRoutine(fallbackState.currentCooldownRoutine!);
+            // Show readiness dialog
+            if (mounted) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _showReadinessDialog(context, ref);
+              });
+            }
+          }
         } catch (fallbackError) {
           print('CooldownStretchingPage: Fallback also failed: $fallbackError');
         }
@@ -242,28 +273,81 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
             child: SlideTransition(
               position: _slideAnimation,
               child: SafeArea(
-                child: Column(
-                  children: [
-                    // Enhanced Header Section
-                    _buildEnhancedHeaderSection(),
-                    
-                    const SizedBox(height: RecordingDesignSystem.spacingL),
-                    
-                    // Progress Section with enhanced design
-                    _buildEnhancedProgressSection(stretchingState, stretchingNotifier),
-                    
-                    const SizedBox(height: RecordingDesignSystem.spacingL),
-                    
-                    // Exercise Instruction with enhanced styling
-                    Expanded(
-                      child: stretchingNotifier.currentExercise != null
-                          ? _buildEnhancedExerciseInstruction(stretchingState, stretchingNotifier)
-                          : _buildRoutineComplete(),
-                    ),
-                    
-                    // Enhanced Control Buttons
-                    _buildEnhancedControlButtons(stretchingState, stretchingNotifier),
-                  ],
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: Column(
+                    children: [
+                      // Enhanced Header Section
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: RecordingDesignSystem.spacingM,
+                          vertical: RecordingDesignSystem.spacingS,
+                        ),
+                        child: _buildEnhancedHeaderSection(),
+                      ),
+                      
+                      // Show Start button if routine loaded but not confirmed
+                      if (!stretchingState.isReadyConfirmed && stretchingState.isRoutineActive)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: RecordingDesignSystem.spacingM,
+                            vertical: RecordingDesignSystem.spacingS,
+                          ),
+                          child: ElevatedButton.icon(
+                            onPressed: () => _showReadinessDialog(context, ref),
+                            icon: Icon(
+                              RecordingDesignSystem.iconPlay,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            label: Text(
+                              'Start Cooldown',
+                              style: RecordingDesignSystem.labelMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: RecordingDesignSystem.primaryMedical,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: RecordingDesignSystem.spacingL,
+                                vertical: RecordingDesignSystem.spacingS,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                              ),
+                            ),
+                          ),
+                        ),
+                      
+                      // Combined Progress and Exercise Instruction (only show when confirmed)
+                      if (stretchingState.isReadyConfirmed)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: RecordingDesignSystem.spacingM),
+                          child: stretchingNotifier.currentExercise != null
+                              ? CombinedProgressInstructionWidget(
+                                  currentExercise: stretchingState.currentExerciseIndex,
+                                  totalExercises: stretchingState.currentCooldownRoutine?.exercises.length ?? 0,
+                                  remainingTime: stretchingState.remainingTime,
+                                  currentExerciseName: stretchingNotifier.currentExercise?.exerciseName ?? '',
+                                  progressPercentage: stretchingNotifier.progressPercentage,
+                                  exercise: stretchingNotifier.currentExercise!,
+                                  isActive: stretchingState.isRoutineActive && stretchingState.isReadyConfirmed,
+                                  onNext: () => stretchingNotifier.nextExercise(),
+                                  onPrevious: () => stretchingNotifier.previousExercise(),
+                                  onComplete: () => _completeCooldown(stretchingNotifier),
+                                )
+                              : _buildRoutineComplete(),
+                        ),
+                      
+                      // Enhanced Control Buttons (only show when confirmed)
+                      if (stretchingState.isReadyConfirmed)
+                        _buildEnhancedControlButtons(stretchingState, stretchingNotifier),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -358,8 +442,11 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
 
   Widget _buildEnhancedHeaderSection() {
     return Container(
-      margin: const EdgeInsets.all(RecordingDesignSystem.spacingM),
-      padding: const EdgeInsets.all(RecordingDesignSystem.spacingL),
+      margin: const EdgeInsets.symmetric(
+        horizontal: RecordingDesignSystem.spacingM,
+        vertical: RecordingDesignSystem.spacingS,
+      ),
+      padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -381,16 +468,16 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
+                padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
                 decoration: BoxDecoration(
                   gradient: RecordingDesignSystem.infoGradient,
-                  borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+                  borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
                   boxShadow: RecordingDesignSystem.medicalShadow,
                 ),
                 child: Icon(
                   RecordingDesignSystem.iconCooldown,
                   color: Colors.white,
-                  size: 28,
+                  size: 24,
                 ),
               ),
               const SizedBox(width: RecordingDesignSystem.spacingM),
@@ -406,7 +493,10 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
                             style: RecordingDesignSystem.headlineMedium.copyWith(
                               color: RecordingDesignSystem.getTextPrimaryColor(context),
                               fontWeight: FontWeight.w700,
+                              fontSize: 18,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         Container(
@@ -486,9 +576,12 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
               ),
             ],
           ),
-          const SizedBox(height: RecordingDesignSystem.spacingM),
+          const SizedBox(height: RecordingDesignSystem.spacingS),
           Container(
-            padding: const EdgeInsets.all(RecordingDesignSystem.spacingM),
+            padding: const EdgeInsets.symmetric(
+              horizontal: RecordingDesignSystem.spacingM,
+              vertical: RecordingDesignSystem.spacingS,
+            ),
             decoration: BoxDecoration(
               gradient: RecordingDesignSystem.successGradient,
               borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
@@ -499,13 +592,13 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
                 Icon(
                   RecordingDesignSystem.iconSuccess,
                   color: Colors.white,
-                  size: 20,
+                  size: 18,
                 ),
                 const SizedBox(width: RecordingDesignSystem.spacingS),
                 Expanded(
                   child: Text(
                     'Great work! Cooldown helps reduce muscle soreness and promotes recovery',
-                    style: RecordingDesignSystem.bodyMedium.copyWith(
+                    style: RecordingDesignSystem.bodySmall.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w500,
                     ),
@@ -517,55 +610,6 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildEnhancedProgressSection(final StretchingState state, final StretchingNotifier notifier) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: RecordingDesignSystem.spacingM),
-      padding: const EdgeInsets.all(RecordingDesignSystem.spacingL),
-      decoration: BoxDecoration(
-        color: RecordingDesignSystem.getSurfaceColor(context),
-        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusXL),
-        border: Border.all(
-          color: RecordingDesignSystem.getBorderColor(context),
-          width: 1,
-        ),
-        boxShadow: RecordingDesignSystem.shadowLarge,
-      ),
-      child: RoutineProgressWidget(
-        currentExercise: state.currentExerciseIndex,
-        totalExercises: state.currentCooldownRoutine?.exercises.length ?? 0,
-        remainingTime: state.remainingTime,
-        currentExerciseName: notifier.currentExercise?.exerciseName ?? '',
-        progressPercentage: notifier.progressPercentage,
-      ),
-    );
-  }
-
-  Widget _buildEnhancedExerciseInstruction(final StretchingState state, final StretchingNotifier notifier) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: RecordingDesignSystem.spacingM),
-      decoration: BoxDecoration(
-        color: RecordingDesignSystem.getSurfaceColor(context),
-        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusXL),
-        border: Border.all(
-          color: RecordingDesignSystem.getBorderColor(context),
-          width: 1,
-        ),
-        boxShadow: RecordingDesignSystem.shadowLarge,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusXL),
-        child: ExerciseInstructionWidget(
-          exercise: notifier.currentExercise!,
-          isActive: state.isRoutineActive,
-          remainingTime: state.remainingTime,
-          onNext: () => notifier.nextExercise(),
-          onPrevious: () => notifier.previousExercise(),
-          onComplete: () => _completeCooldown(notifier),
-        ),
       ),
     );
   }
@@ -618,82 +662,87 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
 
   Widget _buildEnhancedControlButtons(final StretchingState state, final StretchingNotifier notifier) {
     return Container(
-      padding: const EdgeInsets.all(RecordingDesignSystem.spacingL),
+      padding: const EdgeInsets.symmetric(
+        horizontal: RecordingDesignSystem.spacingM,
+        vertical: RecordingDesignSystem.spacingS,
+      ),
       decoration: BoxDecoration(
         color: RecordingDesignSystem.getSurfaceColor(context),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(RecordingDesignSystem.radiusXL),
-          topRight: Radius.circular(RecordingDesignSystem.radiusXL),
-        ),
-        border: Border.all(
-          color: RecordingDesignSystem.getBorderColor(context),
-          width: 1,
-        ),
-        boxShadow: RecordingDesignSystem.shadowLarge,
-      ),
-      child: Column(
-        children: [
-          // Primary control buttons
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              if (state.currentExerciseIndex > 0)
-                _buildControlButton(
-                  icon: RecordingDesignSystem.iconBack,
-                  label: 'Previous',
-                  onPressed: () => notifier.previousExercise(),
-                  gradient: RecordingDesignSystem.neutralGradient,
-                  textColor: RecordingDesignSystem.getTextPrimaryColor(context),
-                ),
-              
-              if (state.isRoutineActive)
-                _buildControlButton(
-                  icon: state.isPaused ? RecordingDesignSystem.iconPlay : RecordingDesignSystem.iconPause,
-                  label: state.isPaused ? 'Resume' : 'Pause',
-                  onPressed: state.isPaused 
-                      ? () => notifier.resumeRoutine()
-                      : () => notifier.pauseRoutine(),
-                  gradient: RecordingDesignSystem.warningGradient,
-                  textColor: Colors.white,
-                ),
-              
-              _buildControlButton(
-                icon: RecordingDesignSystem.iconForward,
-                label: 'Next',
-                onPressed: () => notifier.nextExercise(),
-                gradient: RecordingDesignSystem.primaryGradient,
-                textColor: Colors.white,
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: RecordingDesignSystem.spacingL),
-          
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  icon: RecordingDesignSystem.iconHome,
-                  label: 'Skip Cooldown',
-                  onPressed: () => _skipCooldown(),
-                  isPrimary: false,
-                ),
-              ),
-              const SizedBox(width: RecordingDesignSystem.spacingM),
-              Expanded(
-                child: _buildActionButton(
-                  icon: RecordingDesignSystem.iconComplete,
-                  label: 'Finish Session',
-                  onPressed: () => _finishSession(),
-                  isPrimary: true,
-                ),
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Primary control buttons
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                if (state.currentExerciseIndex > 0)
+                  _buildControlButton(
+                    icon: RecordingDesignSystem.iconBack,
+                    label: 'Previous',
+                    onPressed: () => notifier.previousExercise(),
+                    gradient: RecordingDesignSystem.neutralGradient,
+                    textColor: RecordingDesignSystem.getTextPrimaryColor(context),
+                  ),
+                
+                if (state.isRoutineActive)
+                  _buildControlButton(
+                    icon: state.isPaused ? RecordingDesignSystem.iconPlay : RecordingDesignSystem.iconPause,
+                    label: state.isPaused ? 'Resume' : 'Pause',
+                    onPressed: state.isPaused 
+                        ? () => notifier.resumeRoutine()
+                        : () => notifier.pauseRoutine(),
+                    gradient: RecordingDesignSystem.warningGradient,
+                    textColor: Colors.white,
+                  ),
+                
+                _buildControlButton(
+                  icon: RecordingDesignSystem.iconForward,
+                  label: 'Next',
+                  onPressed: () => notifier.nextExercise(),
+                  gradient: RecordingDesignSystem.primaryGradient,
+                  textColor: Colors.white,
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    icon: RecordingDesignSystem.iconHome,
+                    label: 'Skip Cooldown',
+                    onPressed: () => _skipCooldown(),
+                    isPrimary: false,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildActionButton(
+                    icon: RecordingDesignSystem.iconComplete,
+                    label: 'Finish Session',
+                    onPressed: () => _finishSession(),
+                    isPrimary: true,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -708,30 +757,31 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
     return Container(
       decoration: BoxDecoration(
         gradient: gradient,
-        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
         boxShadow: RecordingDesignSystem.shadowMedium,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
           onTap: onPressed,
           child: Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: RecordingDesignSystem.spacingM,
-              vertical: RecordingDesignSystem.spacingM,
+              horizontal: 12,
+              vertical: 8,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: textColor, size: 20),
-                const SizedBox(width: RecordingDesignSystem.spacingS),
+                Icon(icon, color: textColor, size: 18),
+                const SizedBox(width: 6),
                 Flexible(
                   child: Text(
                     label,
                     style: RecordingDesignSystem.labelMedium.copyWith(
                       color: textColor,
                       fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -754,7 +804,7 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
     return Container(
       decoration: BoxDecoration(
         gradient: isPrimary ? RecordingDesignSystem.primaryGradient : RecordingDesignSystem.neutralGradient,
-        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
         boxShadow: isPrimary ? RecordingDesignSystem.medicalShadow : RecordingDesignSystem.shadowMedium,
         border: isPrimary ? null : Border.all(
           color: RecordingDesignSystem.getBorderColor(context),
@@ -764,27 +814,33 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
           onTap: onPressed,
           child: Container(
             padding: const EdgeInsets.symmetric(
-              horizontal: RecordingDesignSystem.spacingL,
-              vertical: RecordingDesignSystem.spacingM,
+              horizontal: RecordingDesignSystem.spacingM,
+              vertical: 10,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   icon,
                   color: isPrimary ? Colors.white : RecordingDesignSystem.getTextPrimaryColor(context),
-                  size: 20,
+                  size: 18,
                 ),
-                const SizedBox(width: RecordingDesignSystem.spacingS),
-                Text(
-                  label,
-                  style: RecordingDesignSystem.labelLarge.copyWith(
-                    color: isPrimary ? Colors.white : RecordingDesignSystem.getTextPrimaryColor(context),
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: RecordingDesignSystem.labelMedium.copyWith(
+                      color: isPrimary ? Colors.white : RecordingDesignSystem.getTextPrimaryColor(context),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],
@@ -797,6 +853,319 @@ class _CooldownStretchingPageState extends ConsumerState<CooldownStretchingPage>
 
   void _completeCooldown(final StretchingNotifier notifier) {
     notifier.completeRoutine();
+    // Show completion confirmation dialog
+    _showCooldownCompletionDialog();
+  }
+
+  void _showReadinessDialog(BuildContext context, WidgetRef ref) {
+    final stretchingState = ref.read(stretchingProvider);
+    final stretchingNotifier = ref.read(stretchingProvider.notifier);
+    final currentExercise = stretchingNotifier.currentExercise;
+    
+    if (currentExercise == null || stretchingState.isReadyConfirmed) {
+      return; // Don't show if no exercise or already confirmed
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              RecordingDesignSystem.iconCooldown,
+              color: RecordingDesignSystem.primaryMedical,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Ready to Start Cooldown?',
+                style: RecordingDesignSystem.headlineMedium.copyWith(
+                  color: RecordingDesignSystem.getTextPrimaryColor(context),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please review the exercise instructions, steps, benefits, and precautions below. When you\'re ready and understand what to do, click "I\'m Ready" to start the timer.',
+                style: RecordingDesignSystem.bodyMedium.copyWith(
+                  color: RecordingDesignSystem.getTextSecondaryColor(context),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (currentExercise.description.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Description',
+                      style: RecordingDesignSystem.labelLarge.copyWith(
+                        color: RecordingDesignSystem.getTextPrimaryColor(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      currentExercise.description,
+                      style: RecordingDesignSystem.bodyMedium.copyWith(
+                        color: RecordingDesignSystem.getTextSecondaryColor(context),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              if (currentExercise.stepByStepInstructions.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Steps',
+                      style: RecordingDesignSystem.labelLarge.copyWith(
+                        color: RecordingDesignSystem.getTextPrimaryColor(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...currentExercise.stepByStepInstructions.asMap().entries.map((entry) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: RecordingDesignSystem.primaryMedical,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${entry.key + 1}',
+                                  style: RecordingDesignSystem.bodySmall.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                entry.value,
+                                style: RecordingDesignSystem.bodyMedium.copyWith(
+                                  color: RecordingDesignSystem.getTextSecondaryColor(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              if (currentExercise.benefits.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: RecordingDesignSystem.successColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            RecordingDesignSystem.iconCheck,
+                            color: RecordingDesignSystem.successColor,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Benefits',
+                            style: RecordingDesignSystem.labelMedium.copyWith(
+                              color: RecordingDesignSystem.successColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...currentExercise.benefits.map((benefit) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('• ', style: TextStyle(color: RecordingDesignSystem.successColor)),
+                            Expanded(
+                              child: Text(
+                                benefit,
+                                style: RecordingDesignSystem.bodySmall.copyWith(
+                                  color: RecordingDesignSystem.successColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )).toList(),
+                    ],
+                  ),
+                ),
+              if (currentExercise.precautions.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: RecordingDesignSystem.errorColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            RecordingDesignSystem.iconWarning,
+                            color: RecordingDesignSystem.errorColor,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Precautions',
+                            style: RecordingDesignSystem.labelMedium.copyWith(
+                              color: RecordingDesignSystem.errorColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ...currentExercise.precautions.map((precaution) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('• ', style: TextStyle(color: RecordingDesignSystem.errorColor)),
+                            Expanded(
+                              child: Text(
+                                precaution,
+                                style: RecordingDesignSystem.bodySmall.copyWith(
+                                  color: RecordingDesignSystem.errorColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )).toList(),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Review Instructions',
+              style: RecordingDesignSystem.labelMedium.copyWith(
+                color: RecordingDesignSystem.getTextSecondaryColor(context),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(stretchingProvider.notifier).confirmReadiness();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: RecordingDesignSystem.primaryMedical,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'I\'m Ready',
+              style: RecordingDesignSystem.labelLarge.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCooldownCompletionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              RecordingDesignSystem.iconComplete,
+              color: RecordingDesignSystem.successColor,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Cooldown Complete!',
+                style: RecordingDesignSystem.headlineMedium.copyWith(
+                  color: RecordingDesignSystem.getTextPrimaryColor(context),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'You\'ve completed all cooldown exercises. Ready to finish and save your session?',
+          style: RecordingDesignSystem.bodyMedium.copyWith(
+            color: RecordingDesignSystem.getTextSecondaryColor(context),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Review Cooldown',
+              style: RecordingDesignSystem.labelMedium.copyWith(
+                color: RecordingDesignSystem.getTextSecondaryColor(context),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _finishSession();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: RecordingDesignSystem.primaryMedical,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Finish Session',
+              style: RecordingDesignSystem.labelLarge.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _skipCooldown() {

@@ -1,0 +1,230 @@
+{
+  "generated_at": "2025-11-07T19:50:00Z",
+  "steps": [
+    {
+      "id": "dashboard_notifications_badge",
+      "page": "dashboard",
+      "file": "lib/dashboard/dashboard_page.dart",
+      "line_start": 743,
+      "widget_type": "IconButton",
+      "title": "Check Alerts",
+      "description": "Open the bell to review reminders, pain alerts, and plan updates.",
+      "long_text": "Notifications cover assessment prompts, plan changes, and adherence nudges.",
+      "placement": "bottom",
+      "shape": "circle",
+      "priority": "critical",
+      "flow": "onboarding_dashboard",
+      "order": 1,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "topRight",
+        "message": "Find notifications from the bell icon at the top right."
+      }
+    },
+    {
+      "id": "dashboard_progress_cta",
+      "page": "dashboard",
+      "file": "lib/dashboard/dashboard_page.dart",
+      "line_start": 912,
+      "widget_type": "InkWell",
+      "title": "Resume Session",
+      "description": "Tap to jump back into your guided exercise recording or start today’s routine.",
+      "long_text": "This button launches the recording flow with your next prescribed exercise.",
+      "placement": "top",
+      "shape": "roundedRect",
+      "priority": "critical",
+      "flow": "onboarding_dashboard",
+      "order": 2,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "center",
+        "message": "Use the green Start / Resume button on the dashboard cards to record exercises."
+      }
+    },
+    {
+      "id": "assessment_preliminary_start",
+      "page": "assessment_preliminary",
+      "file": "lib/assessment/preliminary.dart",
+      "line_start": 192,
+      "widget_type": "ElevatedButton",
+      "title": "Begin Assessment",
+      "description": "Start your clinical assessment to tailor plans to your goals and symptoms.",
+      "long_text": "We guide you through goals, pain checks, history, and camera assessments.",
+      "placement": "top",
+      "shape": "roundedRect",
+      "priority": "critical",
+      "flow": "onboarding_assessment",
+      "order": 1,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "center",
+        "message": "Use the large gradient button at the bottom to progress through the assessment."
+      }
+    },
+    {
+      "id": "record_camera_toggle",
+      "page": "record_exercise",
+      "file": "lib/record/record_exercise.dart",
+      "line_start": 505,
+      "widget_type": "InkWell",
+      "title": "Switch Camera",
+      "description": "Swap between front and rear cameras without leaving the recording session.",
+      "placement": "right",
+      "shape": "circle",
+      "priority": "important",
+      "flow": "onboarding_camera",
+      "order": 1,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": true,
+      "fallback": {
+        "alignment": "topLeft",
+        "message": "Use the camera switch icon near the preview to toggle viewpoints."
+      }
+    },
+    {
+      "id": "record_pause_button",
+      "page": "record_exercise",
+      "file": "lib/record/record_exercise.dart",
+      "line_start": 1048,
+      "widget_type": "InkWell",
+      "title": "Pause & Rest",
+      "description": "Pause recording to log partial progress and review instructions.",
+      "placement": "top",
+      "shape": "roundedRect",
+      "priority": "critical",
+      "flow": "onboarding_camera",
+      "order": 2,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "center",
+        "message": "Pause via the red Pause button in the bottom control bar."
+      }
+    },
+    {
+      "id": "record_finish_button",
+      "page": "record_exercise",
+      "file": "lib/record/record_exercise.dart",
+      "line_start": 1097,
+      "widget_type": "InkWell",
+      "title": "Finish & Save",
+      "description": "Complete the set to review cooldown guidance and save metrics.",
+      "placement": "top",
+      "shape": "roundedRect",
+      "priority": "critical",
+      "flow": "onboarding_camera",
+      "order": 3,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "center",
+        "message": "Tap the green Proceed or Finish button at the bottom to move on."
+      }
+    },
+    {
+      "id": "reports_export_pdf",
+      "page": "reports",
+      "file": "lib/reports/widgets/export_pdf_button.dart",
+      "line_start": 248,
+      "widget_type": "ElevatedButton",
+      "title": "Export Reports",
+      "description": "Generate a PDF summary with pain charts and adherence stats for your clinician.",
+      "placement": "top",
+      "shape": "roundedRect",
+      "priority": "important",
+      "flow": "onboarding_reports",
+      "order": 1,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "center",
+        "message": "Scroll to the Export Reports card and tap Export PDF Report."
+      }
+    },
+    {
+      "id": "welcome_sign_in",
+      "page": "login",
+      "file": "lib/welcome/login_page.dart",
+      "line_start": 755,
+      "widget_type": "ElevatedButton",
+      "title": "Sign In Securely",
+      "description": "Authenticate with your email to sync rehab plans and progress.",
+      "placement": "top",
+      "shape": "roundedRect",
+      "priority": "critical",
+      "flow": "onboarding_welcome",
+      "order": 1,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "center",
+        "message": "Sign in via the primary gradient button."
+      }
+    },
+    {
+      "id": "welcome_guest_mode",
+      "page": "login",
+      "file": "lib/welcome/login_page.dart",
+      "line_start": 884,
+      "widget_type": "OutlinedButton",
+      "title": "Preview as Guest",
+      "description": "Explore core flows without creating an account. Data stays on-device.",
+      "placement": "top",
+      "shape": "roundedRect",
+      "priority": "important",
+      "flow": "onboarding_welcome",
+      "order": 2,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "center",
+        "message": "Use Continue as Guest below the sign-in form."
+      }
+    },
+    {
+      "id": "welcome_register_link",
+      "page": "login",
+      "file": "lib/welcome/login_page.dart",
+      "line_start": 949,
+      "widget_type": "RichTextGesture",
+      "title": "Create Account",
+      "description": "Need full tracking? Open registration to set up your secure profile.",
+      "placement": "top",
+      "shape": "rect",
+      "priority": "important",
+      "flow": "onboarding_welcome",
+      "order": 3,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "center",
+        "message": "Tap Create Account under the guest button to register."
+      }
+    },
+    {
+      "id": "profile_logout_action",
+      "page": "profile",
+      "file": "lib/profile/profile_page.dart",
+      "line_start": 692,
+      "widget_type": "InkWell",
+      "title": "Sign Out Safely",
+      "description": "Use Logout to end your session and protect medical data.",
+      "long_text": "We automatically sync progress before signing out so you can resume later.",
+      "placement": "left",
+      "shape": "roundedRect",
+      "priority": "important",
+      "flow": "onboarding_profile",
+      "order": 2,
+      "feature_flag": "tutorials_enabled",
+      "camera_safe": false,
+      "fallback": {
+        "alignment": "centerRight",
+        "message": "Use the Logout tile in Profile > Account & Security."
+      }
+    }
+  ]
+}
+

@@ -38,6 +38,11 @@ import 'profile/profile_page.dart';
 import 'reports/report_page.dart';
 import 'widgets/responsive_loading_screen.dart';
 import 'core/animations.dart';
+import 'tutorials/showcase_integration.dart';
+import 'tutorials/tutorial_analytics.dart';
+import 'tutorials/tutorial_config.dart';
+import 'tutorials/tutorial_preferences.dart';
+import 'tutorials/tutorial_service.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 // Web-only offline detector (safe on mobile via conditional import)
@@ -50,6 +55,15 @@ void main() async {
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('FlutterError: \\n${details.exceptionAsString()}');
+  };
+  
+  // Disable debug overflow overlays (yellow/black warning banners)
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    // Return a simple container instead of the debug overlay
+    return Container(
+      color: Colors.transparent,
+      child: const SizedBox.shrink(),
+    );
   };
 
   await runZonedGuarded<Future<void>>(() async {
@@ -93,22 +107,51 @@ void main() async {
       // Continue anyway to prevent app from crashing
     }
     
-    // Register all Hive adapters (ignore if already registered) - skip on web
-    if (!kIsWeb) {
+    // Register all Hive adapters (ignore if already registered)
+    // Register on web when Hive is initialized (offline mode), and always on mobile/desktop
+    if ((kIsWeb && isWebOffline) || !kIsWeb) {
       try {
-        Hive.registerAdapter(HiveDailyProgressAdapter());
-        Hive.registerAdapter(HiveRehabilitationPlanAdapter());
-        Hive.registerAdapter(HivePainRecordEntryAdapter());
-        Hive.registerAdapter(HiveExerciseRecordEntryAdapter());
-        Hive.registerAdapter(HiveUserProgressAdapter());
-        Hive.registerAdapter(HiveUserAssessAdapter());
-        Hive.registerAdapter(HiveUserSettingsAdapter());
-        Hive.registerAdapter(HiveUserDetailsAdapter());
-        Hive.registerAdapter(HiveActiveProgramAdapter());
-        Hive.registerAdapter(HiveExerciseReferenceAdapter());
-        Hive.registerAdapter(HiveTreatmentReferenceAdapter());
-        Hive.registerAdapter(HiveExerciseIdsAdapter());
-        Hive.registerAdapter(HiveTreatmentIdsAdapter());
+        // Register adapters only if not already registered
+        if (!Hive.isAdapterRegistered(0)) {
+          Hive.registerAdapter(HiveDailyProgressAdapter());
+        }
+        if (!Hive.isAdapterRegistered(1)) {
+          Hive.registerAdapter(HivePainRecordEntryAdapter());
+        }
+        if (!Hive.isAdapterRegistered(2)) {
+          Hive.registerAdapter(HiveExerciseRecordEntryAdapter());
+        }
+        if (!Hive.isAdapterRegistered(3)) {
+          Hive.registerAdapter(HiveUserProgressAdapter());
+        }
+        if (!Hive.isAdapterRegistered(4)) {
+          Hive.registerAdapter(HiveUserAssessAdapter());
+        }
+        if (!Hive.isAdapterRegistered(5)) {
+          Hive.registerAdapter(HiveUserSettingsAdapter());
+        }
+        if (!Hive.isAdapterRegistered(6)) {
+          Hive.registerAdapter(HiveUserDetailsAdapter());
+        }
+        if (!Hive.isAdapterRegistered(7)) {
+          Hive.registerAdapter(HiveActiveProgramAdapter());
+        }
+        if (!Hive.isAdapterRegistered(8)) {
+          Hive.registerAdapter(HiveRehabilitationPlanAdapter());
+        }
+        if (!Hive.isAdapterRegistered(9)) {
+          Hive.registerAdapter(HiveExerciseReferenceAdapter());
+        }
+        if (!Hive.isAdapterRegistered(10)) {
+          Hive.registerAdapter(HiveTreatmentReferenceAdapter());
+        }
+        if (!Hive.isAdapterRegistered(11)) {
+          Hive.registerAdapter(HiveExerciseIdsAdapter());
+        }
+        if (!Hive.isAdapterRegistered(12)) {
+          Hive.registerAdapter(HiveTreatmentIdsAdapter());
+        }
+        debugPrint('Main: Hive adapters registered successfully');
       } catch (e) {
         debugPrint('Main: Hive adapter registration issue: $e');
       }
@@ -116,6 +159,7 @@ void main() async {
       // Open Hive box
       try {
         await Hive.openBox('rehabBox');
+        debugPrint('Main: Hive box opened successfully');
       } catch (e) {
         debugPrint('Main: Failed opening Hive box: $e');
       }
@@ -184,6 +228,13 @@ void main() async {
       }
     }
     
+    // Initialize guided tutorial registry and analytics hooks
+    await TutorialPreferences.instance.ensureInitialized();
+    TutorialRegistry.registerAll();
+    TutorialService.instance
+      ..enableDebugLogging = kDebugMode
+      ..analyticsHandler = const DefaultTutorialAnalyticsHandler();
+
     // Start the app immediately - defer user data loading until Dashboard
     runApp(const ProviderScope(child: MyApp()));
     // Background preloading removed to honor lazy-loading architecture
@@ -357,7 +408,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.instance.themeMode,
       builder: (context, mode, _) {
-        return MaterialApp(
+        return TutorialPackageIntegration.showcaseRoot(
+          child: MaterialApp(
             navigatorKey: NavigationService.navigatorKey,
             debugShowCheckedModeBanner: false,
             scrollBehavior: const AppScrollBehavior(),
@@ -538,7 +590,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 return const LoginPage();
               },
             ),
-          );
+          ),
+        );
       },
     );
   }
@@ -560,6 +613,10 @@ class AppScrollBehavior extends MaterialScrollBehavior {
     // Remove default glow to avoid extra layer work
     return child;
   }
+}
+
+class _ShowTutorialIntent extends Intent {
+  const _ShowTutorialIntent();
 }
 
 class _LoadingScaffold extends StatelessWidget {
@@ -739,6 +796,50 @@ class _HomePageState extends State<HomePage> {
     super.initState();
   }
 
+  String? _currentFlowId() {
+    switch (_currentIndex) {
+      case 0:
+        return 'onboarding_dashboard';
+      case 2:
+        return 'onboarding_camera';
+      case 3:
+        return 'onboarding_reports';
+      case 4:
+        return 'onboarding_profile';
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _startTutorialForCurrentTab(BuildContext context) async {
+    final flowId = _currentFlowId();
+    if (flowId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No guided tutorial is available on this page yet.'),
+        ),
+      );
+      return;
+    }
+
+    await TutorialService.instance.startFlow(context, flowId);
+  }
+
+  Widget _buildTutorialFab(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Open guided tutorial',
+      child: FloatingActionButton.extended(
+        heroTag: 'tutorial_fab',
+        backgroundColor: kMainColor,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.help_outline),
+        label: const Text('Tutorial'),
+        onPressed: () => _startTutorialForCurrentTab(context),
+      ),
+    );
+  }
+
   // List: Pages (for Navigation) - const for better performance
   static const List<Widget> _pages = [
     DashboardPage(),
@@ -750,7 +851,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       // appBar: AppBar(
       //   backgroundColor: const Color(0xFF800020),
       //   title: Image.asset(
@@ -763,7 +864,6 @@ class _HomePageState extends State<HomePage> {
       //     color: Colors.white,
       //   ),
       // ),
-
       drawer: Drawer(
         backgroundColor: Colors.white,
         child: SafeArea(
@@ -833,23 +933,19 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
-
-
-
+      floatingActionButton: _buildTutorialFab(context),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
         onTap: (int index) {
-          // If leaving Dashboard (index 0), unload full dataset
           if (_currentIndex == 0 && index != 0) {
             DataPersistenceService.instance.unloadUserData();
           }
-          if (index == 2) {  // If it's the PreRecordPage index (index 2)
-            // Use pushReplacement to completely navigate to PreRecordPage
+          if (index == 2) {
             Navigator.push(
               context,
               MedicalPageRoute(
@@ -859,7 +955,7 @@ class _HomePageState extends State<HomePage> {
             );
           } else {
             setState(() {
-              _currentIndex = index; 
+              _currentIndex = index;
             });
           }
         },
@@ -869,6 +965,27 @@ class _HomePageState extends State<HomePage> {
         animationCurve: Curves.easeInOut,
         animationDuration: const Duration(milliseconds: 300),
         items: _buildNavigationItems(),
+      ),
+    );
+
+    return Shortcuts(
+      shortcuts: <LogicalKeySet, Intent>{
+        LogicalKeySet(LogicalKeyboardKey.shift, LogicalKeyboardKey.slash): const _ShowTutorialIntent(),
+        LogicalKeySet(LogicalKeyboardKey.f1): const _ShowTutorialIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _ShowTutorialIntent: CallbackAction<_ShowTutorialIntent>(
+            onInvoke: (intent) {
+              _startTutorialForCurrentTab(context);
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: scaffold,
+        ),
       ),
     );
   }

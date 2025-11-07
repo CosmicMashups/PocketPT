@@ -27,9 +27,9 @@
 - [x] 4.5 Update navigation flow to pass detected pain level to `c_painlevel.dart`
 
 ## 5. Error Handling and Edge Cases
-- [ ] 5.1 Handle pain detection service initialization failures
-- [ ] 5.2 Implement graceful degradation when face detection fails
-- [ ] 5.3 Add timeout handling for pain detection processing
+- [x] 5.1 Handle pain detection service initialization failures
+- [x] 5.2 Implement graceful degradation when face detection fails
+- [x] 5.3 Add timeout handling for pain detection processing
 - [ ] 5.4 Handle camera permission issues for pain detection
 - [ ] 5.5 Add fallback to manual pain level input if detection fails
 

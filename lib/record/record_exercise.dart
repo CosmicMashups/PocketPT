@@ -14,6 +14,9 @@ import 'camera_service.dart';
 import 'exercise_cache_service.dart';
 import 'design_system.dart';
 import 'dart:async';
+import '../tutorials/tutorial_config.dart';
+import '../tutorials/tutorial_preferences.dart';
+import '../tutorials/tutorial_service.dart';
 class RecordExercisePage extends StatefulWidget {
   final Exercise exercise;
 
@@ -43,9 +46,29 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   // Track if pain values are locked (after navigation)
   bool _painValuesLocked = false;
   
+  bool _tutorialScheduled = false;
+  
   // Severe pain dialog cooldown
   DateTime? _lastSeverePainDialogTime;
   static const Duration _severePainDialogCooldown = Duration(seconds: 15);
+  
+  // Camera toggle state
+  int _currentCameraIndex = 0;
+  bool _isSwitchingCamera = false;
+  
+  // Checkbox states for pain dialogs
+  bool _moderatePainBannerDontShowAgain = false;
+  bool _severePainDialogDontShowAgain = false;
+  
+  // Animation controllers for pain feedback
+  late AnimationController _painOverlayController;
+  late AnimationController _painBannerController;
+  late AnimationController _painColorController;
+  late Animation<double> _painOverlayFadeAnimation;
+  late Animation<double> _painBannerSlideAnimation;
+  late Animation<double> _painBannerFadeAnimation;
+  late Animation<Color?> _painColorAnimation;
+  late Animation<double> _painScaleAnimation;
 
   @override
   void initState() {
@@ -54,6 +77,49 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
       this,
       duration: PocketPTAnimations.medium,
     );
+    
+    // Initialize pain feedback animations
+    _painOverlayController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.fast,
+    );
+    _painBannerController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
+    _painColorController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
+    
+    // Set up animations
+    _painOverlayFadeAnimation = PocketPTAnimations.createOpacityTween(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painOverlayController));
+    
+    _painBannerSlideAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painBannerController));
+    
+    _painBannerFadeAnimation = PocketPTAnimations.createOpacityTween().animate(
+      PocketPTAnimations.createCurvedAnimation(_painBannerController),
+    );
+    
+    _painColorAnimation = ColorTween(
+      begin: Colors.grey,
+      end: Colors.green,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painColorController));
+    
+    _painScaleAnimation = PocketPTAnimations.createScaleTween(
+      begin: 0.95,
+      end: 1.0,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painOverlayController));
+    
+    // Start overlay fade in
+    _painOverlayController.forward();
+    
     _initializeCamera();
     _initializePainDetection();
     StopwatchService.instance.start();
@@ -64,6 +130,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     // Stop pain detection and lock values
     _stopPainDetection();
     _animationController.dispose();
+    _painOverlayController.dispose();
+    _painBannerController.dispose();
+    _painColorController.dispose();
     _painDetectionTimer?.cancel();
     super.dispose();
   }
@@ -82,7 +151,24 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
       if (mounted) {
         setState(() {
           _isCameraInitialized = success;
+          // Initialize current camera index
+          final cameras = _cameraService.cameras;
+          if (cameras != null && cameras.isNotEmpty) {
+            // Find current camera index
+            final currentCamera = _cameraService.controller?.description;
+            if (currentCamera != null) {
+              _currentCameraIndex = cameras.indexWhere(
+                (camera) => camera.name == currentCamera.name,
+              );
+              if (_currentCameraIndex == -1) {
+                _currentCameraIndex = 0;
+              }
+            }
+          }
         });
+        if (success) {
+          _scheduleCameraTutorial();
+        }
       }
     } catch (e) {
       debugPrint('Error initializing camera: $e');
@@ -94,6 +180,42 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     }
   }
 
+  void _scheduleCameraTutorial() {
+    if (_tutorialScheduled) {
+      return;
+    }
+    _tutorialScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_isCameraInitialized) {
+        _tutorialScheduled = false;
+        return;
+      }
+
+      await TutorialPreferences.instance.ensureInitialized();
+      if (!mounted) {
+        _tutorialScheduled = false;
+        return;
+      }
+      
+      if (!TutorialPreferences.instance.tutorialsEnabled) {
+        _tutorialScheduled = false;
+        return;
+      }
+
+      if (TutorialPreferences.instance.isFlowCompleted('onboarding_camera')) {
+        return;
+      }
+
+      if (!mounted) {
+        _tutorialScheduled = false;
+        return;
+      }
+      
+      await TutorialService.instance.startFlow(context, 'onboarding_camera');
+    });
+  }
+
   Future<void> _initializePainDetection() async {
     try {
       await _painService.initialize();
@@ -102,6 +224,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
           _isPainDetectionEnabled = true;
         });
         _startPainDetection();
+        debugPrint('Pain detection initialized successfully');
       }
     } catch (e) {
       debugPrint('Error initializing pain detection: $e');
@@ -110,6 +233,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
           _isPainDetectionEnabled = false;
         });
       }
+      // Graceful degradation: Continue without pain detection
+      // Don't show error to user as it's not critical for exercise recording
+      debugPrint('Exercise recording will continue without pain detection');
     }
   }
 
@@ -149,13 +275,37 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     final confidence = result['confidence'];
     
     if (confidence > 0.7) {
+      // Check if pain level changed for smooth animation
+      final painLevelChanged = _currentPainLevel != painLevel;
+      
       setState(() {
         _currentPainLevel = painLevel;
         _painConfidence = confidence;
       });
       
+      // Animate color change and scale when pain level changes
+      if (painLevelChanged && _currentPainLevel != null) {
+        _animatePainLevelChange(_currentPainLevel!);
+      }
+      
       _triggerPainIntervention(painLevel);
     }
+  }
+
+  // Animate pain level change with color transition and scale
+  void _animatePainLevelChange(String newPainLevel) {
+    // Update color animation
+    final newColor = _getPainColor(newPainLevel);
+    _painColorAnimation = ColorTween(
+      begin: _painColorAnimation.value ?? Colors.grey,
+      end: newColor,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painColorController));
+    
+    // Reset and play animations
+    _painColorController.reset();
+    _painOverlayController.reset();
+    _painColorController.forward();
+    _painOverlayController.forward();
   }
 
   void _triggerPainIntervention(String painLevel) {
@@ -172,15 +322,58 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     }
   }
 
+  // Check if moderate pain banner should be shown
+  bool _shouldShowModeratePainBanner() {
+    return UserSettings.showModeratePainBanner;
+  }
+
+  // Save preference to hide/show moderate pain banner
+  Future<void> _setHideModeratePainBanner(bool hide) async {
+    UserSettings.showModeratePainBanner = !hide;
+    await UserSettings.saveToHive();
+    await UserSettings.saveToFirebase();
+  }
+
+  // Check if severe pain dialog should be shown
+  bool _shouldShowSeverePainDialog() {
+    return UserSettings.showSeverePainDialog;
+  }
+
+  // Save preference to hide/show severe pain dialog
+  Future<void> _setHideSeverePainDialog(bool hide) async {
+    UserSettings.showSeverePainDialog = !hide;
+    await UserSettings.saveToHive();
+    await UserSettings.saveToFirebase();
+  }
+
   void _showModeratePainBanner() {
+    // Check if user has disabled this banner
+    if (!_shouldShowModeratePainBanner()) {
+      debugPrint('Moderate pain banner disabled by user preference');
+      return;
+    }
+    
     if (_showPainBanner) return; // Prevent multiple banners
     
     setState(() {
       _showPainBanner = true;
+      _moderatePainBannerDontShowAgain = false; // Reset checkbox state
     });
     
-    // Auto-dismiss after 10 seconds
+    // Animate banner slide-in
+    _painBannerController.forward();
+    
+    // Auto-dismiss after 10 seconds with smooth animation
     Timer(const Duration(seconds: 10), () {
+      if (mounted) {
+        _dismissPainBanner();
+      }
+    });
+  }
+
+  void _dismissPainBanner() {
+    // Animate banner slide-out before hiding
+    _painBannerController.reverse().then((_) {
       if (mounted) {
         setState(() {
           _showPainBanner = false;
@@ -189,13 +382,29 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     });
   }
 
-  void _dismissPainBanner() {
-    setState(() {
-      _showPainBanner = false;
-    });
+  // Helper method to convert pain level to pain scale (0-10)
+  // Maps detected pain levels to standard pain scale ranges
+  int? _painLevelToPainScale(String? painLevel) {
+    if (painLevel == null) return null;
+    switch (painLevel) {
+      case 'Low':
+        return 2; // 0-3 range, use midpoint
+      case 'Moderate':
+        return 5; // 4-7 range, use midpoint
+      case 'Severe':
+        return 8; // 8-10 range, use midpoint
+      default:
+        return null;
+    }
   }
 
   void _showSeverePainDialog() {
+    // Check if user has disabled this dialog
+    if (!_shouldShowSeverePainDialog()) {
+      debugPrint('Severe pain dialog disabled by user preference');
+      return;
+    }
+    
     final now = DateTime.now();
     
     // Check if enough time has passed since last dialog
@@ -209,39 +418,79 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     
     _lastSeverePainDialogTime = now;
     
+    // Reset checkbox state for this dialog
+    _severePainDialogDontShowAgain = false;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Severe Pain Detected'),
-          ],
-        ),
-        content: Text(
-          'We\'ve detected severe pain during your exercise. '
-          'For your safety, we recommend taking a rest. '
-          'Are you able to continue safely?'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _pauseExerciseForRest();
-            },
-            child: Text('Take a Rest'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _continueExercise();
-            },
-            child: Text('Continue Exercise'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Severe Pain Detected'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'We\'ve detected severe pain during your exercise. '
+                    'For your safety, we recommend taking a rest. '
+                    'Are you able to continue safely?'
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _severePainDialogDontShowAgain,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            _severePainDialogDontShowAgain = value ?? false;
+                          });
+                        },
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Don\'t show this again',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    if (_severePainDialogDontShowAgain) {
+                      await _setHideSeverePainDialog(true);
+                    }
+                    Navigator.pop(context);
+                    _pauseExerciseForRest();
+                  },
+                  child: Text('Take a Rest'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (_severePainDialogDontShowAgain) {
+                      await _setHideSeverePainDialog(true);
+                    }
+                    Navigator.pop(context);
+                    _continueExercise();
+                  },
+                  child: Text('Continue Exercise'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -280,7 +529,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
               hint: 'Double tap to focus camera',
               child: cameraPreview,
             ),
-            // Pain detection overlay
+            // Camera toggle button
+            _buildCameraToggleButton(),
+            // Pain detection overlay (positioned within camera bounds)
             if (_isPainDetectionEnabled)
               _buildPainDetectionOverlay(),
             // Moderate pain banner
@@ -295,94 +546,321 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     return _cameraService.getLoadingIndicator(context);
   }
 
+  Widget _buildCameraToggleButton() {
+    final cameras = _cameraService.cameras;
+    // Only show toggle if multiple cameras are available
+    if (cameras == null || cameras.length < 2) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      top: 20,
+      left: 20,
+      child: Container(
+        key: TutorialAnchors.recordCameraToggle,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+          boxShadow: RecordingDesignSystem.shadowMedium,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+            onTap: _isSwitchingCamera ? null : _toggleCamera,
+            child: Container(
+              padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
+              child: _isSwitchingCamera
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : Icon(
+                      Icons.cameraswitch_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleCamera() async {
+    final cameras = _cameraService.cameras;
+    if (cameras == null || cameras.length < 2) {
+      return;
+    }
+
+    setState(() {
+      _isSwitchingCamera = true;
+    });
+
+    try {
+      // Calculate next camera index
+      final nextCameraIndex = (_currentCameraIndex + 1) % cameras.length;
+      
+      // Stop pain detection during camera switch
+      final wasPainDetectionActive = _isPainDetectionEnabled;
+      _stopPainDetection();
+      
+      // Switch camera
+      final success = await _cameraService.switchCamera(nextCameraIndex);
+      
+      if (success && mounted) {
+        setState(() {
+          _currentCameraIndex = nextCameraIndex;
+          _isCameraInitialized = true;
+        });
+        
+        // Restart pain detection if it was active
+        if (wasPainDetectionActive) {
+          _startPainDetection();
+        }
+      } else if (mounted) {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to switch camera. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error toggling camera: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error switching camera: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSwitchingCamera = false;
+        });
+      }
+    }
+  }
+
   Widget _buildPainDetectionOverlay() {
+    if (!PocketPTAnimations.shouldAnimate(context)) {
+      // Fallback to non-animated version if animations are disabled
+      // Positioned within camera widget bounds (top-right, accounting for camera toggle on left)
+      return Positioned(
+        top: 20,
+        right: 20,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _getPainColor(_currentPainLevel).withOpacity(0.9),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _getPainIcon(_currentPainLevel),
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _currentPainLevel ?? 'Low',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (_painConfidence > 0)
+                Text(
+                  '${(_painConfidence * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Positioned(
       top: 20,
       right: 20,
-      child: Container(
-        padding: EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: _getPainColor(_currentPainLevel).withOpacity(0.9),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _getPainIcon(_currentPainLevel),
-              color: Colors.white,
-              size: 20,
-            ),
-            SizedBox(height: 4),
-            Text(
-              _currentPainLevel ?? 'Low',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (_painConfidence > 0)
-              Text(
-                '${(_painConfidence * 100).toStringAsFixed(0)}%',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10,
+      child: FadeTransition(
+        opacity: _painOverlayFadeAnimation,
+        child: ScaleTransition(
+          scale: _painScaleAnimation,
+          child: AnimatedBuilder(
+            animation: _painColorController,
+            builder: (context, child) {
+              final currentColor = _painColorAnimation.value ?? _getPainColor(_currentPainLevel);
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: currentColor.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ),
-          ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getPainIcon(_currentPainLevel),
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _currentPainLevel ?? 'Low',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (_painConfidence > 0)
+                      Text(
+                        '${(_painConfidence * 100).toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _buildModeratePainBanner() {
+    Widget bannerContent = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'We detected some discomfort. Consider taking a rest if needed.',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: () async {
+                  if (_moderatePainBannerDontShowAgain) {
+                    await _setHideModeratePainBanner(true);
+                  }
+                  _dismissPainBanner();
+                },
+                icon: const Icon(Icons.close, color: Colors.white, size: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Checkbox(
+                value: _moderatePainBannerDontShowAgain,
+                onChanged: (value) {
+                  setState(() {
+                    _moderatePainBannerDontShowAgain = value ?? false;
+                  });
+                },
+                checkColor: Colors.orange.shade700,
+                fillColor: WidgetStateProperty.resolveWith<Color>(
+                  (Set<WidgetState> states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return Colors.white;
+                    }
+                    return Colors.transparent;
+                  },
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Don\'t show this again',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (!PocketPTAnimations.shouldAnimate(context)) {
+      // Fallback to non-animated version if animations are disabled
+      return Positioned(
+        bottom: 20,
+        left: 20,
+        right: 20,
+        child: bannerContent,
+      );
+    }
+
     return Positioned(
       bottom: 20,
       left: 20,
       right: 20,
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.warning, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'We detected some discomfort. Consider taking a rest if needed.',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: _dismissPainBanner,
-              child: Text(
-                'Dismiss',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.0, 1.0), // Start from below
+          end: Offset.zero,
+        ).animate(_painBannerSlideAnimation),
+        child: FadeTransition(
+          opacity: _painBannerFadeAnimation,
+          child: bannerContent,
         ),
       ),
     );
@@ -434,217 +912,126 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF8FAFC),
+      backgroundColor: RecordingDesignSystem.getBackgroundColor(context),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: RecordingDesignSystem.primaryMedical,
         elevation: 0,
         leading: Container(
-          margin: const EdgeInsets.all(8),
+          margin: const EdgeInsets.all(RecordingDesignSystem.spacingS),
           decoration: BoxDecoration(
-            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1,
+            ),
           ),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF8B2E2E)),
+            icon: Icon(
+              RecordingDesignSystem.iconBack,
+              color: Colors.white,
+              size: 20,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        centerTitle: true,
         title: Text(
-          'Exercise Recording',
-          style: GoogleFonts.poppins(
+          currentExercise.exerciseName,
+          style: RecordingDesignSystem.headlineMedium.copyWith(
+            color: Colors.white,
             fontWeight: FontWeight.w700,
-            fontSize: 20,
-            color: const Color(0xFF1F2937),
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
+        centerTitle: true,
       ),
       body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
+          SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Title under AppBar
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    currentExercise.exerciseName,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 22,
-                      color: const Color(0xFF1F2937),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: RecordingDesignSystem.spacingM),
 
-                // Camera Preview with proper 9:16 aspect ratio and responsive sizing
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    // Calculate available width considering padding (16px on each side)
-                    final availableWidth = constraints.maxWidth - 32; // 16px padding on each side
-                    
-                    // Calculate height based on 9:16 aspect ratio
-                    final cameraHeight = availableWidth * (16 / 9);
-                    
-                    // Apply maximum height constraint (40% of screen height)
-                    final maxHeight = MediaQuery.of(context).size.height * 0.4;
-                    final finalHeight = cameraHeight > maxHeight ? maxHeight : cameraHeight;
-                    
-                    // Calculate final width to maintain aspect ratio if height was constrained
-                    final finalWidth = finalHeight * (9 / 16);
-                    
-                    return Center(
-                      child: Container(
-                        width: finalWidth,
-                        height: finalHeight,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
-                          boxShadow: RecordingDesignSystem.shadowLarge,
-                        ),
-                        clipBehavior: Clip.antiAlias,
+                // Camera Preview - Centered with proper constraints
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: RecordingDesignSystem.spacingM),
+                  child: Center(
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.45,
+                        maxWidth: double.infinity,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+                        boxShadow: RecordingDesignSystem.shadowLarge,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: AspectRatio(
+                        aspectRatio: 9 / 16,
                         child: _buildCameraPreview(isDark),
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                // Enhanced Timer Display with decorative elements
-                Container(
-                  padding: const EdgeInsets.all(RecordingDesignSystem.spacingL),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        RecordingDesignSystem.getSurfaceColor(context),
-                        RecordingDesignSystem.getSurfaceColor(context).withOpacity(0.8),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
-                    border: Border.all(
-                      color: RecordingDesignSystem.primaryMedical.withOpacity(0.3),
-                      width: 2,
-                    ),
-                    boxShadow: RecordingDesignSystem.medicalShadowLarge,
                   ),
-                  child: Column(
-                    children: [
-                      // Timer header with icon
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(RecordingDesignSystem.spacingS),
-                            decoration: BoxDecoration(
-                              gradient: RecordingDesignSystem.primaryGradient,
-                              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
-                              boxShadow: RecordingDesignSystem.shadowMedium,
-                            ),
-                            child: Icon(
-                              RecordingDesignSystem.iconTimer,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: RecordingDesignSystem.spacingM),
-                          Text(
-                            'Exercise Timer',
-                            style: RecordingDesignSystem.titleMedium.copyWith(
-                              color: RecordingDesignSystem.getTextPrimaryColor(context),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: RecordingDesignSystem.spacingM),
-                      // Timer display
-                      StreamBuilder<Duration>(
-                        stream: StopwatchService.instance.timeStream,
-                        initialData: StopwatchService.instance.currentElapsed,
-                        builder: (context, snapshot) {
-                          final duration = snapshot.data!;
-                          final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-                          final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: RecordingDesignSystem.spacingL,
-                              vertical: RecordingDesignSystem.spacingM,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: RecordingDesignSystem.primaryGradient,
-                              borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
-                              boxShadow: RecordingDesignSystem.medicalShadow,
-                            ),
-                            child: Text(
+                ),
+                const SizedBox(height: RecordingDesignSystem.spacingM),
+
+                // Timer Display
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: RecordingDesignSystem.spacingM),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: RecordingDesignSystem.spacingL,
+                      vertical: RecordingDesignSystem.spacingM,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: RecordingDesignSystem.primaryGradient,
+                      borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusM),
+                      boxShadow: RecordingDesignSystem.shadowMedium,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          RecordingDesignSystem.iconTimer,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: RecordingDesignSystem.spacingS),
+                        StreamBuilder<Duration>(
+                          stream: StopwatchService.instance.timeStream,
+                          initialData: StopwatchService.instance.currentElapsed,
+                          builder: (context, snapshot) {
+                            final duration = snapshot.data!;
+                            final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+                            final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+                            return Text(
                               '$minutes:$seconds',
-                              style: RecordingDesignSystem.displayMedium.copyWith(
+                              style: RecordingDesignSystem.titleLarge.copyWith(
                                 color: Colors.white,
-                                letterSpacing: 2.0,
+                                letterSpacing: 1.5,
                                 fontWeight: FontWeight.w700,
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: RecordingDesignSystem.spacingS),
-                      // Status indicator
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: RecordingDesignSystem.spacingM,
-                          vertical: RecordingDesignSystem.spacingXS,
+                            );
+                          },
                         ),
-                        decoration: BoxDecoration(
-                          color: RecordingDesignSystem.successColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
-                          border: Border.all(
-                            color: RecordingDesignSystem.successColor.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              RecordingDesignSystem.iconPlay,
-                              color: RecordingDesignSystem.successColor,
-                              size: 16,
-                            ),
-                            const SizedBox(width: RecordingDesignSystem.spacingXS),
-                            Text(
-                              'Recording Active',
-                              style: RecordingDesignSystem.bodySmall.copyWith(
-                                color: RecordingDesignSystem.successColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: RecordingDesignSystem.spacingM),
 
-                // Enhanced Control Buttons with decorative elements
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildEnhancedCustomButton(
+                // Simplified Control Buttons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: RecordingDesignSystem.spacingM),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                    _buildSimplifiedButton(
                       icon: RecordingDesignSystem.iconBack,
                       label: 'Back',
                       gradient: RecordingDesignSystem.warningGradient,
-                      accentColor: RecordingDesignSystem.warningColor,
                       onTap: () async {
                         // Stop pain detection before navigation
                         _stopPainDetection();
@@ -671,6 +1058,8 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                                 reps: currentExercise.repetitions,
                                 durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
                                 status: 'partial',
+                                painScale: _painLevelToPainScale(_currentPainLevel),
+                                painLevel: _currentPainLevel,
                               );
                             } catch (e) {
                               debugPrint('Failed to save partial exercise data: $e');
@@ -702,10 +1091,11 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                         }
                       },
                     ),
-                    _buildEnhancedCircleButton(
+                    _buildSimplifiedButton(
+                      key: TutorialAnchors.recordPauseButton,
                       icon: RecordingDesignSystem.iconPause,
+                      label: 'Pause',
                       gradient: RecordingDesignSystem.errorGradient,
-                      accentColor: RecordingDesignSystem.errorColor,
                       onTap: () async {
                           // Record current exercise as partial when pausing
                           try {
@@ -717,14 +1107,16 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                               throw Exception('Invalid exercise data: missing or invalid fields');
                             }
                             
-                            await ExerciseHistory.recordTodayAndSave(
-                              exerciseId: currentExercise.exerciseId,
-                              exerciseName: currentExercise.exerciseName,
-                              sets: currentExercise.sets,
-                              reps: currentExercise.repetitions,
-                              durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
-                              status: 'partial',
-                            );
+                          await ExerciseHistory.recordTodayAndSave(
+                            exerciseId: currentExercise.exerciseId,
+                            exerciseName: currentExercise.exerciseName,
+                            sets: currentExercise.sets,
+                            reps: currentExercise.repetitions,
+                            durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                            status: 'partial',
+                            painScale: _painLevelToPainScale(_currentPainLevel),
+                            painLevel: _currentPainLevel,
+                          );
                           } catch (e) {
                             debugPrint('Failed to save partial exercise data: $e');
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -747,11 +1139,11 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                         );
                       },
                     ),
-                    _buildEnhancedCustomButton(
+                    _buildSimplifiedButton(
+                      key: TutorialAnchors.recordFinishButton,
                       icon: RecordingDesignSystem.iconForward,
                       label: (currentIndex + 1) < (rehabPlan?.exerciseReferences.length ?? 0) ? 'Proceed' : 'Finish',
                       gradient: RecordingDesignSystem.successGradient,
-                      accentColor: RecordingDesignSystem.successColor,
                       onTap: () async {
                         // Stop pain detection before navigation
                         _stopPainDetection();
@@ -772,14 +1164,16 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                                 throw Exception('Invalid exercise data: missing or invalid fields');
                               }
                               
-                              await ExerciseHistory.recordTodayAndSave(
-                                exerciseId: currentExercise.exerciseId,
-                                exerciseName: currentExercise.exerciseName,
-                                sets: currentExercise.sets,
-                                reps: currentExercise.repetitions,
-                                durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
-                                status: 'completed',
-                              );
+                            await ExerciseHistory.recordTodayAndSave(
+                              exerciseId: currentExercise.exerciseId,
+                              exerciseName: currentExercise.exerciseName,
+                              sets: currentExercise.sets,
+                              reps: currentExercise.repetitions,
+                              durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
+                              status: 'completed',
+                              painScale: _painLevelToPainScale(_currentPainLevel),
+                              painLevel: _currentPainLevel,
+                            );
                             } catch (e) {
                               debugPrint('Failed to save completed exercise data: $e');
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -831,6 +1225,8 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                                     reps: exerciseRef.repetitions,
                                     durationSeconds: StopwatchService.instance.currentElapsed.inSeconds,
                                     status: 'completed',
+                                    painScale: _painLevelToPainScale(_currentPainLevel),
+                                    painLevel: _currentPainLevel,
                                     now: now,
                                   );
                                 } catch (e) {
@@ -889,8 +1285,10 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                         }
                       },
                     ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(height: RecordingDesignSystem.spacingM),
               ],
             ),
           ),
@@ -902,7 +1300,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
             maxChildSize: 0.8,
             builder: (context, scrollController) => Container(
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1A1C1E) : Colors.white,
+                color: RecordingDesignSystem.getSurfaceColor(context),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
               ),
               child: ListView(
@@ -912,12 +1310,24 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.keyboard_double_arrow_up, color: Colors.white70),
-                        SizedBox(width: 8),
-                        Text("SWIPE UP FOR INSTRUCTIONS", style: TextStyle(color: Colors.white70)),
-                        SizedBox(width: 8),
-                        Icon(Icons.keyboard_double_arrow_up, color: Colors.white70),
+                      children: [
+                        Icon(
+                          Icons.keyboard_double_arrow_up,
+                          color: RecordingDesignSystem.getTextSecondaryColor(context),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "^^ SWIPE UP FOR INSTRUCTIONS ^^",
+                          style: RecordingDesignSystem.bodyMedium.copyWith(
+                            color: RecordingDesignSystem.getTextSecondaryColor(context),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.keyboard_double_arrow_up,
+                          color: RecordingDesignSystem.getTextSecondaryColor(context),
+                        ),
                       ],
                     ),
                   ),
@@ -932,133 +1342,52 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     );
   }
 
-  Widget _buildEnhancedCustomButton({
+  Widget _buildSimplifiedButton({
+    Key? key,
     required IconData icon, 
     required String label, 
     required LinearGradient gradient,
-    required Color accentColor,
     required VoidCallback onTap
   }) {
     return Flexible(
       child: Container(
-        constraints: const BoxConstraints(minWidth: 100, maxWidth: 150),
+        key: key,
+        constraints: const BoxConstraints(minHeight: 44),
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
-          boxShadow: RecordingDesignSystem.medicalShadow,
-          border: Border.all(
-            color: Colors.white.withOpacity(0.2),
-            width: 1,
-          ),
+          boxShadow: RecordingDesignSystem.shadowMedium,
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
             onTap: onTap,
-            child: Container(
+            child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: RecordingDesignSystem.spacingM,
                 vertical: RecordingDesignSystem.spacingM,
               ),
-              child: Column(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(RecordingDesignSystem.spacingXS),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
-                        ),
-                        child: Icon(icon, color: Colors.white, size: 18),
+                  Icon(icon, color: Colors.white, size: 20),
+                  const SizedBox(width: RecordingDesignSystem.spacingS),
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: RecordingDesignSystem.labelLarge.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: RecordingDesignSystem.spacingS),
-                      Flexible(
-                        child: Text(
-                          label,
-                          style: RecordingDesignSystem.labelLarge.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: RecordingDesignSystem.spacingXS),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: RecordingDesignSystem.spacingS,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusS),
-                    ),
-                    child: Icon(
-                      RecordingDesignSystem.iconInfo,
-                      color: Colors.white70,
-                      size: 12,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEnhancedCircleButton({
-    required IconData icon, 
-    required LinearGradient gradient,
-    required Color accentColor,
-    required VoidCallback onTap
-  }) {
-    return Container(
-      width: 70,
-      height: 70,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: gradient,
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-            spreadRadius: 1,
-          ),
-        ],
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 2,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          onTap: onTap,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 28, color: Colors.white),
-              const SizedBox(height: 2),
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
           ),
         ),
       ),
@@ -1239,22 +1568,56 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   }
 
   void _proceedToSave(BuildContext context) {
+    // Get root navigator context before pushing new page to avoid context issues
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    
     Navigator.push(
       context,
       MedicalPageRoute(
         child: ConfirmSavePage(
           onSave: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MedicalPageRoute(
-                child: HomePageWithDialog(),
-                settings: const RouteSettings(name: '/home'),
-              ),
-              (route) => false,
-            );
+            // Close the ConfirmSavePage first without popping the exercise page
+            if (rootNavigator.canPop()) {
+              rootNavigator.pop();
+            }
+
+            // Use post-frame callback to ensure navigation happens after widget tree is stable
+            // This prevents "Looking up a deactivated widget's ancestor" errors
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              try {
+                // Use the stored root navigator to navigate
+                rootNavigator.pushAndRemoveUntil(
+                  MedicalPageRoute(
+                    child: HomePageWithDialog(),
+                    settings: const RouteSettings(name: '/home'),
+                  ),
+                  (route) => false,
+                );
+              } catch (e) {
+                debugPrint('Navigation error after save: $e');
+                // Fallback: try to get a fresh root navigator context
+                try {
+                  final fallbackContext = rootNavigator.context;
+                  if (fallbackContext.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      fallbackContext,
+                      MedicalPageRoute(
+                        child: HomePageWithDialog(),
+                        settings: const RouteSettings(name: '/home'),
+                      ),
+                      (route) => false,
+                    );
+                  }
+                } catch (e2) {
+                  debugPrint('Fallback navigation also failed: $e2');
+                }
+              }
+            });
           },
           onCancel: () {
-            Navigator.pop(context);
+            if (rootNavigator.canPop()) {
+              rootNavigator.pop();
+            }
           },
         ),
         settings: const RouteSettings(name: '/confirm-save'),

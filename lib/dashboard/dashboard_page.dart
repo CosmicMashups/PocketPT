@@ -14,6 +14,9 @@ import '../data/local_notifications_service.dart';
 import '../widgets/responsive_dialog.dart';
 import '../core/animations.dart';
 import '../main.dart';
+import '../tutorials/tutorial_config.dart';
+import '../tutorials/tutorial_preferences.dart';
+import '../tutorials/tutorial_service.dart';
 // import '../demo/cnn_poseDemo.dart'; // Commented out until file exists
 
 class DashboardPage extends StatefulWidget {
@@ -43,6 +46,7 @@ class _DashboardPageState extends State<DashboardPage>
   bool _isLoading = true;
   String? _loadError;
   late AnimationController _animationController;
+  bool _tutorialScheduled = false;
   
   // Cache for exercise and treatment futures to prevent recreation on every build
   final Map<String, Future<Exercise?>> _exerciseFutureCache = {};
@@ -177,6 +181,7 @@ class _DashboardPageState extends State<DashboardPage>
       setState(() {
         _isLoading = false;
       });
+      _scheduleDashboardTutorial();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -184,6 +189,41 @@ class _DashboardPageState extends State<DashboardPage>
         _loadError = 'Failed to load dashboard data. Please try again.';
       });
     }
+  }
+
+  void _scheduleDashboardTutorial() {
+    if (_tutorialScheduled) {
+      return;
+    }
+    _tutorialScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _isLoading) {
+        _tutorialScheduled = false;
+        return;
+      }
+
+      await TutorialPreferences.instance.ensureInitialized();
+      if (!mounted) {
+        _tutorialScheduled = false;
+        return;
+      }
+      
+      if (!TutorialPreferences.instance.tutorialsEnabled) {
+        return;
+      }
+
+      if (TutorialPreferences.instance.isFlowCompleted('onboarding_dashboard')) {
+        return;
+      }
+
+      if (!mounted) {
+        _tutorialScheduled = false;
+        return;
+      }
+      
+      await TutorialService.instance.startFlow(context, 'onboarding_dashboard');
+    });
   }
 
   Map<String, dynamic> _gatherDashboardData() {
@@ -491,6 +531,7 @@ class _DashboardPageState extends State<DashboardPage>
                       ),
                     ),
                     IconButton(
+                      key: TutorialAnchors.dashboardNotifications,
                       onPressed: () => _showNotificationsDialog(context),
                       icon: const Badge(
                         smallSize: 8,
@@ -741,6 +782,7 @@ class _DashboardPageState extends State<DashboardPage>
                       ),
                     ),
                     IconButton(
+                      key: TutorialAnchors.dashboardNotifications,
                       onPressed: () => _showNotificationsDialog(context),
                       icon: const Badge(
                         smallSize: 8,
@@ -909,6 +951,7 @@ class _DashboardPageState extends State<DashboardPage>
                                   ],
                                 ),
                                 InkWell(
+                                  key: TutorialAnchors.dashboardProgressCta,
                                   onTap: () {
                                     Navigator.push(
                                       context,

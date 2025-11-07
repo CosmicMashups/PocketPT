@@ -6,9 +6,9 @@ class MuscleVideoMapping {
   /// Comprehensive mapping of muscle names to YouTube video URLs
   static const Map<String, String> muscleVideos = {
     // Upper Body Muscles
-    'Deltoids': 'https://youtu.be/am0-6R-ceEs',
-    'Chest': 'https://youtu.be/am0-6R-ceEs',
-    'Triceps': 'https://youtu.be/oyRbGqmOeB4',
+    'Deltoids': 'https://www.youtube.com/shorts/7XZupcbo2EE',
+    'Chest': 'https://www.youtube.com/shorts/7XZupcbo2EE',
+    'Triceps': 'https://www.youtube.com/shorts/_IOHtPSYGbk',
     'Biceps': 'https://www.youtube.com/shorts/Hs6FQNoI2TM',
     'Cervical Muscle': 'https://youtu.be/am0-6R-ceEs', // Default to Deltoids video
     

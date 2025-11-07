@@ -7,16 +7,52 @@ import '../data/rehabilitation_plan.dart';
 Future<List<Treatment>> loadTreatmentsFromCSV() async {
   try {
     print('GenerateTreatment: Loading treatments from CSV...');
-    final csvData = await rootBundle.loadString('assets/data/treatment.csv');
-    final List<List<dynamic>> csvTable = const CsvToListConverter().convert(csvData);
-
-    if (csvTable.isEmpty) {
+    final csvData = await loadCSVFromAsset('assets/data/treatment.csv');
+    
+    if (csvData.isEmpty) {
       print('GenerateTreatment: CSV file is empty');
       return [];
     }
+    
+    // Expected column count for treatment CSV
+    const expectedColumnCount = 6;
+    
+    // Fix malformed header: if first row has too many columns, truncate to expected count
+    List<dynamic> header = csvData.first;
+    if (header.length > expectedColumnCount) {
+      print('GenerateTreatment: [TREATMENT FIX] Header row has ${header.length} columns (expected $expectedColumnCount), truncating...');
+      header = header.sublist(0, expectedColumnCount);
+    }
+    
+    final data = csvData.sublist(1);
+    
+    // Build normalized header map for debug
+    String _norm(String s) {
+      if (s.isEmpty) return s;
+      var t = s.replaceAll('\r', '').trim();
+      if (t.isNotEmpty && t.codeUnitAt(0) == 0xFEFF) t = t.substring(1);
+      if (t.startsWith('"') && t.endsWith('"') && t.length >= 2) {
+        t = t.substring(1, t.length - 1);
+      }
+      t = t.toLowerCase().replaceAll(' ', '_');
+      return t;
+    }
+    final Map<String, int> headerMap = <String, int>{};
+    for (int i = 0; i < header.length && i < expectedColumnCount; i++) {
+      final normalizedKey = _norm(header[i].toString());
+      headerMap[normalizedKey] = i;
+    }
+    
+    // Debug: print treatment CSV header info
+    print('GenerateTreatment: [TREATMENT HEADER] Raw header row has ${header.length} columns (using first $expectedColumnCount)');
+    print('GenerateTreatment: [TREATMENT HEADER] Raw header (first $expectedColumnCount): ${header.take(expectedColumnCount).toList()}');
+    final normalizedColumns = headerMap.keys.toList()..sort();
+    print('GenerateTreatment: [TREATMENT HEADER] Normalized column names (${normalizedColumns.length}): ${normalizedColumns.join(', ')}');
+    print('GenerateTreatment: [TREATMENT HEADER] Header map entries: ${headerMap.entries.map((e) => '${e.key}->${e.value}').join(', ')}');
+    print('GenerateTreatment: [TREATMENT DATA] ${data.length} treatment rows');
 
     // Skip header row and map to Treatment objects
-    final treatments = csvTable.skip(1).map((row) {
+    final treatments = data.map((row) {
       if (row.length < 6) {
         print('GenerateTreatment: Warning - row has insufficient columns: ${row.length}');
         return null;

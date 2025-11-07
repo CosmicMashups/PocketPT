@@ -15,6 +15,10 @@ import '../data/guest_mode_service.dart';
 import '../widgets/responsive_dialog.dart';
 import '../demo/pose_estimation_demo.dart';
 import '../main.dart';
+import '../reports/services/pdf_export_service.dart';
+import '../tutorials/tutorial_config.dart';
+import '../tutorials/tutorial_preferences.dart';
+import '../tutorials/tutorial_service.dart';
 // removed loader: using direct global data like a_goal1.dart
 
 class ProfilePage extends StatefulWidget {
@@ -33,6 +37,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late AnimationController _animationController;
+  bool _tutorialsEnabled = true;
 
   @override
   void initState() {
@@ -41,6 +46,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       this,
       duration: PocketPTAnimations.medium,
     );
+    // Load settings from Hive/Firebase if not already loaded
+    UserSettings.loadFromHive();
+    _loadTutorialPreferences();
   }
 
   @override
@@ -70,6 +78,66 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         'isExerciseReminder': UserSettings.isExerciseReminder,
       },
     };
+  }
+
+  Future<void> _loadTutorialPreferences() async {
+    try {
+      await TutorialPreferences.instance.ensureInitialized();
+      if (!mounted) return;
+      setState(() {
+        _tutorialsEnabled = TutorialPreferences.instance.tutorialsEnabled;
+      });
+    } catch (e) {
+      debugPrint('ProfilePage: Failed to load tutorial preferences: $e');
+    }
+  }
+
+  Future<void> _handleTutorialToggle(bool value) async {
+    await TutorialPreferences.instance.ensureInitialized();
+    await TutorialPreferences.instance.setTutorialsEnabled(value);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _tutorialsEnabled = value;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(value ? 'Guided tutorials enabled.' : 'Guided tutorials disabled.'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _replayTutorialFlow(BuildContext context, String flowId) async {
+    await TutorialPreferences.instance.ensureInitialized();
+    for (final step in TutorialRegistry.steps.where((step) => step.flowId == flowId)) {
+      await TutorialPreferences.instance.resetStep(step.id);
+    }
+    await TutorialPreferences.instance.resetFlow(flowId);
+    await TutorialService.instance.startFlow(context, flowId);
+  }
+
+  Future<void> _resetAllTutorials(BuildContext context) async {
+    await TutorialPreferences.instance.ensureInitialized();
+    for (final step in TutorialRegistry.steps) {
+      await TutorialPreferences.instance.resetStep(step.id);
+    }
+    final flowIds = TutorialRegistry.steps
+        .map((step) => step.flowId)
+        .whereType<String>()
+        .toSet();
+    for (final flowId in flowIds) {
+      await TutorialPreferences.instance.resetFlow(flowId);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tutorial progress has been reset.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   // Removed legacy loading/error UI; page now builds directly from globals
@@ -119,9 +187,22 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 ),
                 const SizedBox(height: 24),
                 
-                // Data & Export Section
+                // Pain Detection Settings Section
                 AnimationConfiguration.staggeredList(
                   position: 2,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: _buildPainDetectionSettingsSection(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Data & Export Section
+                AnimationConfiguration.staggeredList(
+                  position: 3,
                   duration: PocketPTAnimations.pageTransition,
                   child: SlideAnimation(
                     verticalOffset: 50.0,
@@ -132,22 +213,22 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 ),
                 const SizedBox(height: 24),
                 
-                // Pose Estimation Demo Section
-                AnimationConfiguration.staggeredList(
-                  position: 3,
-                  duration: PocketPTAnimations.pageTransition,
-                  child: SlideAnimation(
-                    verticalOffset: 50.0,
-                    child: FadeInAnimation(
-                      child: _buildPoseEstimationDemoSection(),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
+                // Pose Estimation Demo Section - HIDDEN
+                // AnimationConfiguration.staggeredList(
+                //   position: 3,
+                //   duration: PocketPTAnimations.pageTransition,
+                //   child: SlideAnimation(
+                //     verticalOffset: 50.0,
+                //     child: FadeInAnimation(
+                //       child: _buildPoseEstimationDemoSection(),
+                //     ),
+                //   ),
+                // ),
+                // const SizedBox(height: 24),
                 
-                // Security Section
-                _buildSecuritySection(),
-                const SizedBox(height: 24),
+                // Security Section - HIDDEN
+                // _buildSecuritySection(),
+                // const SizedBox(height: 24),
                 
                 // Legal Section
                 _buildLegalSection(),
@@ -155,7 +236,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 
                 // Account Actions Section (moved to bottom)
                 AnimationConfiguration.staggeredList(
-                  position: 4,
+                  position: 5,
                   duration: PocketPTAnimations.pageTransition,
                   child: SlideAnimation(
                     verticalOffset: 50.0,
@@ -459,8 +540,127 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               UserSettings.saveToHive();
             },
           ),
+
+          const SizedBox(height: 24),
+
+          const Text(
+            'Tutorials & Guidance',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          _buildSettingItem(
+            'Enable Guided Tutorials',
+            'Show contextual tooltips and walkthroughs across assessments and recordings',
+            Icons.help_outline,
+            _tutorialsEnabled,
+            (value) {
+              _handleTutorialToggle(value);
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          _buildActionItem(
+            'Replay Dashboard Tutorial',
+            'Walk through the home dashboard tips again',
+            Icons.play_circle_outline,
+            () {
+              _replayTutorialFlow(context, 'onboarding_dashboard');
+            },
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildActionItem(
+            'Reset All Tutorials',
+            'Clear completion status and show tutorials on next visit',
+            Icons.refresh,
+            () {
+              _resetAllTutorials(context);
+            },
+          ),
               ],
             ),
+    );
+  }
+  
+  Widget _buildPainDetectionSettingsSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pain Detection Settings',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Control when pain detection notifications appear during exercises and assessments',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Moderate Pain Banner Toggle
+          _buildSettingItem(
+            'Show Moderate Pain Banner',
+            'Display notification when moderate pain is detected',
+            Icons.info_outline,
+            UserSettings.showModeratePainBanner,
+            (value) {
+              // Update setting and save
+              UserSettings.showModeratePainBanner = value;
+              UserSettings.saveToHive();
+              UserSettings.saveToFirebase();
+              setState(() {});
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Severe Pain Dialog Toggle
+          _buildSettingItem(
+            'Show Severe Pain Dialog',
+            'Display dialog when severe pain is detected',
+            Icons.warning,
+            UserSettings.showSeverePainDialog,
+            (value) {
+              // Update setting and save
+              UserSettings.showSeverePainDialog = value;
+              UserSettings.saveToHive();
+              UserSettings.saveToFirebase();
+              setState(() {});
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -604,14 +804,17 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             isGuest ? Icons.exit_to_app : Icons.logout,
             _handleLogout,
             isDestructive: true,
+            key: TutorialAnchors.profileLogout,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionItem(String title, String subtitle, IconData icon, VoidCallback onTap, {bool isDestructive = false}) {
+  Widget _buildActionItem(String title, String subtitle, IconData icon, VoidCallback onTap,
+      {bool isDestructive = false, Key? key}) {
     return InkWell(
+      key: key,
       onTap: onTap,
         borderRadius: BorderRadius.circular(12),
       child: Padding(
@@ -985,13 +1188,56 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             'Export Exercise History',
             'Download your exercise data',
             Icons.upload_file,
-            () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Export functionality coming soon'),
-                  backgroundColor: Colors.orange,
-                ),
+            () async {
+              // Show loading indicator
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (BuildContext context) {
+                  return ResponsiveDialog(
+                    title: 'Exporting Report',
+                    icon: Icons.hourglass_empty,
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 16),
+                        const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(kMainColor),
+                          strokeWidth: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Generating PDF report...',
+                          style: GoogleFonts.ptSans(
+                            fontSize: 16,
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.white70 
+                                : kTextNormal,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                    actions: const [],
+                  );
+                },
               );
+
+              // Export PDF
+              final success = await PDFExportService.instance.exportPDFReport(context);
+
+              // Close loading dialog
+              if (mounted) Navigator.of(context).pop();
+
+              // Success message is shown by the service
+              if (!success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to export PDF report'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
           ),
           
@@ -1001,13 +1247,56 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             'Download Progress Report',
             'Get PDF/CSV reports of your progress',
             Icons.picture_as_pdf,
-            () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Report generation coming soon'),
-                  backgroundColor: Colors.orange,
-                ),
+            () async {
+              // Show loading indicator
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (BuildContext context) {
+                  return ResponsiveDialog(
+                    title: 'Generating Report',
+                    icon: Icons.hourglass_empty,
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 16),
+                        const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(kMainColor),
+                          strokeWidth: 3,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Generating PDF report...',
+                          style: GoogleFonts.ptSans(
+                            fontSize: 16,
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.white70 
+                                : kTextNormal,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                    actions: const [],
+                  );
+                },
               );
+
+              // Export PDF
+              final success = await PDFExportService.instance.exportPDFReport(context);
+
+              // Close loading dialog
+              if (mounted) Navigator.of(context).pop();
+
+              // Success message is shown by the service
+              if (!success && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to export PDF report'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
           ),
         ],
@@ -1015,6 +1304,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
   }
 
+  // ignore: unused_element
   Widget _buildSecuritySection() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1345,6 +1635,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
   }
 
+  // ignore: unused_element
   Widget _buildPoseEstimationDemoSection() {
     return Container(
       padding: const EdgeInsets.all(24),

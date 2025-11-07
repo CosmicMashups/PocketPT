@@ -4,9 +4,12 @@ import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'widgets/rehab_plan_expansion_panel.dart';
 import 'widgets/exercise_calendar_grid.dart';
 import 'widgets/export_pdf_button.dart';
+import 'widgets/pain_level_chart.dart';
 import '../data/user_data_notifier.dart';
 import '../core/animations.dart';
 import 'services/reports_data_service.dart';
+import '../tutorials/tutorial_preferences.dart';
+import '../tutorials/tutorial_service.dart';
 // removed data wrapper: using direct globals like a_goal1.dart
 class ReportPage extends ConsumerStatefulWidget {
   const ReportPage({super.key});
@@ -17,6 +20,7 @@ class ReportPage extends ConsumerStatefulWidget {
 
 class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStateMixin {
   late AnimationController _animationController;
+  bool _tutorialScheduled = false;
 
   @override
   void initState() {
@@ -54,6 +58,10 @@ class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStat
     final reportsDataAsync = ref.watch(reportsDataProvider);
     final reportsService = ref.watch(reportsDataServiceProvider);
 
+    if (!_tutorialScheduled && reportsDataAsync.hasValue) {
+      _scheduleReportTutorial();
+    }
+
       return Scaffold(
       backgroundColor: Theme.of(context).brightness == Brightness.dark 
           ? Theme.of(context).scaffoldBackgroundColor 
@@ -65,6 +73,42 @@ class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStat
         data: (reportsData) => _buildReportsContent(context, reportsData, reportsService),
       ),
     );
+  }
+
+  void _scheduleReportTutorial() {
+    if (_tutorialScheduled) {
+      return;
+    }
+    _tutorialScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _tutorialScheduled = false;
+        return;
+      }
+
+      await TutorialPreferences.instance.ensureInitialized();
+      if (!mounted) {
+        _tutorialScheduled = false;
+        return;
+      }
+      
+      if (!TutorialPreferences.instance.tutorialsEnabled) {
+        _tutorialScheduled = false;
+        return;
+      }
+
+      if (TutorialPreferences.instance.isFlowCompleted('onboarding_reports')) {
+        return;
+      }
+
+      if (!mounted) {
+        _tutorialScheduled = false;
+        return;
+      }
+      
+      await TutorialService.instance.startFlow(context, 'onboarding_reports');
+    });
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
@@ -213,9 +257,22 @@ class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStat
           ),
           const SizedBox(height: 24),
 
-          // Reports Content
+          // Pain Level Chart
           AnimationConfiguration.staggeredList(
             position: 2,
+            duration: PocketPTAnimations.pageTransition,
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: const PainLevelChart(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Reports Content
+          AnimationConfiguration.staggeredList(
+            position: 3,
             duration: PocketPTAnimations.pageTransition,
             child: SlideAnimation(
               verticalOffset: 50.0,
@@ -226,7 +283,7 @@ class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStat
           ),
           const SizedBox(height: 24),
           AnimationConfiguration.staggeredList(
-            position: 3,
+            position: 4,
             duration: PocketPTAnimations.pageTransition,
             child: SlideAnimation(
               verticalOffset: 50.0,
@@ -237,7 +294,7 @@ class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStat
           ),
           const SizedBox(height: 24),
           AnimationConfiguration.staggeredList(
-            position: 4,
+            position: 5,
             duration: PocketPTAnimations.pageTransition,
             child: SlideAnimation(
               verticalOffset: 50.0,

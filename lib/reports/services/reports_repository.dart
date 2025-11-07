@@ -154,7 +154,7 @@ class ReportsRepository {
     }
   }
 
-  /// Get user assessment data
+  /// Get user assessment data from local storage
   Future<UserAssessmentData> getUserAssessment() async {
     try {
       debugPrint('ReportsRepository: Loading user assessment...');
@@ -171,6 +171,36 @@ class ReportsRepository {
       
     } catch (e) {
       debugPrint('ReportsRepository: Error loading user assessment: $e');
+      rethrow;
+    }
+  }
+
+  /// Get assessment data from Firebase
+  Future<Map<String, dynamic>?> getAssessmentDataFromFirebase({bool forceRefresh = false}) async {
+    try {
+      debugPrint('ReportsRepository: Loading assessment data from Firebase...');
+      
+      final user = _auth.currentUser;
+      if (user == null || UserDetails.isGuest) {
+        debugPrint('ReportsRepository: No authenticated user or guest user, skipping Firebase load');
+        return null;
+      }
+
+      final DocumentSnapshot doc = await _firestore
+          .collection('assessment')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        debugPrint('ReportsRepository: Successfully loaded assessment data from Firebase');
+        return data;
+      } else {
+        debugPrint('ReportsRepository: No assessment document found in Firebase');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('ReportsRepository: Error loading assessment data from Firebase: $e');
       rethrow;
     }
   }

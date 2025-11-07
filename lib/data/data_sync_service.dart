@@ -910,6 +910,8 @@ class DataSyncService {
         reps: m['reps'] ?? 0,
         durationSeconds: m['durationSeconds'] ?? 0,
         status: m['status'] ?? 'completed',
+        painScale: m['painScale'] as int?,
+        painLevel: m['painLevel'] as String?,
       ));
     }
   }

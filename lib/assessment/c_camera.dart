@@ -15,6 +15,7 @@ import 'arom/assessment_service.dart';
 import 'arom/assessment_result.dart';
 import 'c_video.dart';
 import 'c_painlevel.dart';
+import '../core/animations.dart';
 class AssessPainCamera extends StatefulWidget {
   const AssessPainCamera({super.key});
 
@@ -22,7 +23,7 @@ class AssessPainCamera extends StatefulWidget {
   State<AssessPainCamera> createState() => _AssessPainCameraState();
 }
 
-class _AssessPainCameraState extends State<AssessPainCamera> {
+class _AssessPainCameraState extends State<AssessPainCamera> with TickerProviderStateMixin {
   // Assessment logic moved to modular services
 
   int painScale = 0;
@@ -82,6 +83,20 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
   // Severe pain dialog cooldown
   DateTime? _lastSeverePainDialogTime;
   static const Duration _severePainDialogCooldown = Duration(seconds: 15);
+  
+  // Checkbox states for pain dialogs
+  bool _moderatePainBannerDontShowAgain = false;
+  bool _severePainDialogDontShowAgain = false;
+  
+  // Animation controllers for pain feedback
+  late AnimationController _painOverlayController;
+  late AnimationController _painBannerController;
+  late AnimationController _painColorController;
+  late Animation<double> _painOverlayFadeAnimation;
+  late Animation<double> _painBannerSlideAnimation;
+  late Animation<double> _painBannerFadeAnimation;
+  late Animation<Color?> _painColorAnimation;
+  late Animation<double> _painScaleAnimation;
   
   // Video recording settings
   bool _enableVideoRecording = false; // Default to real-time only
@@ -198,6 +213,48 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     // Initialize pain scale from local data
     painScale = UserAssess.painScale;
     print('AssessPainCamera: painScale initialized to: $painScale');
+    
+    // Initialize pain feedback animations
+    _painOverlayController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.fast,
+    );
+    _painBannerController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
+    _painColorController = PocketPTAnimations.createController(
+      this,
+      duration: PocketPTAnimations.medium,
+    );
+    
+    // Set up animations
+    _painOverlayFadeAnimation = PocketPTAnimations.createOpacityTween(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painOverlayController));
+    
+    _painBannerSlideAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painBannerController));
+    
+    _painBannerFadeAnimation = PocketPTAnimations.createOpacityTween().animate(
+      PocketPTAnimations.createCurvedAnimation(_painBannerController),
+    );
+    
+    _painColorAnimation = ColorTween(
+      begin: Colors.grey,
+      end: Colors.green,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painColorController));
+    
+    _painScaleAnimation = PocketPTAnimations.createScaleTween(
+      begin: 0.95,
+      end: 1.0,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painOverlayController));
+    
+    // Start overlay fade in
+    _painOverlayController.forward();
     
     _initializeCamera();
     _initializePainDetection();
@@ -534,6 +591,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           _isPainDetectionEnabled = true;
         });
         _startPainDetection();
+        debugPrint('Pain detection initialized successfully for AROM assessment');
       }
     } catch (e) {
       debugPrint('Error initializing pain detection: $e');
@@ -542,6 +600,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
           _isPainDetectionEnabled = false;
         });
       }
+      // Graceful degradation: Continue assessment without pain detection
+      // Assessment can proceed with manual pain level input
+      debugPrint('AROM assessment will continue without automatic pain detection');
     }
   }
 
@@ -578,16 +639,44 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   // Handle pain detection results
   void _handlePainDetectionResult(Map<String, dynamic> result) {
+    // Don't process if page is no longer active or values are locked
+    if (!_isPageActive || _painValuesLocked) return;
+    
     final painLevel = result['painLevel'];
     final confidence = result['confidence'];
     
     if (confidence > 0.7) {
+      // Check if pain level changed for smooth animation
+      final painLevelChanged = _currentPainLevel != painLevel;
+      
       setState(() {
         _currentPainLevel = painLevel;
         _painConfidence = confidence;
       });
+      
+      // Animate color change and scale when pain level changes
+      if (painLevelChanged && _currentPainLevel != null) {
+        _animatePainLevelChange(_currentPainLevel!);
+      }
+      
       _triggerPainIntervention(painLevel);
     }
+  }
+
+  // Animate pain level change with color transition and scale
+  void _animatePainLevelChange(String newPainLevel) {
+    // Update color animation
+    final newColor = _getPainColor(newPainLevel);
+    _painColorAnimation = ColorTween(
+      begin: _painColorAnimation.value ?? Colors.grey,
+      end: newColor,
+    ).animate(PocketPTAnimations.createCurvedAnimation(_painColorController));
+    
+    // Reset and play animations
+    _painColorController.reset();
+    _painOverlayController.reset();
+    _painColorController.forward();
+    _painOverlayController.forward();
   }
 
   // Trigger pain intervention based on level
@@ -605,26 +694,63 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     }
   }
 
+  // Check if moderate pain banner should be shown
+  bool _shouldShowModeratePainBanner() {
+    return UserSettings.showModeratePainBanner;
+  }
+
+  // Save preference to hide/show moderate pain banner
+  Future<void> _setHideModeratePainBanner(bool hide) async {
+    UserSettings.showModeratePainBanner = !hide;
+    await UserSettings.saveToHive();
+    await UserSettings.saveToFirebase();
+  }
+
   // Show moderate pain banner
   void _showModeratePainBanner() {
+    // Check if user has disabled this banner
+    if (!_shouldShowModeratePainBanner()) {
+      debugPrint('Moderate pain banner disabled by user preference');
+      return;
+    }
+    
     if (_showPainBanner) return; // Prevent multiple banners
     
     setState(() {
       _showPainBanner = true;
     });
     
-    // Auto-dismiss after 10 seconds
+    // Animate banner slide-in
+    _painBannerController.forward();
+    
+    // Auto-dismiss after 10 seconds with smooth animation
     Timer(const Duration(seconds: 10), () {
       if (mounted) {
-        setState(() {
-          _showPainBanner = false;
-        });
+        _dismissPainBanner();
       }
     });
   }
 
+  // Check if severe pain dialog should be shown
+  bool _shouldShowSeverePainDialog() {
+    return UserSettings.showSeverePainDialog;
+  }
+
+  // Save preference to hide/show severe pain dialog
+  Future<void> _setHideSeverePainDialog(bool hide) async {
+    UserSettings.showSeverePainDialog = !hide;
+    await UserSettings.saveToHive();
+    await UserSettings.saveToFirebase();
+  }
+
   // Show severe pain dialog with cooldown protection
   void _showSeverePainDialog() {
+    // Check if user has disabled this dialog
+    if (!_shouldShowSeverePainDialog()) {
+      debugPrint('Severe pain dialog disabled by user preference');
+      return;
+    }
+    
     final now = DateTime.now();
     
     // Check if enough time has passed since last dialog
@@ -638,38 +764,76 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     
     _lastSeverePainDialogTime = now;
     
+    // Reset checkbox state for this dialog
+    _severePainDialogDontShowAgain = false;
+    
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.warning, color: Colors.red, size: 24),
-              const SizedBox(width: 8),
-              Text('Severe Pain Detected'),
-            ],
-          ),
-          content: Text(
-            'The application has detected severe pain from your facial expressions. '
-            'Please confirm if this pain level is accurate before proceeding.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _pauseExerciseForRest();
-              },
-              child: Text('Take a Rest'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _continueExercise();
-              },
-              child: Text('Continue Assessment'),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.red, size: 24),
+                  const SizedBox(width: 8),
+                  Text('Severe Pain Detected'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'The application has detected severe pain from your facial expressions. '
+                    'Please confirm if this pain level is accurate before proceeding.',
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _severePainDialogDontShowAgain,
+                        onChanged: (value) {
+                          setDialogState(() {
+                            _severePainDialogDontShowAgain = value ?? false;
+                          });
+                        },
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Don\'t show this again',
+                          style: GoogleFonts.ptSans(fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    if (_severePainDialogDontShowAgain) {
+                      await _setHideSeverePainDialog(true);
+                    }
+                    Navigator.of(context).pop();
+                    _pauseExerciseForRest();
+                  },
+                  child: Text('Take a Rest'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    if (_severePainDialogDontShowAgain) {
+                      await _setHideSeverePainDialog(true);
+                    }
+                    Navigator.of(context).pop();
+                    _continueExercise();
+                  },
+                  child: Text('Continue Assessment'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -699,8 +863,13 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   // Dismiss pain banner
   void _dismissPainBanner() {
-    setState(() {
-      _showPainBanner = false;
+    // Animate banner slide-out before hiding
+    _painBannerController.reverse().then((_) {
+      if (mounted) {
+        setState(() {
+          _showPainBanner = false;
+        });
+      }
     });
   }
 
@@ -730,44 +899,101 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   // Build pain detection status overlay - moved to top left
   Widget _buildPainDetectionOverlay() {
+    if (!PocketPTAnimations.shouldAnimate(context)) {
+      // Fallback to non-animated version if animations are disabled
+      return Positioned(
+        top: 8,
+        left: 8,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _getPainIcon(_currentPainLevel),
+                color: _getPainColor(_currentPainLevel),
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _currentPainLevel ?? 'Low',
+                style: GoogleFonts.ptSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              if (_painConfidence > 0) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '${(_painConfidence * 100).toInt()}%',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 10,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     return Positioned(
       top: 8,
       left: 8,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _getPainIcon(_currentPainLevel),
-              color: _getPainColor(_currentPainLevel),
-              size: 16,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              _currentPainLevel ?? 'Low',
-              style: GoogleFonts.ptSans(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-            if (_painConfidence > 0) ...[
-              const SizedBox(width: 4),
-              Text(
-                '${(_painConfidence * 100).toInt()}%',
-                style: GoogleFonts.ptSans(
-                  fontSize: 10,
-                  color: Colors.white70,
+      child: FadeTransition(
+        opacity: _painOverlayFadeAnimation,
+        child: ScaleTransition(
+          scale: _painScaleAnimation,
+          child: AnimatedBuilder(
+            animation: _painColorController,
+            builder: (context, child) {
+              final currentColor = _painColorAnimation.value ?? _getPainColor(_currentPainLevel);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
                 ),
-              ),
-            ],
-          ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getPainIcon(_currentPainLevel),
+                      color: currentColor,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _currentPainLevel ?? 'Low',
+                      style: GoogleFonts.ptSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (_painConfidence > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '${(_painConfidence * 100).toInt()}%',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 10,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -816,50 +1042,112 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
 
   // Build moderate pain banner
   Widget _buildModeratePainBanner() {
+    Widget bannerContent = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade700, width: 1),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Moderate Pain Detected',
+                      style: GoogleFonts.ptSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Please take a break if needed. You can continue when ready.',
+                      style: GoogleFonts.ptSans(
+                        fontSize: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () async {
+                  if (_moderatePainBannerDontShowAgain) {
+                    await _setHideModeratePainBanner(true);
+                  }
+                  _dismissPainBanner();
+                },
+                icon: const Icon(Icons.close, color: Colors.white, size: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Checkbox(
+                value: _moderatePainBannerDontShowAgain,
+                onChanged: (value) {
+                  setState(() {
+                    _moderatePainBannerDontShowAgain = value ?? false;
+                  });
+                },
+                checkColor: Colors.orange.shade700,
+                fillColor: WidgetStateProperty.resolveWith<Color>(
+                  (Set<WidgetState> states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return Colors.white;
+                    }
+                    return Colors.transparent;
+                  },
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Don\'t show this again',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (!PocketPTAnimations.shouldAnimate(context)) {
+      // Fallback to non-animated version if animations are disabled
+      return Positioned(
+        bottom: 20,
+        left: 20,
+        right: 20,
+        child: bannerContent,
+      );
+    }
+
     return Positioned(
       bottom: 20,
       left: 20,
       right: 20,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.95),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.shade700, width: 1),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Moderate Pain Detected',
-                    style: GoogleFonts.ptSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Please take a break if needed. You can continue when ready.',
-                    style: GoogleFonts.ptSans(
-                      fontSize: 12,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              onPressed: _dismissPainBanner,
-              icon: Icon(Icons.close, color: Colors.white, size: 18),
-            ),
-          ],
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.0, 1.0), // Start from below
+          end: Offset.zero,
+        ).animate(_painBannerSlideAnimation),
+        child: FadeTransition(
+          opacity: _painBannerFadeAnimation,
+          child: bannerContent,
         ),
       ),
     );
@@ -1082,6 +1370,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> {
     _stopPainDetection();
     try { _controller.stopImageStream(); } catch (_) {}
     _painDetectionTimer?.cancel();
+    _painOverlayController.dispose();
+    _painBannerController.dispose();
+    _painColorController.dispose();
     _controller.dispose();
     super.dispose();
   }

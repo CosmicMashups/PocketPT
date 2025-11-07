@@ -13,6 +13,7 @@ class StretchingState {
   final int remainingTime;
   final bool isPaused;
   final List<StretchingExercise> completedExercises;
+  final bool isReadyConfirmed;
 
   const StretchingState({
     this.currentWarmupRoutine,
@@ -22,6 +23,7 @@ class StretchingState {
     this.remainingTime = 0,
     this.isPaused = false,
     this.completedExercises = const [],
+    this.isReadyConfirmed = false,
   });
 
   StretchingState copyWith({
@@ -32,6 +34,7 @@ class StretchingState {
     int? remainingTime,
     bool? isPaused,
     List<StretchingExercise>? completedExercises,
+    bool? isReadyConfirmed,
   }) {
     return StretchingState(
       currentWarmupRoutine: currentWarmupRoutine ?? this.currentWarmupRoutine,
@@ -41,6 +44,7 @@ class StretchingState {
       remainingTime: remainingTime ?? this.remainingTime,
       isPaused: isPaused ?? this.isPaused,
       completedExercises: completedExercises ?? this.completedExercises,
+      isReadyConfirmed: isReadyConfirmed ?? this.isReadyConfirmed,
     );
   }
 }
@@ -59,19 +63,32 @@ class StretchingNotifier extends StateNotifier<StretchingState> {
   int get remainingTime => state.remainingTime;
   bool get isPaused => state.isPaused;
   List<StretchingExercise> get completedExercises => state.completedExercises;
+  bool get isReadyConfirmed => state.isReadyConfirmed;
 
   StretchingRoutine? get currentRoutine {
-    if (state.currentWarmupRoutine != null && state.isRoutineActive) return state.currentWarmupRoutine;
-    if (state.currentCooldownRoutine != null && state.isRoutineActive) return state.currentCooldownRoutine;
+    // For warmup/cooldown pages, return routine even if not active yet (allows preview)
+    if (state.currentWarmupRoutine != null) return state.currentWarmupRoutine;
+    if (state.currentCooldownRoutine != null) return state.currentCooldownRoutine;
     return null;
   }
 
   StretchingExercise? get currentExercise {
     final routine = currentRoutine;
-    if (routine == null || state.currentExerciseIndex >= routine.exercises.length) {
+    // Only debug when there's an issue (null routine or invalid index) to reduce console spam
+    if (routine == null) {
+      print('StretchingProvider: [CURRENT EXERCISE] No routine available (warmup: ${state.currentWarmupRoutine != null}, cooldown: ${state.currentCooldownRoutine != null}, isRoutineActive: ${state.isRoutineActive})');
       return null;
     }
-    return routine.exercises[state.currentExerciseIndex];
+    if (state.currentExerciseIndex >= routine.exercises.length) {
+      print('StretchingProvider: [CURRENT EXERCISE] Index ${state.currentExerciseIndex} >= ${routine.exercises.length}');
+      return null;
+    }
+    final exercise = routine.exercises[state.currentExerciseIndex];
+    // Only print when exercise changes or first access
+    if (state.remainingTime == 0 || state.remainingTime == exercise.recommendedDuration) {
+      print('StretchingProvider: [CURRENT EXERCISE] ${exercise.exerciseName} (index: ${state.currentExerciseIndex}, duration: ${exercise.recommendedDuration}s)');
+    }
+    return exercise;
   }
 
   double get progressPercentage {
@@ -83,12 +100,19 @@ class StretchingNotifier extends StateNotifier<StretchingState> {
   /// Load routines for specific muscle group
   Future<void> loadRoutinesForMuscle(String muscleGroup) async {
     try {
+      print('StretchingProvider: [LOAD] Loading routines for muscle group: $muscleGroup');
       final warmupRoutine = await StretchingDataService.getRoutineForMuscle(muscleGroup, 'warmup');
       final cooldownRoutine = await StretchingDataService.getRoutineForMuscle(muscleGroup, 'cooldown');
+      print('StretchingProvider: [LOAD] Warmup routine: ${warmupRoutine != null ? 'loaded (${warmupRoutine.exercises.length} exercises)' : 'null'}');
+      print('StretchingProvider: [LOAD] Cooldown routine: ${cooldownRoutine != null ? 'loaded (${cooldownRoutine.exercises.length} exercises)' : 'null'}');
       state = state.copyWith(
         currentWarmupRoutine: warmupRoutine,
         currentCooldownRoutine: cooldownRoutine,
       );
+      print('StretchingProvider: [LOAD] State updated. isRoutineActive=${state.isRoutineActive}, currentExerciseIndex=${state.currentExerciseIndex}');
+      
+      // Don't auto-start - wait for user readiness confirmation
+      // Routine will be in ready state but timer won't start until user confirms
     } catch (e) {
       print('StretchingProvider: Error loading routines for $muscleGroup - $e');
     }
@@ -132,6 +156,10 @@ class StretchingNotifier extends StateNotifier<StretchingState> {
         currentWarmupRoutine: warmupRoutine,
         currentCooldownRoutine: cooldownRoutine,
       );
+      print('StretchingProvider: [LOAD] State updated. isRoutineActive=${state.isRoutineActive}, currentExerciseIndex=${state.currentExerciseIndex}');
+      
+      // Don't auto-start - wait for user readiness confirmation
+      // Routine will be in ready state but timer won't start until user confirms
     } catch (e) {
       print('StretchingProvider: Error loading routines for $muscleGroup with pain level $painScale - $e');
       // Try fallback without pain level filtering
@@ -149,17 +177,27 @@ class StretchingNotifier extends StateNotifier<StretchingState> {
     }
   }
 
-  /// Start a stretching routine
+  /// Start a stretching routine (sets up routine but doesn't start timer until readiness confirmed)
   void startRoutine(StretchingRoutine routine) {
+    print('StretchingProvider: [START] Starting routine: ${routine.routineType} (${routine.exercises.length} exercises)');
     state = state.copyWith(
       currentExerciseIndex: 0,
       completedExercises: [],
       isRoutineActive: true,
       isPaused: false,
+      isReadyConfirmed: false, // Require user confirmation before starting timer
       currentWarmupRoutine: routine.routineType == 'warmup' ? routine : state.currentWarmupRoutine,
       currentCooldownRoutine: routine.routineType == 'cooldown' ? routine : state.currentCooldownRoutine,
     );
-    
+    print('StretchingProvider: [START] State updated. isRoutineActive=${state.isRoutineActive}, isReadyConfirmed=${state.isReadyConfirmed}, currentExerciseIndex=${state.currentExerciseIndex}');
+    print('StretchingProvider: [START] Current exercise: ${currentExercise?.exerciseName ?? 'null'}');
+    // Timer will start only after user confirms readiness via confirmReadiness()
+  }
+
+  /// Confirm user readiness and start the exercise timer
+  void confirmReadiness() {
+    print('StretchingProvider: [READINESS] User confirmed readiness');
+    state = state.copyWith(isReadyConfirmed: true);
     _startExerciseTimer();
   }
 
@@ -172,7 +210,10 @@ class StretchingNotifier extends StateNotifier<StretchingState> {
   /// Resume the current routine
   void resumeRoutine() {
     state = state.copyWith(isPaused: false);
-    _startExerciseTimer();
+    // Only start timer if readiness was already confirmed (no need to re-confirm after pause)
+    if (state.isReadyConfirmed) {
+      _startExerciseTimer();
+    }
   }
 
   /// Move to next exercise
@@ -221,24 +262,59 @@ class StretchingNotifier extends StateNotifier<StretchingState> {
   /// Start timer for current exercise
   void _startExerciseTimer() {
     final exercise = currentExercise;
-    if (exercise == null) return;
+    print('StretchingProvider: [TIMER] _startExerciseTimer called. exercise=${exercise?.exerciseName ?? 'null'}, isRoutineActive=${state.isRoutineActive}, isReadyConfirmed=${state.isReadyConfirmed}');
+    if (exercise == null) {
+      print('StretchingProvider: [TIMER] Cannot start timer - no current exercise');
+      return;
+    }
+    if (!state.isReadyConfirmed) {
+      print('StretchingProvider: [TIMER] Cannot start timer - user has not confirmed readiness');
+      return;
+    }
 
+    print('StretchingProvider: [TIMER] Starting timer for "${exercise.exerciseName}" (${exercise.recommendedDuration}s)');
     state = state.copyWith(remainingTime: exercise.recommendedDuration);
+    print('StretchingProvider: [TIMER] Timer state set. remainingTime=${state.remainingTime}');
+    
+    _exerciseTimer?.cancel(); // Cancel any existing timer
     _exerciseTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (state.remainingTime > 0) {
-        state = state.copyWith(remainingTime: state.remainingTime - 1);
-      } else {
-          timer.cancel();
-          // Auto-advance to next exercise
-          nextExercise();
+      // Read current state at time of callback
+      final currentTime = state.remainingTime;
+      if (currentTime > 0) {
+        final newTime = currentTime - 1;
+        // Only print every 5 seconds or when time is low to reduce console spam
+        if (newTime % 5 == 0 || newTime <= 3) {
+          print('StretchingProvider: [TIMER] Remaining time: ${newTime}s');
         }
+        state = state.copyWith(remainingTime: newTime);
+      } else {
+        print('StretchingProvider: [TIMER] Time expired, auto-advancing to next exercise');
+        timer.cancel();
+        // Auto-advance to next exercise
+        nextExercise();
+      }
     });
+    print('StretchingProvider: [TIMER] Timer started successfully');
   }
 
   /// Reset provider state
   void reset() {
     _exerciseTimer?.cancel();
     state = const StretchingState();
+  }
+
+  /// Initialize routine without starting timer (for preview mode)
+  void initializeRoutine(StretchingRoutine routine) {
+    print('StretchingProvider: [INIT] Initializing routine: ${routine.routineType} (${routine.exercises.length} exercises)');
+    state = state.copyWith(
+      currentExerciseIndex: 0,
+      completedExercises: [],
+      isRoutineActive: true,
+      isPaused: false,
+      isReadyConfirmed: false,
+      currentWarmupRoutine: routine.routineType == 'warmup' ? routine : state.currentWarmupRoutine,
+      currentCooldownRoutine: routine.routineType == 'cooldown' ? routine : state.currentCooldownRoutine,
+    );
   }
 
   @override
