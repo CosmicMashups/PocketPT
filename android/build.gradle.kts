@@ -12,6 +12,17 @@ buildscript {
     }
 }
 
+// Keep Gradle outputs under <project-root>/build so Flutter tooling can find APKs.
+rootProject.buildDir = file("../build")
+
+subprojects {
+    buildDir = rootProject.buildDir.resolve(name)
+}
+
+subprojects {
+    evaluationDependsOn(":app")
+}
+
 allprojects {
     repositories {
         google()
@@ -19,19 +30,6 @@ allprojects {
     }
 }
 
-// Optional: Adjust build directory for your structure
-// if (project.name == "app") {
-//     val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
-//     rootProject.layout.buildDirectory.value(newBuildDir)
-
-//     subprojects {
-//         if (project.name == "app") {
-//             val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-//             project.layout.buildDirectory.value(newSubprojectBuildDir)
-//         }
-//     }
-// }
-
 tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
+    delete(rootProject.buildDir)
 }

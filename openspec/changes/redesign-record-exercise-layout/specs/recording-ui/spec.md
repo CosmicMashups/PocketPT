@@ -104,3 +104,17 @@ The system SHALL display simplified control buttons on the exercise recording pa
 - **AND** pause/resume functionality SHALL work as expected
 - **AND** button accessibility (screen readers, keyboard navigation) SHALL be maintained
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

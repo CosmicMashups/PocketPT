@@ -4,19 +4,24 @@ import 'assessment_result.dart';
 import 'assessment_constants.dart';
 
 /// Triceps ROM assessment module
+/// 
+/// Uses COCO format landmarks: ${side}Shoulder, ${side}Elbow, ${side}Hip
+/// where side is 'left' or 'right' (lowercase).
 class TricepsAssessment {
-  /// Calculate triceps angle between shoulder, elbow, and wrist
+  /// Calculate triceps angle between hip, shoulder, and elbow
+  /// 
+  /// Uses COCO landmarks: ${side}Hip, ${side}Shoulder, ${side}Elbow
   static double? calculateAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
+    final hip = landmarks['${sideLower}Hip'];
     final shoulder = landmarks['${sideLower}Shoulder'];
     final elbow = landmarks['${sideLower}Elbow'];
-    final wrist = landmarks['${sideLower}Wrist'];
 
-    if (shoulder == null || elbow == null || wrist == null) {
+    if (hip == null || shoulder == null || elbow == null) {
       return null;
     }
 
-    return _calculateAngleBetweenPoints(shoulder, elbow, wrist);
+    return _calculateAngleBetweenPoints(hip, shoulder, elbow);
   }
 
   /// Perform triceps ROM assessment

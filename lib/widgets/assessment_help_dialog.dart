@@ -475,7 +475,7 @@ class AssessmentHelpDialog extends StatelessWidget {
       case 'gluteals':
         return 'We measure the angle between your shoulder, hip, and knee to evaluate gluteal strength and hip extension range of motion.';
       case 'triceps':
-        return 'We measure the angle between your shoulder, elbow, and wrist to assess triceps flexibility and elbow extension range of motion.';
+        return 'We measure the angle between your hip, shoulder, and elbow to assess triceps flexibility and elbow extension range of motion.';
       case 'biceps':
         return 'We measure the angle between your shoulder, elbow, and wrist to evaluate biceps flexibility and elbow flexion range of motion.';
       case 'shoulders':

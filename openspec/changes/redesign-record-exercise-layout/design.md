@@ -173,3 +173,17 @@ The record exercise page needs a layout redesign to prioritize the camera feed, 
 - Should pain overlay be dismissible or always visible?
 - Should DraggableScrollableSheet default to expanded or collapsed state?
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

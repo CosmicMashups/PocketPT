@@ -151,12 +151,13 @@ class _AssessUpperBodyState extends State<AssessUpperBody> {
                       successColor,
                     ),
                     const SizedBox(height: 16),
-                    _buildMuscleOption(
-                      'Cervical Muscle',
-                      'Neck muscles that support head movement and maintain cervical spine alignment.',
-                      Icons.healing,
-                      const Color(0xFF8B5CF6),
-                    ),
+                    // Cervical muscle temporarily hidden while content is reviewed
+                    // _buildMuscleOption(
+                    //   'Cervical Muscle',
+                    //   'Neck muscles that support head movement and maintain cervical spine alignment.',
+                    //   Icons.healing,
+                    //   const Color(0xFF8B5CF6),
+                    // ),
                     const SizedBox(height: 32),
 
                     // Next Button

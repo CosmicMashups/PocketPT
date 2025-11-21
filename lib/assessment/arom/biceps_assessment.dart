@@ -4,8 +4,13 @@ import 'assessment_result.dart';
 import 'assessment_constants.dart';
 
 /// Biceps ROM assessment module
+/// 
+/// Uses COCO format landmarks: ${side}Shoulder, ${side}Elbow, ${side}Wrist
+/// where side is 'left' or 'right' (lowercase).
 class BicepsAssessment {
   /// Calculate biceps angle between shoulder, elbow, and wrist
+  /// 
+  /// Uses COCO landmarks: ${side}Shoulder, ${side}Elbow, ${side}Wrist
   static double? calculateAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
     final shoulder = landmarks['${sideLower}Shoulder'];

@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
 /// Clinical thresholds for ROM assessments
+/// 
+/// All assessments use COCO format pose landmarks (17 keypoints):
+/// - nose, leftEye, rightEye, leftEar, rightEar
+/// - leftShoulder, rightShoulder, leftElbow, rightElbow
+/// - leftWrist, rightWrist, leftHip, rightHip
+/// - leftKnee, rightKnee, leftAnkle, rightAnkle
+/// 
+/// These landmarks are provided by the custom YOLO11s-pose model
+/// and normalized to 0.0-1.0 range for assessment calculations.
 class AssessmentConstants {
   // Calf dorsiflexion thresholds
   static const double calfSevereThreshold = 0.15;  // Normalized displacement < 0.15 -> Severe
   static const double calfModerateThreshold = 0.30;  // 0.15 <= displacement < 0.30 -> Moderate
   
-  // Hamstring ROM thresholds
-  static const double hamstringSevereThreshold = 60.0;  // Angle < 60° -> Severe
-  static const double hamstringModerateThreshold = 80.0;  // 60° <= Angle < 80° -> Moderate
+  // Hamstring ROM thresholds (Shoulder-Hip-Knee angle)
+  static const double hamstringLowThreshold = 190.0;  // Angle < 190° -> Low (Poor flexion)
+  static const double hamstringModerateThreshold = 210.0;  // 190° <= Angle < 210° -> Moderate (Partial flexion)
+  // Angle >= 210° -> Severe (Leg extended, good flexion)
   
   // Pelvic compensation threshold
   static const double pelvicCompensationThresholdNorm = 0.05; // Vertical difference > 5% of body height proxy -> Warning
@@ -31,16 +41,17 @@ class AssessmentConstants {
   static const double bicepsModerateThreshold = 90.0; // 90° < Angle <= 150° -> Moderate
   
   // Quadriceps ROM thresholds
-  static const double quadricepsSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended)
-  static const double quadricepsModerateThreshold = 100.0; // 100° <= Angle < 160° -> Moderate
+  static const double quadricepsSevereThreshold = 120.0;  // Angle < 120° -> Severe (Good flexion, leg well bent)
+  static const double quadricepsModerateThreshold = 140.0; // 120° <= Angle < 140° -> Moderate (Partial flexion)
   
   // Gluteal ROM thresholds
   static const double glutealSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended)
   static const double glutealModerateThreshold = 100.0; // 100° <= Angle < 160° -> Moderate
   
-  // Enhanced Hamstring ROM thresholds (for hip-knee-ankle assessment)
-  static const double hamstringEnhancedSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended)
-  static const double hamstringEnhancedModerateThreshold = 100.0; // 100° <= Angle < 160° -> Moderate
+  // Enhanced Hamstring ROM thresholds (for shoulder-hip-knee assessment)
+  static const double hamstringEnhancedLowThreshold = 190.0;  // Angle < 190° -> Low (Poor flexion)
+  static const double hamstringEnhancedModerateThreshold = 210.0;  // 190° <= Angle < 210° -> Moderate (Partial flexion)
+  // Angle >= 210° -> Severe (Leg extended, good flexion)
   
   // Trunk ROM thresholds (for unified trunk muscle assessment)
   static const double trunkSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended/Upright)

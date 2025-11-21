@@ -213,18 +213,18 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 ),
                 const SizedBox(height: 24),
                 
-                // Pose Estimation Demo Section - HIDDEN
-                // AnimationConfiguration.staggeredList(
-                //   position: 3,
-                //   duration: PocketPTAnimations.pageTransition,
-                //   child: SlideAnimation(
-                //     verticalOffset: 50.0,
-                //     child: FadeInAnimation(
-                //       child: _buildPoseEstimationDemoSection(),
-                //     ),
-                //   ),
-                // ),
-                // const SizedBox(height: 24),
+                // AI & Machine Learning Section
+                AnimationConfiguration.staggeredList(
+                  position: 4,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: _buildPoseEstimationDemoSection(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 
                 // Security Section - HIDDEN
                 // _buildSecuritySection(),

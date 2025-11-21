@@ -4,10 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../data/globals.dart';
-import '../data/pose_detection_service.dart';
-import '../widgets/enhanced_pose_skeleton_painter.dart';
+import '../data/custom_pose_detection_service.dart';
+import '../widgets/custom_pose_skeleton_painter.dart';
 import '../assessment/arom/assessment_service.dart';
 import 'instructionVideo.dart';
 import 'painLevel.dart';
@@ -55,14 +56,61 @@ class _CameraPosePageState extends State<CameraPosePage> {
     'Multifidus': 'multifidus'
   };
   
-  final PoseDetectionService _poseService = PoseDetectionService();
+  final CustomPoseDetectionService _poseService = CustomPoseDetectionService();
   bool _isStreaming = false;
   bool _processingFrame = false;
   Timer? _throttleTimer;
   
   // New: Skeleton visualization state
   bool _showSkeleton = false;
-  Map<String, Offset>? _currentLandmarks;
+  List<Map<String, dynamic>> _currentKeypoints = []; // Raw keypoints from custom model
+  Size? _cameraImageSize; // Store camera image dimensions for coordinate scaling
+
+  /// Convert custom model keypoints to landmarks format expected by assessment services
+  /// 
+  /// The custom model returns keypoints as a list of maps with 'x', 'y', 'confidence', 'name', and 'index' fields.
+  /// This method converts them to normalized landmarks (0.0-1.0) matching ML Kit format.
+  Map<String, Offset> _keypointsToLandmarks(
+    List<Map<String, dynamic>> keypoints,
+    Size imageSize,
+    bool isFrontCamera,
+  ) {
+    final landmarks = <String, Offset>{};
+    
+    if (keypoints.isEmpty || imageSize.width <= 0 || imageSize.height <= 0) {
+      return landmarks;
+    }
+    
+    // Convert each keypoint to normalized landmark
+    for (final kp in keypoints) {
+      final x = (kp['x'] as num?)?.toDouble();
+      final y = (kp['y'] as num?)?.toDouble();
+      final confidence = (kp['confidence'] as num?)?.toDouble() ?? 0.0;
+      final name = kp['name'] as String?;
+      
+      // Filter low confidence keypoints
+      if (x == null || y == null || name == null || confidence < 0.5) {
+        continue;
+      }
+      
+      // Clamp coordinates to image bounds
+      final clampedX = x.clamp(0.0, imageSize.width);
+      final clampedY = y.clamp(0.0, imageSize.height);
+      
+      // Normalize to 0.0-1.0 range
+      double nx = clampedX / imageSize.width;
+      double ny = clampedY / imageSize.height;
+      
+      // Mirror horizontally for front camera preview
+      if (isFrontCamera) {
+        nx = 1.0 - nx;
+      }
+      
+      landmarks[name] = Offset(nx, ny);
+    }
+    
+    return landmarks;
+  }
 
   /// Determine assessment algorithm based on UserAssess.specificMuscle
   /// 
@@ -99,6 +147,7 @@ class _CameraPosePageState extends State<CameraPosePage> {
   @override
   void initState() {
     super.initState();
+    _initializePoseDetection();
     _initializeCamera();
   }
 
@@ -180,55 +229,82 @@ class _CameraPosePageState extends State<CameraPosePage> {
 
       _processingFrame = true;
       try {
-        final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
-        if (poses.isNotEmpty) {
-          final landmarks = _poseService.getPoseLandmarks(poses.first);
-          
-          // Validate landmarks before processing
-          if (landmarks.isEmpty) {
-            return;
-          }
-          
-          // Store landmarks for skeleton visualization
-          if (_showSkeleton) {
-            _currentLandmarks = landmarks;
-            debugPrint('Pose detected: ${landmarks.length} landmarks'); // Debug output
-            // Force UI update to show skeleton
-            if (mounted) setState(() {});
-          }
-          
-          // Perform ROM assessment using modular AROM services
+        // Store camera image size for coordinate scaling
+        final camera = cameras[_selectedCameraIndex];
+        final sensorOrientation = camera.sensorOrientation;
+        final isPortrait = sensorOrientation == 90 || sensorOrientation == 270;
+        
+        _cameraImageSize = Size(
+          isPortrait ? image.height.toDouble() : image.width.toDouble(),
+          isPortrait ? image.width.toDouble() : image.height.toDouble(),
+        );
+        
+        // Process pose detection using custom model
+        final keypoints = await _poseService.detectPosesFromCameraImage(
+          image: image,
+          camera: camera,
+        );
+        
+        if (keypoints.isNotEmpty) {
           try {
-            final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
+            // Convert keypoints to landmarks format
+            final isFrontCamera = camera.lensDirection == CameraLensDirection.front;
+            final landmarks = _keypointsToLandmarks(
+              keypoints,
+              _cameraImageSize!,
+              isFrontCamera,
+            );
             
-            if (mounted) {
-              setState(() {
-                // Update UserAssess for integration (continuous tracking)
-                UserAssess.painScale = assessmentResult.painScore;
-                UserAssess.painLevel = assessmentResult.clinicalContext;
-                
-                PainHistory.recordTodayAndSave(
-                  painScale: UserAssess.painScale,
-                  painLevel: UserAssess.painLevel,
-                );
-              });
+            // Validate landmarks before processing
+            if (landmarks.isEmpty) {
+              return;
             }
-          } catch (e) {
-            debugPrint('Assessment failed: $e');
-            // Fallback to basic angle calculation if assessment fails
-            final angle = _computeRelevantAngle(landmarks);
-            if (angle != null) {
-              final score = _mapAngleToScore(angle);
-              if (score != UserAssess.painScale) {
-                UserAssess.painScale = score;
-                UserAssess.painLevel = score.toString();
-                PainHistory.recordTodayAndSave(
-                  painScale: UserAssess.painScale,
-                  painLevel: UserAssess.painLevel,
-                );
-                if (mounted) setState(() {});
+            
+            // Store keypoints for skeleton visualization
+            _currentKeypoints = keypoints;
+            debugPrint('Pose detected: ${landmarks.length} landmarks, ${keypoints.length} keypoints');
+            
+            // Force UI update to show skeleton if enabled
+            if (_showSkeleton && mounted) {
+              setState(() {});
+            }
+            
+            // Perform ROM assessment using modular AROM services
+            try {
+              final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
+              
+              if (mounted) {
+                setState(() {
+                  // Update UserAssess for integration (continuous tracking)
+                  UserAssess.painScale = assessmentResult.painScore;
+                  UserAssess.painLevel = assessmentResult.clinicalContext;
+                  
+                  PainHistory.recordTodayAndSave(
+                    painScale: UserAssess.painScale,
+                    painLevel: UserAssess.painLevel,
+                  );
+                });
+              }
+            } catch (e) {
+              debugPrint('Assessment failed: $e');
+              // Fallback to basic angle calculation if assessment fails
+              final angle = _computeRelevantAngle(landmarks);
+              if (angle != null) {
+                final score = _mapAngleToScore(angle);
+                if (score != UserAssess.painScale) {
+                  UserAssess.painScale = score;
+                  UserAssess.painLevel = score.toString();
+                  PainHistory.recordTodayAndSave(
+                    painScale: UserAssess.painScale,
+                    painLevel: UserAssess.painLevel,
+                  );
+                  if (mounted) setState(() {});
+                }
               }
             }
+          } catch (e) {
+            debugPrint('Landmark processing error: $e');
+            // Continue processing even if landmark extraction fails
           }
         }
       } catch (e) {
@@ -257,32 +333,62 @@ class _CameraPosePageState extends State<CameraPosePage> {
               _lastProcessedTime = nowMs;
               _processingFrame = true;
               try {
-                final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
-                if (poses.isNotEmpty) {
-                  final landmarks = _poseService.getPoseLandmarks(poses.first);
-                  if (landmarks.isEmpty) return;
-                  if (_showSkeleton) {
-                    _currentLandmarks = landmarks;
-                    if (mounted) setState(() {});
-                  }
-                  // Perform ROM assessment using modular AROM services
+                // Store camera image size for coordinate scaling
+                final camera = cameras[_selectedCameraIndex];
+                final sensorOrientation = camera.sensorOrientation;
+                final isPortrait = sensorOrientation == 90 || sensorOrientation == 270;
+                
+                _cameraImageSize = Size(
+                  isPortrait ? image.height.toDouble() : image.width.toDouble(),
+                  isPortrait ? image.width.toDouble() : image.height.toDouble(),
+                );
+                
+                // Process pose detection using custom model
+                final keypoints = await _poseService.detectPosesFromCameraImage(
+                  image: image,
+                  camera: camera,
+                );
+                
+                if (keypoints.isNotEmpty) {
                   try {
-                    final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
+                    // Convert keypoints to landmarks format
+                    final isFrontCamera = camera.lensDirection == CameraLensDirection.front;
+                    final landmarks = _keypointsToLandmarks(
+                      keypoints,
+                      _cameraImageSize!,
+                      isFrontCamera,
+                    );
                     
-                    if (mounted) {
-                      setState(() {
-                        // Update UserAssess for integration (continuous tracking)
-                        UserAssess.painScale = assessmentResult.painScore;
-                        UserAssess.painLevel = assessmentResult.clinicalContext;
-                        
-                        PainHistory.recordTodayAndSave(
-                          painScale: UserAssess.painScale,
-                          painLevel: UserAssess.painLevel,
-                        );
-                      });
+                    if (landmarks.isEmpty) return;
+                    
+                    // Store keypoints for skeleton visualization
+                    _currentKeypoints = keypoints;
+                    
+                    if (_showSkeleton && mounted) {
+                      setState(() {});
+                    }
+                    
+                    // Perform ROM assessment using modular AROM services
+                    try {
+                      final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
+                      
+                      if (mounted) {
+                        setState(() {
+                          // Update UserAssess for integration (continuous tracking)
+                          UserAssess.painScale = assessmentResult.painScore;
+                          UserAssess.painLevel = assessmentResult.clinicalContext;
+                          
+                          PainHistory.recordTodayAndSave(
+                            painScale: UserAssess.painScale,
+                            painLevel: UserAssess.painLevel,
+                          );
+                        });
+                      }
+                    } catch (e) {
+                      debugPrint('Assessment failed in retry: $e');
                     }
                   } catch (e) {
-                    debugPrint('Assessment failed in retry: $e');
+                    debugPrint('Landmark processing error in retry: $e');
                   }
                 }
               } finally {
@@ -303,17 +409,30 @@ class _CameraPosePageState extends State<CameraPosePage> {
   double? _computeRelevantAngle(Map<String, Offset> lm) {
     final side = _selectedSide.toLowerCase();
     
+    // Helper function to calculate angle between three points
+    double calculateAngle(Offset pointA, Offset vertex, Offset pointB) {
+      final v1 = pointA - vertex;
+      final v2 = pointB - vertex;
+      final dot = v1.dx * v2.dx + v1.dy * v2.dy;
+      final mag1 = v1.distance;
+      final mag2 = v2.distance;
+      if (mag1 == 0 || mag2 == 0) return 0.0;
+      final cosTheta = (dot / (mag1 * mag2)).clamp(-1.0, 1.0);
+      final radians = math.acos(cosTheta);
+      return radians * 180.0 / math.pi;
+    }
+    
     if (_mode == 'Triceps') {
-      if (side == 'left' && lm.containsKey('leftShoulder') && lm.containsKey('leftElbow') && lm.containsKey('leftWrist')) {
-        return _poseService.calculateAngle(lm['leftShoulder']!, lm['leftElbow']!, lm['leftWrist']!);
-      } else if (side == 'right' && lm.containsKey('rightShoulder') && lm.containsKey('rightElbow') && lm.containsKey('rightWrist')) {
-        return _poseService.calculateAngle(lm['rightShoulder']!, lm['rightElbow']!, lm['rightWrist']!);
+      if (side == 'left' && lm.containsKey('leftHip') && lm.containsKey('leftShoulder') && lm.containsKey('leftElbow')) {
+        return calculateAngle(lm['leftHip']!, lm['leftShoulder']!, lm['leftElbow']!);
+      } else if (side == 'right' && lm.containsKey('rightHip') && lm.containsKey('rightShoulder') && lm.containsKey('rightElbow')) {
+        return calculateAngle(lm['rightHip']!, lm['rightShoulder']!, lm['rightElbow']!);
       }
     } else if (_mode == 'Shoulders') {
       if (side == 'left' && lm.containsKey('leftHip') && lm.containsKey('leftShoulder') && lm.containsKey('leftElbow')) {
-        return _poseService.calculateAngle(lm['leftHip']!, lm['leftShoulder']!, lm['leftElbow']!);
+        return calculateAngle(lm['leftHip']!, lm['leftShoulder']!, lm['leftElbow']!);
       } else if (side == 'right' && lm.containsKey('rightHip') && lm.containsKey('rightShoulder') && lm.containsKey('rightElbow')) {
-        return _poseService.calculateAngle(lm['rightHip']!, lm['rightShoulder']!, lm['rightElbow']!);
+        return calculateAngle(lm['rightHip']!, lm['rightShoulder']!, lm['rightElbow']!);
       }
     }
     return null;
@@ -343,6 +462,17 @@ class _CameraPosePageState extends State<CameraPosePage> {
 
 
 
+  // Initialize custom pose detection service
+  Future<void> _initializePoseDetection() async {
+    try {
+      await _poseService.initialize();
+      debugPrint('Custom pose detection service initialized successfully');
+    } catch (e) {
+      debugPrint('Error initializing custom pose detection service: $e');
+      // Graceful degradation: Continue without pose detection
+    }
+  }
+
   Future<void> _switchCamera() async {
     if (cameras.isEmpty) return;
     final next = (_selectedCameraIndex + 1) % cameras.length;
@@ -352,6 +482,9 @@ class _CameraPosePageState extends State<CameraPosePage> {
       _isCameraInitialized = false;
       _selectedCameraIndex = next;
       _isStreaming = false;
+      // Clear keypoints when switching cameras to prevent stale data
+      _currentKeypoints = [];
+      _cameraImageSize = null;
     });
     await _initializeCamera();
   }
@@ -612,7 +745,7 @@ class _CameraPosePageState extends State<CameraPosePage> {
                                   setState(() {
                                     _showSkeleton = !_showSkeleton;
                                     if (!_showSkeleton) {
-                                      _currentLandmarks = null;
+                                      _currentKeypoints = [];
                                     }
                                   });
                                   break;
@@ -647,7 +780,7 @@ class _CameraPosePageState extends State<CameraPosePage> {
                                         setState(() {
                                           _showSkeleton = value;
                                           if (!_showSkeleton) {
-                                            _currentLandmarks = null;
+                                            _currentKeypoints = [];
                                           }
                                         });
                                       },
@@ -686,20 +819,30 @@ class _CameraPosePageState extends State<CameraPosePage> {
                         ),
                       ),
                       // Skeleton overlay
-                      if (_showSkeleton && _currentLandmarks != null)
+                      if (_showSkeleton && _currentKeypoints.isNotEmpty && _cameraImageSize != null)
                         Positioned.fill(
                           child: IgnorePointer(
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(16),
                               child: LayoutBuilder(
                                 builder: (context, constraints) {
+                                  // Ensure we have valid constraints
+                                  if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  
+                                  final isFrontCamera = cameras[_selectedCameraIndex].lensDirection == CameraLensDirection.front;
+                                  
                                   return CustomPaint(
-                                    painter: EnhancedPoseSkeletonPainter(
-                                      landmarks: _currentLandmarks!,
+                                    painter: CustomPoseSkeletonPainter(
+                                      keypoints: _currentKeypoints,
+                                      imageSize: _cameraImageSize,
+                                      previewSize: Size(constraints.maxWidth, constraints.maxHeight),
                                       showLandmarkLabels: false,
                                       strokeWidth: 3.0,
                                       pointRadius: 6.0,
                                       showConfidence: false,
+                                      mirrorHorizontally: isFrontCamera,
                                     ),
                                     size: Size(constraints.maxWidth, constraints.maxHeight),
                                   );

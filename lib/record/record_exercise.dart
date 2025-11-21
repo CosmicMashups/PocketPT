@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:camera/camera.dart';
 import '../data/globals.dart';
 import '../home_dialog.dart';
 import '../data/rehabilitation_plan.dart';
@@ -38,7 +39,8 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   String? _currentPainLevel;
   double _painConfidence = 0.0;
   bool _showPainBanner = false;
-  Timer? _painDetectionTimer;
+  bool _isImageStreamActive = false;
+  DateTime? _lastPainProcessTime;
   
   // Track if page is active - prevents pain detection after navigation
   bool _isPageActive = true;
@@ -129,20 +131,51 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   void dispose() {
     // Stop pain detection and lock values
     _stopPainDetection();
+    
+    // Ensure image stream is stopped
+    if (_isImageStreamActive && _cameraService.controller != null) {
+      try {
+        if (_cameraService.controller!.value.isStreamingImages) {
+          _cameraService.controller!.stopImageStream();
+        }
+      } catch (e) {
+        debugPrint('RecordExercise: Error stopping image stream in dispose: $e');
+      }
+      _isImageStreamActive = false;
+    }
+    
     _animationController.dispose();
+    _painService.dispose(); // Dispose pain detection service
     _painOverlayController.dispose();
     _painBannerController.dispose();
     _painColorController.dispose();
-    _painDetectionTimer?.cancel();
     super.dispose();
   }
   
   // Stop pain detection
   void _stopPainDetection() {
     _isPageActive = false;
-    _painDetectionTimer?.cancel();
-    _painDetectionTimer = null;
     _painValuesLocked = true; // Lock pain values to prevent further updates
+    
+    // Stop image stream for pain detection (fire and forget since dispose is not async)
+    if (_isImageStreamActive && _cameraService.controller != null) {
+      try {
+        if (_cameraService.controller!.value.isStreamingImages) {
+          _cameraService.controller!.stopImageStream().then((_) {
+            _isImageStreamActive = false;
+            debugPrint('RecordExercise: Image stream stopped for pain detection');
+          }).catchError((e) {
+            debugPrint('RecordExercise: Error stopping image stream: $e');
+            _isImageStreamActive = false;
+          });
+        } else {
+          _isImageStreamActive = false;
+        }
+      } catch (e) {
+        debugPrint('RecordExercise: Error stopping image stream: $e');
+        _isImageStreamActive = false;
+      }
+    }
   }
 
   Future<void> _initializeCamera() async {
@@ -241,30 +274,44 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
   void _startPainDetection() {
     if (!_isPainDetectionEnabled || !_isCameraInitialized || !_isPageActive) return;
+    if (!_cameraService.isReady || _cameraService.controller == null) return;
     
-    _painDetectionTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) async {
-      // Stop detection if page is no longer active
-      if (!_isPageActive || !mounted || !_cameraService.isReady) {
-        timer.cancel();
-        return;
-      }
-      
+    // Start image stream for pain detection
+    if (!_isImageStreamActive && _cameraService.controller!.value.isInitialized) {
       try {
-        // For now, we'll use a simulated camera image since we need to implement
-        // proper camera image capture for pain detection
-        // This will be replaced with actual camera image processing
-        final result = await _painService.detectFacialPain(
-          image: null, // Will be implemented with proper camera image capture
-          camera: _cameraService.controller!.description,
-        );
-        
-        if (_isPageActive && mounted && result['error'] == null) {
-          _handlePainDetectionResult(result);
-        }
+        _isImageStreamActive = true;
+        _cameraService.controller!.startImageStream((CameraImage image) async {
+          // Check if page is still active
+          if (!_isPageActive || _painValuesLocked) return;
+          
+          // Frame rate limiting: process at 5 FPS (200ms intervals)
+          final now = DateTime.now();
+          if (_lastPainProcessTime != null) {
+            final elapsed = now.difference(_lastPainProcessTime!).inMilliseconds;
+            if (elapsed < 200) return; // Skip if less than 200ms since last process
+          }
+          _lastPainProcessTime = now;
+          
+          // Process pain detection with actual camera image
+          try {
+            final result = await _painService.detectFacialPain(
+              image: image,
+              camera: _cameraService.controller!.description,
+            );
+            
+            if (_isPageActive && mounted && !_painValuesLocked && result['error'] == null) {
+              _handlePainDetectionResult(result);
+            }
+          } catch (e) {
+            debugPrint('Pain detection error in image stream: $e');
+          }
+        });
+        debugPrint('RecordExercise: Image stream started for pain detection');
       } catch (e) {
-        debugPrint('Pain detection error: $e');
+        debugPrint('RecordExercise: Error starting image stream for pain detection: $e');
+        _isImageStreamActive = false;
       }
-    });
+    }
   }
 
   void _handlePainDetectionResult(Map<String, dynamic> result) {
@@ -273,6 +320,14 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
     
     final painLevel = result['painLevel'];
     final confidence = result['confidence'];
+    final timestamp = DateTime.now();
+    
+    // Log pain detection event for analytics
+    _logPainDetectionEvent(
+      painLevel: painLevel,
+      confidence: confidence,
+      timestamp: timestamp,
+    );
     
     if (confidence > 0.7) {
       // Check if pain level changed for smooth animation
@@ -289,7 +344,38 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
       }
       
       _triggerPainIntervention(painLevel);
+    } else {
+      // Log low confidence detections for model improvement
+      debugPrint('RecordExercise: Low confidence pain detection - Level: $painLevel, Confidence: ${(confidence * 100).toStringAsFixed(1)}%');
     }
+  }
+
+  // Log pain detection events for analytics
+  void _logPainDetectionEvent({
+    required String? painLevel,
+    required double confidence,
+    required DateTime timestamp,
+  }) {
+    if (painLevel == null) return;
+    
+    // Log pain detection event with details
+    final logEntry = {
+      'painLevel': painLevel,
+      'confidence': confidence,
+      'timestamp': timestamp.toIso8601String(),
+      'exerciseId': widget.exercise.exerciseId,
+      'exerciseName': widget.exercise.exerciseName,
+      'elapsedSeconds': StopwatchService.instance.currentElapsed.inSeconds,
+    };
+    
+    // Log to debug console for development
+    debugPrint('RecordExercise: Pain detection event - $logEntry');
+    
+    // For production, this could be extended to:
+    // - Save to a dedicated analytics collection in Firebase
+    // - Send to analytics service (e.g., Firebase Analytics, Mixpanel)
+    // - Store in local analytics database for batch upload
+    // Currently, pain levels are already saved to ExerciseHistory which serves as analytics
   }
 
   // Animate pain level change with color transition and scale
@@ -309,14 +395,21 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
   }
 
   void _triggerPainIntervention(String painLevel) {
+    final timestamp = DateTime.now();
+    
     switch (painLevel) {
       case 'Low':
         // No action needed for low pain
+        // Already logged in _handlePainDetectionResult
         break;
       case 'Moderate':
+        // Log moderate pain event with timestamp
+        debugPrint('RecordExercise: Moderate pain detected at ${timestamp.toIso8601String()} - Exercise: ${widget.exercise.exerciseName}');
         _showModeratePainBanner();
         break;
       case 'Severe':
+        // Log severe pain as safety event
+        debugPrint('RecordExercise: SEVERE PAIN SAFETY EVENT at ${timestamp.toIso8601String()} - Exercise: ${widget.exercise.exerciseName}');
         _showSeverePainDialog();
         break;
     }
@@ -396,6 +489,60 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
       default:
         return null;
     }
+  }
+
+  // Validate exercise completion based on pain detection
+  // Returns true if exercise can be completed, false if user cancels
+  Future<bool> _validateExerciseCompletion() async {
+    // Check if severe pain was detected recently
+    if (_currentPainLevel == 'Severe' && _painConfidence > 0.7) {
+      // Show warning dialog before allowing completion
+      final proceed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.warning, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Pain Detected'),
+              ],
+            ),
+            content: Text(
+              'We detected severe pain during this exercise. Completing the exercise with severe pain may cause injury. '
+              'Are you sure you want to proceed?'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  debugPrint('RecordExercise: User confirmed exercise completion despite severe pain');
+                  Navigator.pop(context, true);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text('Proceed Anyway'),
+              ),
+            ],
+          );
+        },
+      );
+      return proceed ?? false; // Return user's choice, default to false if cancelled
+    }
+    
+    // Check if moderate pain was detected - show info but allow completion
+    if (_currentPainLevel == 'Moderate' && _painConfidence > 0.7) {
+      // Log warning but allow completion
+      debugPrint('RecordExercise: Exercise completed with moderate pain detected');
+    }
+    
+    return true; // Validation passed
   }
 
   void _showSeverePainDialog() {
@@ -496,6 +643,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
   void _pauseExerciseForRest() {
     // Pause the exercise and show rest recommendations
+    final timestamp = DateTime.now();
+    debugPrint('RecordExercise: Exercise paused due to severe pain at ${timestamp.toIso8601String()}');
+    
     StopwatchService.instance.pause();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -508,6 +658,9 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
 
   void _continueExercise() {
     // User chose to continue despite severe pain
+    final timestamp = DateTime.now();
+    debugPrint('RecordExercise: User chose to continue exercise despite severe pain at ${timestamp.toIso8601String()}');
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Please be careful and stop if pain increases.'),
@@ -606,7 +759,7 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
       final nextCameraIndex = (_currentCameraIndex + 1) % cameras.length;
       
       // Stop pain detection during camera switch
-      final wasPainDetectionActive = _isPainDetectionEnabled;
+      final wasPainDetectionActive = _isPainDetectionEnabled && _isImageStreamActive;
       _stopPainDetection();
       
       // Switch camera
@@ -618,8 +771,11 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
           _isCameraInitialized = true;
         });
         
+        // Wait a moment for camera to stabilize
+        await Future.delayed(const Duration(milliseconds: 300));
+        
         // Restart pain detection if it was active
-        if (wasPainDetectionActive) {
+        if (wasPainDetectionActive && _isPainDetectionEnabled) {
           _startPainDetection();
         }
       } else if (mounted) {
@@ -1145,6 +1301,12 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                       label: (currentIndex + 1) < (rehabPlan?.exerciseReferences.length ?? 0) ? 'Proceed' : 'Finish',
                       gradient: RecordingDesignSystem.successGradient,
                       onTap: () async {
+                        // Validate exercise completion based on pain detection
+                        final canProceed = await _validateExerciseCompletion();
+                        if (!canProceed) {
+                          return; // Validation failed, user cancelled
+                        }
+                        
                         // Stop pain detection before navigation
                         _stopPainDetection();
                         final rehabPlans = UserRehabilitation.instance.rehabPlans;

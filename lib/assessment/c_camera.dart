@@ -6,8 +6,9 @@ import 'dart:io';
 import 'dart:async';
 import '../data/globals.dart';
 import '../main.dart';
-import '../data/pose_detection_service.dart';
+import '../data/custom_pose_detection_service.dart';
 import '../data/facial_pain_recognition_service.dart';
+import '../widgets/custom_pose_skeleton_painter.dart';
 import '../widgets/enhanced_pose_skeleton_painter.dart';
 import '../widgets/assessment_help_dialog.dart';
 import 'assessment_data.dart';
@@ -59,7 +60,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
     'Lower Back': 'lower back',
     'Multifidus': 'multifidus'
   };
-  final PoseDetectionService _poseService = PoseDetectionService();
+  final CustomPoseDetectionService _poseService = CustomPoseDetectionService();
   final FacialPainRecognitionService _painService = FacialPainRecognitionService();
   bool _isStreaming = false;
   bool _processingFrame = false;
@@ -71,7 +72,6 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
   String? _currentPainLevel;
   double _painConfidence = 0.0;
   bool _showPainBanner = false;
-  Timer? _painDetectionTimer;
   DateTime? _lastPainProcessTime;
   
   // Track if page is active - prevents pain detection after navigation
@@ -112,8 +112,55 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
   // Skeleton visualization state - improved for better synchronization
   bool _showSkeleton = false;
-  Map<String, Offset>? _currentLandmarks; // Always updated regardless of toggle state
+  List<Map<String, dynamic>> _currentKeypoints = []; // Raw keypoints from custom model
+  Size? _cameraImageSize; // Store camera image dimensions for coordinate scaling
   SkeletonOverlayConfig _skeletonConfig = const SkeletonOverlayConfig();
+
+  /// Convert custom model keypoints to landmarks format expected by assessment services
+  /// 
+  /// The custom model returns keypoints as a list of maps with 'x', 'y', 'confidence', 'name', and 'index' fields.
+  /// This method converts them to normalized landmarks (0.0-1.0) matching ML Kit format.
+  Map<String, Offset> _keypointsToLandmarks(
+    List<Map<String, dynamic>> keypoints,
+    Size imageSize,
+    bool isFrontCamera,
+  ) {
+    final landmarks = <String, Offset>{};
+    
+    if (keypoints.isEmpty || imageSize.width <= 0 || imageSize.height <= 0) {
+      return landmarks;
+    }
+    
+    // Convert each keypoint to normalized landmark
+    for (final kp in keypoints) {
+      final x = (kp['x'] as num?)?.toDouble();
+      final y = (kp['y'] as num?)?.toDouble();
+      final confidence = (kp['confidence'] as num?)?.toDouble() ?? 0.0;
+      final name = kp['name'] as String?;
+      
+      // Filter low confidence keypoints
+      if (x == null || y == null || name == null || confidence < 0.5) {
+        continue;
+      }
+      
+      // Clamp coordinates to image bounds
+      final clampedX = x.clamp(0.0, imageSize.width);
+      final clampedY = y.clamp(0.0, imageSize.height);
+      
+      // Normalize to 0.0-1.0 range
+      double nx = clampedX / imageSize.width;
+      double ny = clampedY / imageSize.height;
+      
+      // Mirror horizontally for front camera preview
+      if (isFrontCamera) {
+        nx = 1.0 - nx;
+      }
+      
+      landmarks[name] = Offset(nx, ny);
+    }
+    
+    return landmarks;
+  }
 
   /// Determine assessment algorithm based on UserAssess.specificMuscle
   /// 
@@ -143,6 +190,16 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
     
     debugPrint('Selected muscle: $muscle -> Assessment mode: $mode');
     return mode;
+  }
+  
+  double? _getCurrentAngle() {
+    final result = _currentAssessmentResult;
+    if (result == null) return null;
+    final angle = result.additionalData['angle'];
+    if (angle is num) {
+      return angle.toDouble();
+    }
+    return null;
   }
 
   // Start assessment (with or without video recording)
@@ -256,6 +313,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
     // Start overlay fade in
     _painOverlayController.forward();
     
+    _initializePoseDetection();
     _initializeCamera();
     _initializePainDetection();
     print('AssessPainCamera: initState() completed');
@@ -394,11 +452,31 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
       _processingFrame = true;
       try {
-        // Process pose detection
-        final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
-        if (poses.isNotEmpty) {
+        // Store camera image size for coordinate scaling
+        final camera = cameras[_selectedCameraIndex];
+        final sensorOrientation = camera.sensorOrientation;
+        final isPortrait = sensorOrientation == 90 || sensorOrientation == 270;
+        
+        _cameraImageSize = Size(
+          isPortrait ? image.height.toDouble() : image.width.toDouble(),
+          isPortrait ? image.width.toDouble() : image.height.toDouble(),
+        );
+        
+        // Process pose detection using custom model
+        final keypoints = await _poseService.detectPosesFromCameraImage(
+          image: image,
+          camera: camera,
+        );
+        
+        if (keypoints.isNotEmpty) {
           try {
-            final landmarks = _poseService.getPoseLandmarks(poses.first);
+            // Convert keypoints to landmarks format
+            final isFrontCamera = camera.lensDirection == CameraLensDirection.front;
+            final landmarks = _keypointsToLandmarks(
+              keypoints,
+              _cameraImageSize!,
+              isFrontCamera,
+            );
             
             // Validate landmarks before processing
             if (landmarks.isEmpty) {
@@ -412,37 +490,37 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
               return;
             }
           
-          // Store landmarks for skeleton visualization (always update regardless of toggle state)
-          _currentLandmarks = landmarks;
-          debugPrint('Pose detected: ${landmarks.length} landmarks'); // Debug output
+            // Store keypoints for skeleton visualization
+            _currentKeypoints = keypoints;
+            debugPrint('Pose detected: ${landmarks.length} landmarks, ${keypoints.length} keypoints');
           
-          // Only trigger UI update if skeleton is visible to avoid unnecessary repaints
-          if (_showSkeleton && mounted) {
-            setState(() {});
-          }
-          
-          // Perform ROM assessment using modular services
-          try {
-            final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
-            
-            if (mounted && _isPageActive && !_painValuesLocked) {
-              setState(() {
-                _currentAssessmentResult = assessmentResult;
-                
-                // Update UserAssess for integration (persists during recording)
-                // Only update if page is active and values are not locked
-                UserAssess.painScale = assessmentResult.painScore;
-                UserAssess.painLevel = assessmentResult.clinicalContext;
-                
-                PainHistory.recordTodayAndSave(
-                  painScale: UserAssess.painScale,
-                  painLevel: UserAssess.painLevel,
-                );
-              });
+            // Only trigger UI update if skeleton is visible to avoid unnecessary repaints
+            if (_showSkeleton && mounted) {
+              setState(() {});
             }
-          } catch (e) {
-            debugPrint('Assessment failed: $e');
-          }
+          
+            // Perform ROM assessment using modular services
+            try {
+              final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
+              
+              if (mounted && _isPageActive && !_painValuesLocked) {
+                setState(() {
+                  _currentAssessmentResult = assessmentResult;
+                  
+                  // Update UserAssess for integration (persists during recording)
+                  // Only update if page is active and values are not locked
+                  UserAssess.painScale = assessmentResult.painScore;
+                  UserAssess.painLevel = assessmentResult.clinicalContext;
+                  
+                  PainHistory.recordTodayAndSave(
+                    painScale: UserAssess.painScale,
+                    painLevel: UserAssess.painLevel,
+                  );
+                });
+              }
+            } catch (e) {
+              debugPrint('Assessment failed: $e');
+            }
           } catch (e) {
             debugPrint('Landmark processing error: $e');
             // Continue processing even if landmark extraction fails
@@ -490,10 +568,31 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
               _processingFrame = true;
               try {
-                final poses = await _poseService.detectFromCameraImage(image: image, camera: cameras[_selectedCameraIndex]);
-                if (poses.isNotEmpty) {
+                // Store camera image size for coordinate scaling
+                final camera = cameras[_selectedCameraIndex];
+                final sensorOrientation = camera.sensorOrientation;
+                final isPortrait = sensorOrientation == 90 || sensorOrientation == 270;
+                
+                _cameraImageSize = Size(
+                  isPortrait ? image.height.toDouble() : image.width.toDouble(),
+                  isPortrait ? image.width.toDouble() : image.height.toDouble(),
+                );
+                
+                // Process pose detection using custom model
+                final keypoints = await _poseService.detectPosesFromCameraImage(
+                  image: image,
+                  camera: camera,
+                );
+                
+                if (keypoints.isNotEmpty) {
                   try {
-                    final landmarks = _poseService.getPoseLandmarks(poses.first);
+                    // Convert keypoints to landmarks format
+                    final isFrontCamera = camera.lensDirection == CameraLensDirection.front;
+                    final landmarks = _keypointsToLandmarks(
+                      keypoints,
+                      _cameraImageSize!,
+                      isFrontCamera,
+                    );
                     
                     // Validate landmarks before processing
                     if (landmarks.isEmpty) {
@@ -507,35 +606,36 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                       return;
                     }
                   
-                  // Store landmarks for skeleton visualization (always update regardless of toggle state)
-                  _currentLandmarks = landmarks;
+                    // Store keypoints for skeleton visualization
+                    _currentKeypoints = keypoints;
                   
-                  // Only trigger UI update if skeleton is visible to avoid unnecessary repaints
-                  if (_showSkeleton && mounted) {
-                    setState(() {});
-                  }
-                  // Perform ROM assessment using modular services
-                  try {
-                    final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
-                    
-                    if (mounted && _isPageActive && !_painValuesLocked) {
-                      setState(() {
-                        _currentAssessmentResult = assessmentResult;
-                        
-                        // Update UserAssess for integration (persists during recording)
-                        // Only update if page is active and values are not locked
-                        UserAssess.painScale = assessmentResult.painScore;
-                        UserAssess.painLevel = assessmentResult.clinicalContext;
-                        
-                        PainHistory.recordTodayAndSave(
-                          painScale: UserAssess.painScale,
-                          painLevel: UserAssess.painLevel,
-                        );
-                      });
+                    // Only trigger UI update if skeleton is visible to avoid unnecessary repaints
+                    if (_showSkeleton && mounted) {
+                      setState(() {});
                     }
-                  } catch (e) {
-                    debugPrint('Assessment failed in retry: $e');
-                  }
+                    
+                    // Perform ROM assessment using modular services
+                    try {
+                      final assessmentResult = AssessmentService.assess(_getAssessmentMode(), landmarks, _selectedSide);
+                      
+                      if (mounted && _isPageActive && !_painValuesLocked) {
+                        setState(() {
+                          _currentAssessmentResult = assessmentResult;
+                          
+                          // Update UserAssess for integration (persists during recording)
+                          // Only update if page is active and values are not locked
+                          UserAssess.painScale = assessmentResult.painScore;
+                          UserAssess.painLevel = assessmentResult.clinicalContext;
+                          
+                          PainHistory.recordTodayAndSave(
+                            painScale: UserAssess.painScale,
+                            painLevel: UserAssess.painLevel,
+                          );
+                        });
+                      }
+                    } catch (e) {
+                      debugPrint('Assessment failed in retry: $e');
+                    }
                   } catch (e) {
                     debugPrint('Landmark processing error in retry: $e');
                     // Continue processing even if landmark extraction fails
@@ -576,10 +676,22 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
       _isCameraInitialized = false;
       _selectedCameraIndex = next;
       _isStreaming = false;
-      // Clear landmarks when switching cameras to prevent stale data
-      _currentLandmarks = null;
+      // Clear keypoints when switching cameras to prevent stale data
+      _currentKeypoints = [];
+      _cameraImageSize = null;
     });
     await _initializeCamera();
+  }
+
+  // Initialize custom pose detection service
+  Future<void> _initializePoseDetection() async {
+    try {
+      await _poseService.initialize();
+      debugPrint('Custom pose detection service initialized successfully');
+    } catch (e) {
+      debugPrint('Error initializing custom pose detection service: $e');
+      // Graceful degradation: Continue without pose detection
+    }
   }
 
   // Initialize pain detection service
@@ -590,7 +702,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
         setState(() {
           _isPainDetectionEnabled = true;
         });
-        _startPainDetection();
+        // Pain detection is handled in the image stream callback, no need for separate timer
         debugPrint('Pain detection initialized successfully for AROM assessment');
       }
     } catch (e) {
@@ -606,34 +718,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
     }
   }
 
-  // Start pain detection monitoring
-  void _startPainDetection() {
-    if (!_isPainDetectionEnabled || !_isCameraInitialized || !_isPageActive) return;
-    _painDetectionTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) async {
-      // Stop detection if page is no longer active
-      if (!_isPageActive || !mounted || !_controller.value.isInitialized) {
-        timer.cancel();
-        return;
-      }
-      try {
-        final result = await _painService.detectFacialPain(
-          image: null, // Will be handled by camera image stream
-          camera: _controller.description,
-        );
-        if (_isPageActive && mounted && result['error'] == null) {
-          _handlePainDetectionResult(result);
-        }
-      } catch (e) {
-        debugPrint('Pain detection error: $e');
-      }
-    });
-  }
-  
-  // Stop pain detection
+  // Stop pain detection (cleanup method - pain detection is handled in image stream)
   void _stopPainDetection() {
     _isPageActive = false;
-    _painDetectionTimer?.cancel();
-    _painDetectionTimer = null;
     _painValuesLocked = true; // Lock pain values to prevent further updates
   }
 
@@ -778,7 +865,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                 children: [
                   Icon(Icons.warning, color: Colors.red, size: 24),
                   const SizedBox(width: 8),
-                  Text('Severe Pain Detected'),
+                  Text('Pain Detected'),
                 ],
               ),
               content: Column(
@@ -1251,7 +1338,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
             children: [
               Icon(Icons.health_and_safety, color: _getPainColor(detectedPainLevel), size: 24),
               const SizedBox(width: 8),
-              Text('Pain Level Confirmation'),
+              Text('Pain Level'),
             ],
           ),
           content: Column(
@@ -1369,7 +1456,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
     // Stop pain detection and lock values
     _stopPainDetection();
     try { _controller.stopImageStream(); } catch (_) {}
-    _painDetectionTimer?.cancel();
+    _painService.dispose(); // Dispose pain detection service
     _painOverlayController.dispose();
     _painBannerController.dispose();
     _painColorController.dispose();
@@ -1386,6 +1473,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
     
     try {
       final isDark = Theme.of(context).brightness == Brightness.dark;
+      final currentAngle = _getCurrentAngle();
       return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : kBackgroundColor,
       appBar: AppBar(
@@ -1746,6 +1834,38 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                             ],
                           ),
                         ),
+                      const SizedBox(width: 6),
+                      if (currentAngle != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.straighten, color: Colors.white, size: 10),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${currentAngle.toStringAsFixed(1)}°',
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       
                       // Assessment mode indicator
                       Container(
@@ -1861,7 +1981,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                 ),
 
                 // Enhanced pose skeleton overlay with improved positioning
-                if (_showSkeleton && _currentLandmarks != null)
+                if (_showSkeleton && _currentKeypoints.isNotEmpty && _cameraImageSize != null)
                   Positioned.fill(
                     child: IgnorePointer(
                       child: Container(
@@ -1878,13 +1998,18 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                                 return const SizedBox.shrink();
                               }
                               
+                              final isFrontCamera = cameras[_selectedCameraIndex].lensDirection == CameraLensDirection.front;
+                              
                               return CustomPaint(
-                                painter: EnhancedPoseSkeletonPainter(
-                                  landmarks: _currentLandmarks!,
+                                painter: CustomPoseSkeletonPainter(
+                                  keypoints: _currentKeypoints,
+                                  imageSize: _cameraImageSize,
+                                  previewSize: Size(constraints.maxWidth, constraints.maxHeight),
                                   showLandmarkLabels: _skeletonConfig.showLandmarkLabels,
                                   strokeWidth: _skeletonConfig.strokeWidth,
                                   pointRadius: _skeletonConfig.pointRadius,
                                   showConfidence: _skeletonConfig.showConfidence,
+                                  mirrorHorizontally: isFrontCamera,
                                 ),
                                 size: Size(constraints.maxWidth, constraints.maxHeight),
                               );

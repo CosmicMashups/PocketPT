@@ -3,8 +3,13 @@ import 'assessment_result.dart';
 import 'assessment_constants.dart';
 
 /// Calves dorsiflexion assessment module
+/// 
+/// Uses COCO format landmarks: ${side}Hip, ${side}Knee, ${side}Ankle
+/// where side is 'left' or 'right' (lowercase).
 class CalvesAssessment {
   /// Calculate normalized displacement for calf dorsiflexion
+  /// 
+  /// Uses COCO landmarks: ${side}Hip, ${side}Knee, ${side}Ankle
   static double? calculateNormalizedDisplacement(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
     final hip = landmarks['${sideLower}Hip'];

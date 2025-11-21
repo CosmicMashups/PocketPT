@@ -66,28 +66,21 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
         _errorMessage = null;
       });
 
-      final videoUrl = MuscleVideoMapping.getVideoUrl(widget.muscleName).trim();
+      final rawVideoUrl = MuscleVideoMapping.getVideoUrl(widget.muscleName).trim();
+      final normalizedVideoUrl = MuscleVideoMapping.convertShortsToWatchUrl(rawVideoUrl);
       print('DynamicVideoPlayer: Loading video for muscle: ${widget.muscleName}');
-      print('DynamicVideoPlayer: Video URL: $videoUrl');
-      
-      // Detect if this is a YouTube Short based on URL
-      _isYouTubeShort = _detectYouTubeShort(videoUrl);
+      print('DynamicVideoPlayer: Raw video URL: $rawVideoUrl');
+      print('DynamicVideoPlayer: Normalized video URL: $normalizedVideoUrl');
+
+      // Detect if this is a YouTube Short based on the original URL so we can size correctly
+      _isYouTubeShort = _detectYouTubeShort(rawVideoUrl);
       print('DynamicVideoPlayer: Is YouTube Short: $_isYouTubeShort');
-      
-      // Prefer the package's robust parser (handles Shorts and multiple formats),
-      // then fall back to our extractor if needed.
-      String? videoId = YoutubePlayerController.convertUrlToId(videoUrl);
-      print('DynamicVideoPlayer: Package parser video ID: $videoId');
-      
+
+      final videoId = _resolveVideoId(normalizedVideoUrl);
       if (videoId == null || videoId.isEmpty) {
-        videoId = MuscleVideoMapping.extractVideoId(videoUrl);
-        print('DynamicVideoPlayer: Custom extractor video ID: $videoId');
+        throw Exception('Invalid YouTube URL or video ID: $normalizedVideoUrl');
       }
-      
-      if (videoId == null || videoId.isEmpty) {
-        throw Exception('Invalid YouTube URL or video ID: $videoUrl');
-      }
-      
+
       print('DynamicVideoPlayer: Final video ID: $videoId');
 
       _controller = YoutubePlayerController.fromVideoId(
@@ -100,34 +93,9 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
           enableCaption: true,
         ),
       );
-      
-      // Add listener for player state changes
-      _controller.listen((event) {
-        print('DynamicVideoPlayer: Player event: ${event.runtimeType}');
-        print('DynamicVideoPlayer: Player state: ${event.playerState}');
-        
-        // Check for error states
-        if (event.playerState == PlayerState.unknown) {
-          print('DynamicVideoPlayer: Player error detected');
-          if (mounted) {
-            setState(() {
-              _hasError = true;
-              _errorMessage = 'Video unavailable - Error code 15';
-              _isLoading = false;
-            });
-            // Try fallback video after a short delay if we haven't exceeded retry limit
-            if (_retryCount < _maxRetries) {
-              Future.delayed(const Duration(seconds: 2), () {
-                if (mounted) {
-                  _retryCount++;
-                  _tryFallbackVideo();
-                }
-              });
-            }
-          }
-        }
-      });
-      
+
+      _attachPlayerListener();
+
       // Add a small delay to ensure the controller is properly initialized
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
@@ -136,7 +104,7 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
           });
         }
       });
-      
+
     } catch (e) {
       setState(() {
         _hasError = true;
@@ -177,12 +145,10 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
       
       // Detect if this is a YouTube Short based on URL
       _isYouTubeShort = _detectYouTubeShort(fallbackUrl);
+      final normalizedFallbackUrl = MuscleVideoMapping.convertShortsToWatchUrl(fallbackUrl);
       
       // Extract video ID
-      String? videoId = YoutubePlayerController.convertUrlToId(fallbackUrl);
-      if (videoId == null || videoId.isEmpty) {
-        videoId = MuscleVideoMapping.extractVideoId(fallbackUrl);
-      }
+      final videoId = _resolveVideoId(normalizedFallbackUrl);
       
       if (videoId == null || videoId.isEmpty) {
         throw Exception('Invalid fallback video ID: $fallbackUrl');
@@ -201,22 +167,10 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
         ),
       );
       
-      // Add listener for player state changes
-      _controller.listen((event) {
-        print('DynamicVideoPlayer: Fallback player state: ${event.playerState}');
-        
-        // Check for error states
-        if (event.playerState == PlayerState.unknown) {
-          print('DynamicVideoPlayer: Fallback video also failed');
-          if (mounted) {
-            setState(() {
-              _hasError = true;
-              _errorMessage = 'All videos unavailable. Please try again later.';
-              _isLoading = false;
-            });
-          }
-        }
-      });
+      _attachPlayerListener(
+        isFallback: true,
+        overrideMessage: 'All videos unavailable. Please try again later.',
+      );
       
       // Add a small delay to ensure the controller is properly initialized
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -233,6 +187,83 @@ class _DynamicVideoPlayerState extends State<DynamicVideoPlayer> {
         _errorMessage = 'Failed to load fallback video: ${e.toString()}';
         _isLoading = false;
       });
+    }
+  }
+
+  /// Resolve a YouTube video ID using the package helper with fallback extractor.
+  String? _resolveVideoId(String url) {
+    String? videoId = YoutubePlayerController.convertUrlToId(url);
+    if (videoId == null || videoId.isEmpty) {
+      videoId = MuscleVideoMapping.extractVideoId(url);
+    }
+    if (videoId != null) {
+      print('DynamicVideoPlayer: Resolved video ID: $videoId from $url');
+    } else {
+      print('DynamicVideoPlayer: Unable to resolve video ID from $url');
+    }
+    return videoId;
+  }
+
+  /// Attach a listener that reacts only to true YouTube errors.
+  void _attachPlayerListener({
+    bool isFallback = false,
+    String? overrideMessage,
+  }) {
+    _controller.listen((event) {
+      print('DynamicVideoPlayer: Player event: ${event.runtimeType}');
+      print('DynamicVideoPlayer: Player state: ${event.playerState}');
+      if (event.error != YoutubeError.none) {
+        print('DynamicVideoPlayer: Player reported error: ${event.error}');
+        _handlePlayerError(
+          error: event.error,
+          isFallback: isFallback,
+          overrideMessage: overrideMessage,
+        );
+      }
+    });
+  }
+
+  void _handlePlayerError({
+    required YoutubeError error,
+    bool isFallback = false,
+    String? overrideMessage,
+  }) {
+    if (!mounted) return;
+
+    final message = overrideMessage ?? _getFriendlyYoutubeErrorMessage(error);
+    setState(() {
+      _hasError = true;
+      _errorMessage = message;
+      _isLoading = false;
+    });
+
+    if (!isFallback && _retryCount < _maxRetries) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          _retryCount++;
+          _tryFallbackVideo();
+        }
+      });
+    }
+  }
+
+  String _getFriendlyYoutubeErrorMessage(YoutubeError error) {
+    switch (error) {
+      case YoutubeError.invalidParam:
+        return 'The video link looks malformed. Please try a different video.';
+      case YoutubeError.html5Error:
+        return 'Playback failed due to a browser or device error.';
+      case YoutubeError.videoNotFound:
+        return 'The requested video cannot be found.';
+      case YoutubeError.notEmbeddable:
+      case YoutubeError.sameAsNotEmbeddable:
+        return 'This video cannot be embedded in the app.';
+      case YoutubeError.cannotFindVideo:
+        return 'YouTube cannot locate this video.';
+      case YoutubeError.unknown:
+        return 'An unexpected YouTube error occurred. Please try again later.';
+      case YoutubeError.none:
+        return 'Unknown playback error.';
     }
   }
 

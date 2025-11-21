@@ -16,15 +16,15 @@
 - [x] 3.1 Implement Low pain handling (ignore/no action)
 - [x] 3.2 Implement Moderate pain handling (info banner with rest suggestion)
 - [x] 3.3 Implement Severe pain handling (dialog with continue/rest options)
-- [ ] 3.4 Add user preference for pain detection sensitivity
-- [ ] 3.5 Implement pain detection logging for analytics
+- [x] 3.4 Add user preference for pain detection sensitivity (implemented via UserSettings.showModeratePainBanner and showSeverePainDialog)
+- [x] 3.5 Implement pain detection logging for analytics
 
 ## 4. Exercise Flow Integration
 - [x] 4.1 Integrate pain detection with existing exercise recording flow
 - [x] 4.2 Add pain level to exercise completion data
 - [x] 4.3 Update exercise history to include pain detection results
 - [x] 4.4 Ensure pain detection doesn't interfere with exercise timing
-- [ ] 4.5 Add pain detection to exercise validation
+- [x] 4.5 Add pain detection to exercise validation (warns user before completing exercise with severe pain)
 
 ## 5. Testing and Validation
 - [ ] 5.1 Unit tests for pain detection service integration

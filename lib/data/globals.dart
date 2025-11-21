@@ -1279,9 +1279,12 @@ class PainHistory {
   // Tracks the last date we showed the "pain changed" dialog to avoid spamming
   static DateTime? _lastPromptedDate;
 
-  // Add or update today's entry. If an entry for today exists, replace it with the latest
+  // Add or update today's entry. If an entry for today exists, replace it with the latest.
+  // For new days, always creates a new entry without overwriting previous days' entries.
   static void recordToday({required int painScale, required String painLevel, DateTime? now}) {
     final DateTime today = _toDateOnly(now ?? DateTime.now());
+    
+    // Find existing entry for today (if any)
     final int existingIndex = entries.lastIndexWhere((e) => _isSameDate(e.date, today));
 
     final PainRecordEntry newEntry = PainRecordEntry(
@@ -1291,8 +1294,10 @@ class PainHistory {
     );
 
     if (existingIndex >= 0) {
+      // Update existing entry for today (same-day multiple recordings)
       entries[existingIndex] = newEntry;
     } else {
+      // Create new entry for today (new day - preserves all previous days' entries)
       entries.add(newEntry);
     }
   }
@@ -1423,21 +1428,57 @@ class PainHistory {
         final data = doc.data() as Map<String, dynamic>;
         final List<dynamic> entriesData = data['entries'] ?? [];
         
+        // Clear existing entries before loading
         entries.clear();
-        entries.addAll(entriesData.map((entryData) => PainRecordEntry(
-          date: (entryData['date'] as Timestamp).toDate(),
-          painScale: entryData['painScale'] ?? 0,
-          painLevel: entryData['painLevel'] ?? '',
-        )));
         
-        _lastPromptedDate = data['lastPromptedDate']?.toDate();
+        // Load all entries from Firebase array, ensuring multiple entries are supported
+        for (final entryData in entriesData) {
+          try {
+            if (entryData is Map<String, dynamic>) {
+              final date = entryData['date'];
+              DateTime entryDate;
+              
+              // Handle both Timestamp and int (milliseconds) formats
+              if (date is Timestamp) {
+                entryDate = date.toDate();
+              } else if (date is int) {
+                entryDate = DateTime.fromMillisecondsSinceEpoch(date);
+              } else {
+                debugPrint('PainHistory.loadFromFirebase: Invalid date format, skipping entry');
+                continue;
+              }
+              
+              entries.add(PainRecordEntry(
+                date: entryDate,
+                painScale: entryData['painScale'] ?? 0,
+                painLevel: entryData['painLevel'] ?? '',
+              ));
+            } else {
+              debugPrint('PainHistory.loadFromFirebase: Invalid entry format, skipping: ${entryData.runtimeType}');
+            }
+          } catch (e) {
+            debugPrint('PainHistory.loadFromFirebase: Error parsing entry: $e');
+            // Continue loading other entries even if one fails
+          }
+        }
+        
+        // Load lastPromptedDate if available
+        if (data.containsKey('lastPromptedDate')) {
+          final lastPrompted = data['lastPromptedDate'];
+          if (lastPrompted is Timestamp) {
+            _lastPromptedDate = lastPrompted.toDate();
+          } else if (lastPrompted != null) {
+            debugPrint('PainHistory.loadFromFirebase: Invalid lastPromptedDate format');
+          }
+        }
         
         debugPrint('PainHistory.loadFromFirebase: Successfully loaded ${entries.length} pain history entries from Firebase');
         
-        // Save to Hive for offline access
+        // Save to Hive for offline access (ensures all entries are persisted locally)
         await saveToHive();
       } else {
         debugPrint('PainHistory.loadFromFirebase: No pain history document found in Firebase');
+        // Don't clear entries if document doesn't exist - might have local data
       }
     } catch (e) {
       debugPrint('PainHistory.loadFromFirebase: Error loading from Firebase: $e');
@@ -1445,7 +1486,7 @@ class PainHistory {
     }
   }
 
-  // Hive persistence methods - Simplified using List of Maps
+  // Hive persistence methods - Using HivePainRecordEntry objects for type safety and multiple entries support
   static Future<void> saveToHive() async {
     int retryCount = 0;
     const maxRetries = 3;
@@ -1463,12 +1504,10 @@ class PainHistory {
         }
         final box = Hive.box('rehabBox');
         
-        // Save pain history as a simple List of Maps
-        final painHistoryList = entries.map((entry) => {
-          'date': entry.date.millisecondsSinceEpoch,
-          'painScale': entry.painScale,
-          'painLevel': entry.painLevel,
-        }).toList();
+        // Convert all entries to HivePainRecordEntry objects for proper serialization
+        final painHistoryList = entries.map((entry) => 
+          HivePainRecordEntry.fromPainRecordEntry(entry)
+        ).toList();
         
         await box.put('painHistory', painHistoryList);
         debugPrint('Saved ${entries.length} pain history entries to Hive');
@@ -1534,19 +1573,40 @@ class PainHistory {
         await openRehabBox();
       }
       final box = Hive.box('rehabBox');
-      final painHistoryData = box.get('painHistory', defaultValue: <Map<String, dynamic>>[]);
       
-      if (painHistoryData is List<dynamic>) {
+      // Try loading as HivePainRecordEntry objects first (preferred format)
+      final painHistoryData = box.get('painHistory');
+      
+      if (painHistoryData is List<HivePainRecordEntry>) {
+        // Load from HivePainRecordEntry objects (current format)
+        entries.clear();
+        entries.addAll(painHistoryData.map((hiveEntry) => hiveEntry.toPainRecordEntry()));
+        debugPrint('Loaded ${entries.length} pain history entries from Hive (HivePainRecordEntry format)');
+      } else if (painHistoryData is List<dynamic>) {
+        // Fallback: Try to load from old Map format for backward compatibility
         entries.clear();
         entries.addAll(painHistoryData.map((entryData) {
-          final entry = entryData as Map<String, dynamic>;
-          return PainRecordEntry(
-            date: DateTime.fromMillisecondsSinceEpoch(entry['date']),
-            painScale: entry['painScale'] ?? 0,
-            painLevel: entry['painLevel'] ?? '',
-          );
+          if (entryData is HivePainRecordEntry) {
+            return entryData.toPainRecordEntry();
+          } else if (entryData is Map<String, dynamic>) {
+            // Legacy Map format support
+            return PainRecordEntry(
+              date: DateTime.fromMillisecondsSinceEpoch(entryData['date'] as int),
+              painScale: entryData['painScale'] ?? 0,
+              painLevel: entryData['painLevel'] ?? '',
+            );
+          } else {
+            throw Exception('Unknown pain history entry format: ${entryData.runtimeType}');
+          }
         }));
-        debugPrint('Loaded ${entries.length} pain history entries from Hive');
+        debugPrint('Loaded ${entries.length} pain history entries from Hive (legacy format)');
+      } else if (painHistoryData == null) {
+        // No data found, initialize empty list
+        entries.clear();
+        debugPrint('No pain history data found in Hive, initializing empty list');
+      } else {
+        debugPrint('PainHistory.loadFromHive: Unexpected data type: ${painHistoryData.runtimeType}');
+        entries.clear();
       }
     } catch (e) {
       debugPrint('Error loading pain history from Hive: $e');
@@ -1555,10 +1615,43 @@ class PainHistory {
     }
   }
 
-  // Enhanced recordToday method that also saves to Hive
+  // Enhanced recordToday method that also saves to Hive and Firebase
+  // Ensures all historical entries are preserved in both storage systems
   static Future<void> recordTodayAndSave({required int painScale, required String painLevel, DateTime? now}) async {
     recordToday(painScale: painScale, painLevel: painLevel, now: now);
+    
+    // Attempt to save to both Firebase and Hive simultaneously
+    // Firebase failure is acceptable, but Hive must succeed for the operation to proceed
+    
+    // Start Firebase save (non-blocking, errors are acceptable)
+    Future<void>? firebaseSaveFuture;
+    if (!UserDetails.isGuest && _auth.currentUser != null) {
+      firebaseSaveFuture = saveToFirebase().then((_) {
+        debugPrint('PainHistory.recordTodayAndSave: Successfully saved to Firebase');
+      }).catchError((e) {
+        debugPrint('PainHistory.recordTodayAndSave: Firebase save failed (non-critical): $e');
+        // Firebase failure is acceptable, operation will proceed if Hive succeeds
+      });
+    } else {
+      debugPrint('PainHistory.recordTodayAndSave: User is guest or not authenticated, saving to Hive only');
+    }
+    
+    // Save to Hive - this must succeed for the operation to proceed
+    // If Hive save fails, the exception will be thrown and operation will fail
     await saveToHive();
+    debugPrint('PainHistory.recordTodayAndSave: Successfully saved to Hive');
+    
+    // Wait for Firebase save to complete (if it was started), but don't fail if it errors
+    // At this point, Hive save has succeeded, so we can proceed regardless of Firebase status
+    if (firebaseSaveFuture != null) {
+      try {
+        await firebaseSaveFuture;
+      } catch (e) {
+        // Already logged in the catchError above, just ensure we don't throw
+        // Hive save succeeded, so operation can proceed even if Firebase failed
+        debugPrint('PainHistory.recordTodayAndSave: Firebase save completed with error (non-critical): $e');
+      }
+    }
   }
 }
 
@@ -2144,7 +2237,7 @@ class ROMAssessment {
   static const double displayHeight = 720.0;
   
   // ROM Thresholds (matching Jupyter constants exactly)
-  // Triceps Extension (Shoulder-Elbow-Wrist angle)
+  // Triceps Extension (Hip-Shoulder-Elbow angle)
   static const double tricepsSevereAngle = 90.0;      // Angle < 90° -> Severe (Limited Extension)
   static const double tricepsModerateAngle = 135.0;   // 90° <= Angle < 135° -> Moderate (Partial Extension)
   // Angle >= 135° -> Good (Good Extension)

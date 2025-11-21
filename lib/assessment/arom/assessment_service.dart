@@ -10,8 +10,19 @@ import 'b_trunk_assessment.dart';
 import 'assessment_result.dart';
 
 /// Unified assessment service that provides a consistent API for all muscle group assessments
+/// 
+/// All assessments expect landmarks in COCO format (17 keypoints) normalized to 0.0-1.0 range:
+/// - nose, leftEye, rightEye, leftEar, rightEar
+/// - leftShoulder, rightShoulder, leftElbow, rightElbow
+/// - leftWrist, rightWrist, leftHip, rightHip
+/// - leftKnee, rightKnee, leftAnkle, rightAnkle
+/// 
+/// These landmarks are provided by the custom YOLO11s-pose model via CustomPoseDetectionService.
 class AssessmentService {
   /// Perform assessment for the specified muscle group and side
+  /// 
+  /// [landmarks] must be in COCO format with normalized coordinates (0.0-1.0)
+  /// [side] must be 'Left' or 'Right' (case-insensitive)
   static AssessmentResult assess(String muscleGroup, Map<String, Offset> landmarks, String side) {
     switch (muscleGroup.toLowerCase()) {
       case 'triceps':

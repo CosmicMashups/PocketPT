@@ -5,8 +5,14 @@ import 'assessment_constants.dart';
 
 /// Unified trunk assessment module for abdominals, obliques, lower back, and multifidus
 /// Uses trunk flexion and extension angles based on shoulder-hip-knee landmarks
+/// 
+/// Uses COCO format landmarks: leftShoulder, rightShoulder, leftHip, rightHip,
+/// leftKnee, rightKnee (uses midpoints for calculations).
 class BTrunkAssessment {
   /// Calculate trunk angle using shoulder-hip-knee landmarks
+  /// 
+  /// Uses COCO landmarks: leftShoulder, rightShoulder, leftHip, rightHip,
+  /// leftKnee, rightKnee (calculates midpoints for trunk assessment)
   static double? calculateTrunkAngle(final Map<String, Offset> landmarks) {
     final leftShoulder = landmarks['leftShoulder'];
     final rightShoulder = landmarks['rightShoulder'];

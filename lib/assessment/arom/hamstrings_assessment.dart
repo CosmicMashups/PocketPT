@@ -4,18 +4,25 @@ import 'assessment_result.dart';
 import 'assessment_constants.dart';
 
 /// Hamstrings ROM assessment module
+/// 
+/// Uses COCO format landmarks: ${side}Shoulder, ${side}Hip, ${side}Knee
+/// where side is 'left' or 'right' (lowercase).
+/// Also uses leftHip, rightHip, leftShoulder, rightShoulder for compensation checks.
 class HamstringsAssessment {
-  /// Calculate hamstring angle (angle between hip-ankle and vertical axis)
+  /// Calculate hamstring angle between shoulder, hip, and knee
+  /// 
+  /// Uses COCO landmarks: ${side}Shoulder, ${side}Hip, ${side}Knee
   static double? calculateAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
+    final shoulder = landmarks['${sideLower}Shoulder'];
     final hip = landmarks['${sideLower}Hip'];
-    final ankle = landmarks['${sideLower}Ankle'];
+    final knee = landmarks['${sideLower}Knee'];
 
-    if (hip == null || ankle == null) {
+    if (shoulder == null || hip == null || knee == null) {
       return null;
     }
 
-    return _calculateVerticalAngle(hip, ankle);
+    return _calculateAngleBetweenPoints(shoulder, hip, knee);
   }
 
   /// Check for pelvic compensation
@@ -81,20 +88,24 @@ class HamstringsAssessment {
 
   /// Evaluate ROM level based on hamstring angle
   static String _evaluateROM(double angle) {
-    if (angle < AssessmentConstants.hamstringSevereThreshold) return 'severe';   // Angle < 60° -> Severe
-    if (angle < AssessmentConstants.hamstringModerateThreshold) return 'moderate'; // 60° <= Angle < 80° -> Moderate
-    return 'good';                      // Angle >= 80° -> Good
+    // Hamstring: Shoulder-Hip-Knee angle
+    // Angle < 190° -> Low (Poor flexion)
+    // 190° <= angle < 210° -> Moderate (Partial flexion)
+    // Angle >= 210° -> Severe (Leg extended, good flexion)
+    if (angle < AssessmentConstants.hamstringLowThreshold) return 'low';   // Angle < 190° -> Low
+    if (angle < AssessmentConstants.hamstringModerateThreshold) return 'moderate'; // 190° <= Angle < 210° -> Moderate
+    return 'severe';                      // Angle >= 210° -> Severe
   }
 
   /// Get ROM label for display
   static String _getROMLabel(double angle, String romLevel) {
     switch (romLevel) {
-      case 'severe':
-        return 'Hamstring ROM: Severe (< ${AssessmentConstants.hamstringSevereThreshold.toInt()}°)';
+      case 'low':
+        return 'Hamstring ROM: Low (< ${AssessmentConstants.hamstringLowThreshold.toInt()}°)';
       case 'moderate':
-        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringSevereThreshold.toInt()}-${AssessmentConstants.hamstringModerateThreshold.toInt()}°)';
-      case 'good':
-        return 'Hamstring ROM: Good (> ${AssessmentConstants.hamstringModerateThreshold.toInt()}°)';
+        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringLowThreshold.toInt()}-${AssessmentConstants.hamstringModerateThreshold.toInt() - 1}°)';
+      case 'severe':
+        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringModerateThreshold.toInt()}°)';
       default:
         return 'Hamstring ROM: Unknown';
     }
@@ -107,38 +118,23 @@ class HamstringsAssessment {
         return 'Severe';
       case 'moderate':
         return 'Moderate';
-      case 'good':
+      case 'low':
         return 'Low';
       default:
         return 'Low';
     }
   }
 
-  /// Calculate vertical angle
-  static double _calculateVerticalAngle(Offset point1, Offset point2) {
-    // Vector from point1 to point2
-    final vector = point2 - point1;
-    
-    // Vertical vector pointing upwards (negative Y in Flutter)
-    final verticalVector = const Offset(0, -1);
-    
-    final normVector = vector.distance;
-    final normVertical = verticalVector.distance;
-    
-    if (normVector == 0 || normVertical == 0) {
-      return 0.0;
-    }
-    
-    // Calculate cosine of the angle
-    final cosineAngle = (vector.dx * verticalVector.dx + vector.dy * verticalVector.dy) / (normVector * normVertical);
-    
-    // Clamp to prevent floating point errors
-    final clampedCosine = cosineAngle.clamp(-1.0, 1.0);
-    
-    // Calculate angle in radians and convert to degrees
-    final angleRadians = math.acos(clampedCosine);
-    final angleDegrees = (angleRadians * 180) / math.pi;
-    
-    return angleDegrees;
+  /// Calculate angle between three points (vertex is middle point)
+  static double _calculateAngleBetweenPoints(Offset pointA, Offset vertex, Offset pointB) {
+    final v1 = pointA - vertex;
+    final v2 = pointB - vertex;
+    final dot = v1.dx * v2.dx + v1.dy * v2.dy;
+    final mag1 = v1.distance;
+    final mag2 = v2.distance;
+    if (mag1 == 0 || mag2 == 0) return 0.0;
+    double cosTheta = (dot / (mag1 * mag2)).clamp(-1.0, 1.0);
+    final radians = math.acos(cosTheta);
+    return radians * 180.0 / math.pi;
   }
 }

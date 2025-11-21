@@ -19,6 +19,9 @@ android {
         
         // Enable ML Kit features
         multiDexEnabled = true
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     // Temporary: sign release with debug keystore to validate installability on device
@@ -64,10 +67,16 @@ android {
         }
     }
     
-    // Enable ML Kit features
+    // Enable ML Kit features / JNI packaging
     packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
         pickFirst("**/libc++_shared.so")
         pickFirst("**/libjsc.so")
+        pickFirst("**/libfbjni.so")
+        pickFirst("**/libpytorch_jni.so")
+        pickFirst("**/libpytorch_module.so")
     }
     
 }
@@ -81,5 +90,12 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-analytics")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    
+    // ONNX Runtime for pose estimation model
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.16.0")
+    
+    // PyTorch Android (full) for pose estimation
+    implementation("org.pytorch:pytorch_android:1.10.0")
+    implementation("org.pytorch:pytorch_android_torchvision:1.10.0")
 }
 

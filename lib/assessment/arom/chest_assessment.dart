@@ -4,8 +4,13 @@ import 'assessment_result.dart';
 import 'assessment_constants.dart';
 
 /// Chest ROM assessment module
+/// 
+/// Uses COCO format landmarks: ${side}Hip, ${side}Shoulder, ${side}Wrist
+/// where side is 'left' or 'right' (lowercase).
 class ChestAssessment {
   /// Calculate chest forward elevation angle between hip, shoulder, and wrist
+  /// 
+  /// Uses COCO landmarks: ${side}Hip, ${side}Shoulder, ${side}Wrist
   static double? calculateAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
     final hip = landmarks['${sideLower}Hip'];

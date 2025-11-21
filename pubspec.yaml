@@ -81,8 +81,10 @@ dependencies:
   # Local notifications
   flutter_local_notifications: ^17.2.1
 
-  # For pytorch - temporarily disabled due to Flutter 3.29.2 compatibility issues
-  # flutter_pytorch_lite: ^0.1.0+3
+  # ONNX Runtime is used via native implementation (no Flutter plugin needed)
+  
+  # For ONNX Runtime (pose estimation model)
+  # Note: ONNX Runtime requires native implementation via platform channels
   
   # For secure storage and crypto
   flutter_secure_storage: ^9.2.2
@@ -137,6 +139,9 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # Disable Swift Package Manager for this project to avoid validation errors on Windows
+  # This is safe for Android builds and can be re-enabled when building for iOS on macOS
+  disable-swift-package-manager: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

@@ -4,8 +4,13 @@ import 'assessment_result.dart';
 import 'assessment_constants.dart';
 
 /// Combined Gluteal and Hamstring ROM assessment module
+/// 
+/// Uses COCO format landmarks: ${side}Shoulder, ${side}Hip, ${side}Knee
+/// where side is 'left' or 'right' (lowercase).
 class GluteHamAssessment {
   /// Calculate gluteal angle between shoulder, hip, and knee
+  /// 
+  /// Uses COCO landmarks: ${side}Shoulder, ${side}Hip, ${side}Knee
   static double? calculateGlutealAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
     final shoulder = landmarks['${sideLower}Shoulder'];
@@ -19,18 +24,20 @@ class GluteHamAssessment {
     return _calculateAngleBetweenPoints(shoulder, hip, knee);
   }
 
-  /// Calculate hamstring angle between hip, knee, and ankle
+  /// Calculate hamstring angle between shoulder, hip, and knee
+  /// 
+  /// Uses COCO landmarks: ${side}Shoulder, ${side}Hip, ${side}Knee
   static double? calculateHamstringAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
+    final shoulder = landmarks['${sideLower}Shoulder'];
     final hip = landmarks['${sideLower}Hip'];
     final knee = landmarks['${sideLower}Knee'];
-    final ankle = landmarks['${sideLower}Ankle'];
 
-    if (hip == null || knee == null || ankle == null) {
+    if (shoulder == null || hip == null || knee == null) {
       return null;
     }
 
-    return _calculateAngleBetweenPoints(hip, knee, ankle);
+    return _calculateAngleBetweenPoints(shoulder, hip, knee);
   }
 
   /// Perform gluteal ROM assessment
@@ -105,12 +112,13 @@ class GluteHamAssessment {
 
   /// Evaluate ROM level based on hamstring angle
   static String _evaluateHamstringROM(double angle) {
-    // Hamstrings: Hip-knee-ankle angle (enhanced version)
-    // Higher angle = more extended = more pain
-    // Lower angle = more flexed = less pain
-    if (angle >= AssessmentConstants.hamstringEnhancedSevereThreshold) return 'severe';      // Angle >= 160° -> Severe (Extended)
-    if (angle >= AssessmentConstants.hamstringEnhancedModerateThreshold) return 'moderate';  // 100° <= Angle < 160° -> Moderate
-    return 'low';                                                                           // Angle < 100° -> Low pain (Flexed)
+    // Hamstrings: Shoulder-hip-knee angle
+    // Angle < 190° -> Low (Poor flexion)
+    // 190° <= angle < 210° -> Moderate (Partial flexion)
+    // Angle >= 210° -> Severe (Leg extended, good flexion)
+    if (angle < AssessmentConstants.hamstringEnhancedLowThreshold) return 'low';   // Angle < 190° -> Low
+    if (angle < AssessmentConstants.hamstringEnhancedModerateThreshold) return 'moderate';  // 190° <= Angle < 210° -> Moderate
+    return 'severe';                                                                           // Angle >= 210° -> Severe
   }
 
   /// Get ROM label for gluteal display
@@ -130,12 +138,12 @@ class GluteHamAssessment {
   /// Get ROM label for hamstring display
   static String _getHamstringROMLabel(double angle, String romLevel) {
     switch (romLevel) {
-      case 'severe':
-        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringEnhancedSevereThreshold.toInt()}°)';
-      case 'moderate':
-        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringEnhancedModerateThreshold.toInt()}-${AssessmentConstants.hamstringEnhancedSevereThreshold.toInt() - 1}°)';
       case 'low':
-        return 'Hamstring ROM: Low (< ${AssessmentConstants.hamstringEnhancedModerateThreshold.toInt()}°)';
+        return 'Hamstring ROM: Low (< ${AssessmentConstants.hamstringEnhancedLowThreshold.toInt()}°)';
+      case 'moderate':
+        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringEnhancedLowThreshold.toInt()}-${AssessmentConstants.hamstringEnhancedModerateThreshold.toInt() - 1}°)';
+      case 'severe':
+        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringEnhancedModerateThreshold.toInt()}°)';
       default:
         return 'Hamstring ROM: Unknown';
     }

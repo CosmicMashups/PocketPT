@@ -4,8 +4,13 @@ import 'assessment_result.dart';
 import 'assessment_constants.dart';
 
 /// Shoulders ROM assessment module
+/// 
+/// Uses COCO format landmarks: ${side}Hip, ${side}Shoulder, ${side}Elbow
+/// where side is 'left' or 'right' (lowercase).
 class ShouldersAssessment {
   /// Calculate shoulder angle between hip, shoulder, and elbow
+  /// 
+  /// Uses COCO landmarks: ${side}Hip, ${side}Shoulder, ${side}Elbow
   static double? calculateAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
     final hip = landmarks['${sideLower}Hip'];

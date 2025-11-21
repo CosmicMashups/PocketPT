@@ -368,14 +368,14 @@ class PoseDetectionService {
     final assessment = <String, dynamic>{};
     
     try {
-      // Left triceps assessment (Shoulder-Elbow-Wrist angle)
-      if (landmarks.containsKey('leftShoulder') && 
-          landmarks.containsKey('leftElbow') && 
-          landmarks.containsKey('leftWrist')) {
+      // Left triceps assessment (Hip-Shoulder-Elbow angle)
+      if (landmarks.containsKey('leftHip') && 
+          landmarks.containsKey('leftShoulder') && 
+          landmarks.containsKey('leftElbow')) {
         final angle = calculateAngle(
+          landmarks['leftHip']!,
           landmarks['leftShoulder']!,
-          landmarks['leftElbow']!,
-          landmarks['leftWrist']!
+          landmarks['leftElbow']!
         );
         if (angle.isFinite && angle >= 0) {
           assessment['leftTricepsAngle'] = angle;
@@ -384,14 +384,14 @@ class PoseDetectionService {
         }
       }
       
-      // Right triceps assessment (Shoulder-Elbow-Wrist angle)
-      if (landmarks.containsKey('rightShoulder') && 
-          landmarks.containsKey('rightElbow') && 
-          landmarks.containsKey('rightWrist')) {
+      // Right triceps assessment (Hip-Shoulder-Elbow angle)
+      if (landmarks.containsKey('rightHip') && 
+          landmarks.containsKey('rightShoulder') && 
+          landmarks.containsKey('rightElbow')) {
         final angle = calculateAngle(
+          landmarks['rightHip']!,
           landmarks['rightShoulder']!,
-          landmarks['rightElbow']!,
-          landmarks['rightWrist']!
+          landmarks['rightElbow']!
         );
         if (angle.isFinite && angle >= 0) {
           assessment['rightTricepsAngle'] = angle;
@@ -495,7 +495,7 @@ class PoseDetectionService {
 
   // ROM Evaluation Methods (matching Jupyter logic exactly)
   String _evaluateTricepsROM(double angle) {
-    // Triceps Extension (Shoulder-Elbow-Wrist angle)
+    // Triceps Extension (Hip-Shoulder-Elbow angle)
     // Angle: ~180 is straight (full extension), ~0 is fully flexed
     if (angle < 90) return 'severe';      // Angle < 90° -> Severe (Limited Extension)
     if (angle < 135) return 'moderate';  // 90° <= Angle < 135° -> Moderate (Partial Extension)

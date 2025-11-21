@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 /// Standardized assessment result structure
+/// 
+/// Results are generated from COCO format pose landmarks (17 keypoints)
+/// provided by the custom YOLO11s-pose model. Landmarks are normalized
+/// to 0.0-1.0 range for consistent assessment calculations.
 class AssessmentResult {
   final String romLevel;
   final int painScore;

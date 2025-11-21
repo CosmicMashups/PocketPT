@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 /// Custom painter for drawing pose skeleton overlay
 /// 
 /// This painter draws the pose skeleton on top of the camera preview,
@@ -7,17 +6,23 @@ import 'package:flutter/material.dart';
 /// the custom pose estimation model data.
 class CustomPoseSkeletonPainter extends CustomPainter {
   final List<Map<String, dynamic>> keypoints;
+  final Size? imageSize; // Original camera image size (rotated)
+  final Size? previewSize; // Preview widget size for coordinate scaling
   final bool showLandmarkLabels;
   final double strokeWidth;
   final double pointRadius;
   final bool showConfidence;
+  final bool mirrorHorizontally;
   
   const CustomPoseSkeletonPainter({
     required this.keypoints,
+    this.imageSize,
+    this.previewSize,
     this.showLandmarkLabels = false,
     this.strokeWidth = 3.0,
     this.pointRadius = 6.0,
     this.showConfidence = false,
+    this.mirrorHorizontally = false,
   });
   
   // COCO pose keypoint connections for skeleton drawing
@@ -61,6 +66,43 @@ class CustomPoseSkeletonPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (keypoints.isEmpty) return;
     
+    // Calculate scale factors from original image to preview widget
+    // The CameraPreview widget typically uses BoxFit.cover or similar logic
+    // We need to replicate that to map coordinates correctly
+    
+    if (imageSize == null || previewSize == null || 
+        imageSize!.width <= 0 || imageSize!.height <= 0 ||
+        previewSize!.width <= 0 || previewSize!.height <= 0) {
+      return;
+    }
+    
+    final double imageAspectRatio = imageSize!.width / imageSize!.height;
+    final double previewAspectRatio = previewSize!.width / previewSize!.height;
+    
+    double scale;
+    double offsetX = 0;
+    double offsetY = 0;
+    
+    // Calculate scale to fit/cover the preview
+    if (imageAspectRatio > previewAspectRatio) {
+      // Image is wider than preview - fit height, crop width
+      scale = previewSize!.height / imageSize!.height;
+      offsetX = (previewSize!.width - imageSize!.width * scale) / 2;
+    } else {
+      // Image is taller than preview - fit width, crop height
+      scale = previewSize!.width / imageSize!.width;
+      offsetY = (previewSize!.height - imageSize!.height * scale) / 2;
+    }
+    
+    // Build a map of keypoints by their index for efficient lookup
+    final keypointMap = <int, Map<String, dynamic>>{};
+    for (final kp in keypoints) {
+      final idx = kp['index'] as int?;
+      if (idx != null && idx >= 0 && idx < 17) {
+        keypointMap[idx] = kp;
+      }
+    }
+    
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
@@ -69,34 +111,52 @@ class CustomPoseSkeletonPainter extends CustomPainter {
     final pointPaint = Paint()
       ..style = PaintingStyle.fill;
     
+    // Helper to transform coordinates
+    Offset transformPoint(double x, double y) {
+      final effectiveX =
+          mirrorHorizontally ? imageSize!.width - x : x;
+      final transformed = Offset(
+        effectiveX * scale + offsetX,
+        y * scale + offsetY,
+      );
+
+      final clampedDx = transformed.dx.clamp(0.0, previewSize!.width);
+      final clampedDy = transformed.dy.clamp(0.0, previewSize!.height);
+      return Offset(clampedDx, clampedDy);
+    }
+    
     // Draw skeleton connections
     for (final connection in _skeletonConnections) {
       final pt1Idx = connection[0];
       final pt2Idx = connection[1];
       
-      if (pt1Idx < keypoints.length && pt2Idx < keypoints.length) {
-        final pt1 = keypoints[pt1Idx];
-        final pt2 = keypoints[pt2Idx];
+      final pt1 = keypointMap[pt1Idx];
+      final pt2 = keypointMap[pt2Idx];
+      
+      if (pt1 != null && pt2 != null) {
+        final confidence1 = pt1['confidence'] as double? ?? 0.0;
+        final confidence2 = pt2['confidence'] as double? ?? 0.0;
         
-        if (pt1['confidence'] > 0.5 && pt2['confidence'] > 0.5) {
+        if (confidence1 > 0.5 && confidence2 > 0.5) {
           paint.color = _getConnectionColor(pt1Idx, pt2Idx);
           
-          canvas.drawLine(
-            Offset(pt1['x'], pt1['y']),
-            Offset(pt2['x'], pt2['y']),
-            paint,
-          );
+          final point1 = transformPoint(pt1['x'] as double, pt1['y'] as double);
+          final point2 = transformPoint(pt2['x'] as double, pt2['y'] as double);
+          
+          canvas.drawLine(point1, point2, paint);
         }
       }
     }
     
     // Draw keypoints
-    for (int i = 0; i < keypoints.length; i++) {
-      final kp = keypoints[i];
-      final confidence = kp['confidence'] as double;
+    for (int i = 0; i < 17; i++) {
+      final kp = keypointMap[i];
+      if (kp == null) continue;
+      
+      final confidence = kp['confidence'] as double? ?? 0.0;
       
       if (confidence > 0.5) {
-        final point = Offset(kp['x'], kp['y']);
+        final point = transformPoint(kp['x'] as double, kp['y'] as double);
         
         // Draw keypoint circle
         pointPaint.color = _keypointColors[i % _keypointColors.length];
@@ -199,6 +259,9 @@ class CustomPoseSkeletonPainter extends CustomPainter {
            showLandmarkLabels != oldDelegate.showLandmarkLabels ||
            strokeWidth != oldDelegate.strokeWidth ||
            pointRadius != oldDelegate.pointRadius ||
-           showConfidence != oldDelegate.showConfidence;
+           showConfidence != oldDelegate.showConfidence ||
+           imageSize != oldDelegate.imageSize ||
+           previewSize != oldDelegate.previewSize ||
+           mirrorHorizontally != oldDelegate.mirrorHorizontally;
   }
 }

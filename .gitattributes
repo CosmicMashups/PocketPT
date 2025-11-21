@@ -3,3 +3,6 @@
 *.h5 filter=lfs diff=lfs merge=lfs -text
 *.jar filter=lfs diff=lfs merge=lfs -text
 *.pth filter=lfs diff=lfs merge=lfs -text
+assets/model/pain_detection_model.onnx filter=lfs diff=lfs merge=lfs -text
+assets/model/pain_detection_model.onnx.data filter=lfs diff=lfs merge=lfs -text
+assets/model/pose_estimation_model.onnx filter=lfs diff=lfs merge=lfs -text

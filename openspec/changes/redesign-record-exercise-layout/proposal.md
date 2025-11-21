@@ -39,3 +39,17 @@ These issues reduce usability, hinder focus on exercise recording, and create in
   - Pain overlay repositioned
   - Layout optimized for 9:16 aspect ratio
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+

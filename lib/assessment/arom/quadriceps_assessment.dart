@@ -4,8 +4,13 @@ import 'assessment_result.dart';
 import 'assessment_constants.dart';
 
 /// Quadriceps ROM assessment module
+/// 
+/// Uses COCO format landmarks: ${side}Hip, ${side}Knee, ${side}Ankle
+/// where side is 'left' or 'right' (lowercase).
 class QuadricepsAssessment {
   /// Calculate quadriceps angle between hip, knee, and ankle
+  /// 
+  /// Uses COCO landmarks: ${side}Hip, ${side}Knee, ${side}Ankle
   static double? calculateAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
     final hip = landmarks['${sideLower}Hip'];
@@ -51,22 +56,23 @@ class QuadricepsAssessment {
   /// Evaluate ROM level based on quadriceps angle
   static String _evaluateROM(double angle) {
     // Quadriceps: Knee flexion angle (hip-knee-ankle)
-    // Higher angle = more extended = more pain
-    // Lower angle = more flexed = less pain
-    if (angle >= AssessmentConstants.quadricepsSevereThreshold) return 'severe';      // Angle >= 160° -> Severe (Extended)
-    if (angle >= AssessmentConstants.quadricepsModerateThreshold) return 'moderate';  // 100° <= Angle < 160° -> Moderate
-    return 'low';                                                                     // Angle < 100° -> Low pain (Flexed)
+    // Angle < 120° -> Severe (Good flexion, leg well bent)
+    // 120° <= angle < 140° -> Moderate (Partial flexion)
+    // Angle >= 140° -> Low (Leg nearly straight, poor flexion)
+    if (angle < AssessmentConstants.quadricepsSevereThreshold) return 'severe';      // Angle < 120° -> Severe
+    if (angle < AssessmentConstants.quadricepsModerateThreshold) return 'moderate';  // 120° <= Angle < 140° -> Moderate
+    return 'low';                                                                   // Angle >= 140° -> Low
   }
 
   /// Get ROM label for display
   static String _getROMLabel(double angle, String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Quadriceps ROM: Severe (>= ${AssessmentConstants.quadricepsSevereThreshold.toInt()}°)';
+        return 'Quadriceps ROM: Severe (< ${AssessmentConstants.quadricepsSevereThreshold.toInt()}°)';
       case 'moderate':
-        return 'Quadriceps ROM: Moderate (${AssessmentConstants.quadricepsModerateThreshold.toInt()}-${AssessmentConstants.quadricepsSevereThreshold.toInt() - 1}°)';
+        return 'Quadriceps ROM: Moderate (${AssessmentConstants.quadricepsSevereThreshold.toInt()}-${AssessmentConstants.quadricepsModerateThreshold.toInt() - 1}°)';
       case 'low':
-        return 'Quadriceps ROM: Low (< ${AssessmentConstants.quadricepsModerateThreshold.toInt()}°)';
+        return 'Quadriceps ROM: Low (>= ${AssessmentConstants.quadricepsModerateThreshold.toInt()}°)';
       default:
         return 'Quadriceps ROM: Unknown';
     }

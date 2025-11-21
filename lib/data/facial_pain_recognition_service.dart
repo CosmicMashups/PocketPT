@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:image/image.dart' as img;
-// import 'package:flutter_pytorch_lite/flutter_pytorch_lite.dart'; // Temporarily disabled
+import 'package:path_provider/path_provider.dart';
 
 /// Service for facial pain recognition using PyTorch model
 /// 
@@ -34,12 +37,15 @@ class FacialPainRecognitionService {
   // Class indices: 0=Low, 1=Moderate, 2=Severe
   static const List<String> _painLabels = ['Low', 'Moderate', 'Severe'];
   
+  // Method channel for ONNX Runtime (pain detection)
+  static const MethodChannel _onnxChannel = MethodChannel('com.pocketpt/onnxruntime-pain');
+  
   // Model state
   bool _isModelLoaded = false;
   double _lastPainConfidence = 0;
   String _lastPainPrediction = 'Low';
-  // Module? _painModel; // Temporarily disabled - PyTorch type
-  dynamic _painModel; // Using dynamic to avoid compilation errors
+  String? _modelPath; // Path to ONNX model file after copying from assets
+  bool _useOnnxRuntime = false; // Whether ONNX Runtime is available
   
   // Model metadata (aligned with pain_train.py saved model structure)
   Map<String, dynamic>? _modelMetadata;
@@ -73,34 +79,44 @@ class FacialPainRecognitionService {
     }
   }
   
-  /// Load the PyTorch model and metadata
-  /// Aligned with pain_train.py model saving structure:
-  /// The saved model includes: state_dict, class_names, thresholds, image_size,
-  /// normalize_mean, normalize_std, face_crop_enabled, min_face_size, face_margin, etc.
+  /// Load the ONNX model from assets
+  /// Model must be converted to .onnx format first using convert_pain_to_onnx_v2.py
   Future<void> _loadModel() async {
     try {
-      // Temporarily disabled - PyTorch functionality not available
-      // When enabled, load model and extract metadata:
-      // _painModel = await FlutterPytorchLite.load('assets/model/pain_detection_model.pth');
-      // _modelMetadata = await _extractModelMetadata(_painModel);
-      // 
-      // Expected metadata structure (from pain_train.py):
-      // {
-      //   "class_names": ["Low", "Moderate", "Severe"],
-      //   "thresholds": (t1, t2),  // PSPI thresholds used during training
-      //   "image_size": 224,
-      //   "normalize_mean": [0.485, 0.456, 0.406],
-      //   "normalize_std": [0.229, 0.224, 0.225],
-      //   "face_crop_enabled": true,
-      //   "min_face_size": 96,
-      //   "face_margin": 0.15,
-      //   ...
-      // }
+      const modelAssetPath = 'assets/model/pain_detection_model.onnx';
       
-      debugPrint('FacialPainRecognitionService: PyTorch functionality temporarily disabled - using simulation mode');
-      _painModel = null; // Force simulation mode
+      debugPrint('FacialPainRecognitionService: Loading ONNX model from assets...');
       
-      // Set default metadata for simulation (aligned with training defaults)
+      // Load model from assets and copy to temporary directory
+      final byteData = await rootBundle.load(modelAssetPath);
+      final tempDir = await getTemporaryDirectory();
+      final modelFile = File('${tempDir.path}/pain_detection_model.onnx');
+      await modelFile.writeAsBytes(byteData.buffer.asUint8List());
+      
+      _modelPath = modelFile.path;
+      debugPrint('FacialPainRecognitionService: ONNX model copied to: $_modelPath');
+      
+      // Initialize ONNX Runtime session via method channel
+      try {
+        final result = await _onnxChannel.invokeMethod('initialize', {
+          'modelPath': _modelPath,
+        });
+        
+        if (result != true) {
+          throw Exception('ONNX Runtime initialization returned false');
+        }
+        
+        _useOnnxRuntime = true;
+        debugPrint('FacialPainRecognitionService: ✅ ONNX Runtime session initialized successfully - REAL model will be used');
+        
+        // Verify ONNX Runtime is actually working by running a test inference
+        await _verifyOnnxRuntime();
+      } catch (e) {
+        debugPrint('FacialPainRecognitionService: ❌ ONNX Runtime initialization failed: $e');
+        throw Exception('ONNX Runtime method channel not available: $e');
+      }
+      
+      // Set metadata (aligned with training defaults from pain_train.py)
       _modelMetadata = {
         'class_names': _painLabels,
         'thresholds': [1.0, 3.0], // Default PSPI thresholds (Low≤1, Moderate≤3, Severe>3)
@@ -108,11 +124,13 @@ class FacialPainRecognitionService {
         'normalize_mean': _defaultNormalizeMean,
         'normalize_std': _defaultNormalizeStd,
       };
-      debugPrint('FacialPainRecognitionService: Using default metadata - class_names: ${_modelMetadata!['class_names']}, thresholds: ${_modelMetadata!['thresholds']}');
+      debugPrint('FacialPainRecognitionService: Using metadata - class_names: ${_modelMetadata!['class_names']}, thresholds: ${_modelMetadata!['thresholds']}');
+      
     } catch (e) {
-      debugPrint('FacialPainRecognitionService: Error loading model: $e');
-      // Fallback to simulation if model loading fails
-      debugPrint('FacialPainRecognitionService: Falling back to simulation mode');
+      debugPrint('FacialPainRecognitionService: ❌ Error loading ONNX model: $e');
+      // Do NOT silently fall back to simulation - throw error instead
+      debugPrint('FacialPainRecognitionService: ⚠️ ONNX Runtime not available - pain detection will fail');
+      _useOnnxRuntime = false;
       _modelMetadata = {
         'class_names': _painLabels,
         'thresholds': [1.0, 3.0],
@@ -120,6 +138,34 @@ class FacialPainRecognitionService {
         'normalize_mean': _defaultNormalizeMean,
         'normalize_std': _defaultNormalizeStd,
       };
+      // Re-throw to let caller know initialization failed
+      rethrow;
+    }
+  }
+  
+  /// Verify ONNX Runtime is actually working by running a test inference
+  Future<void> _verifyOnnxRuntime() async {
+    try {
+      debugPrint('FacialPainRecognitionService: Verifying ONNX Runtime with test inference...');
+      
+      // Create a dummy test image (224x224 RGB)
+      final testImage = img.Image(width: _inputSize, height: _inputSize, numChannels: 3);
+      final testPreprocessed = _preprocessImageForOnnx(testImage);
+      
+      // Run a test inference
+      final testResult = await _onnxChannel.invokeMethod('run', {
+        'input': testPreprocessed,
+        'inputShape': [1, 3, _inputSize, _inputSize],
+      });
+      
+      if (testResult != null && testResult is List && testResult.isNotEmpty) {
+        debugPrint('FacialPainRecognitionService: ✅ ONNX Runtime verification successful - test inference returned ${testResult.length} values');
+      } else {
+        debugPrint('FacialPainRecognitionService: ⚠️ ONNX Runtime verification failed - test inference returned null or empty');
+      }
+    } catch (e) {
+      debugPrint('FacialPainRecognitionService: ⚠️ ONNX Runtime verification failed: $e');
+      // Don't throw - just log warning, model might still work
     }
   }
   
@@ -300,11 +346,13 @@ class FacialPainRecognitionService {
   /// Run pain recognition model
   Future<Map<String, dynamic>> _runPainRecognitionModel(img.Image faceImage) async {
     try {
-      if (_painModel != null) {
-        // Use actual PyTorch model
-        return await _runRealPainRecognitionModel(faceImage);
+      if (_useOnnxRuntime) {
+        // Use actual ONNX Runtime model
+        debugPrint('FacialPainRecognitionService: Using REAL ONNX Runtime model for inference');
+        return await _runOnnxInference(faceImage);
       } else {
         // Fallback to simulation
+        debugPrint('FacialPainRecognitionService: WARNING - Using SIMULATION mode (ONNX Runtime not available)');
         return await _runSimulatedPainRecognitionModel(faceImage);
       }
     } catch (e) {
@@ -318,35 +366,128 @@ class FacialPainRecognitionService {
     }
   }
 
-  /// Run actual PyTorch model inference
+  /// Run ONNX Runtime model inference
   /// Aligned with pain_train.py inference pattern:
-  /// 1. Model outputs logits (raw scores for 3 classes)
-  /// 2. Apply softmax to get probabilities
-  /// 3. Use argmax to get predicted class index
-  /// 4. Confidence is the probability of the predicted class
-  /// 5. Map class index to label using CLASS_NAMES: ['Low', 'Moderate', 'Severe']
-  Future<Map<String, dynamic>> _runRealPainRecognitionModel(img.Image faceImage) async {
+  /// 1. Preprocess image (resize to 224x224, normalize with model metadata)
+  /// 2. Model outputs logits (raw scores for 3 classes)
+  /// 3. Apply softmax to get probabilities
+  /// 4. Use argmax to get predicted class index
+  /// 5. Confidence is the probability of the predicted class
+  /// 6. Map class index to label using CLASS_NAMES: ['Low', 'Moderate', 'Severe']
+  Future<Map<String, dynamic>> _runOnnxInference(img.Image faceImage) async {
     try {
-      // PyTorch functionality temporarily disabled
-      debugPrint('FacialPainRecognitionService: Real model inference temporarily disabled - using simulation');
+      if (!_useOnnxRuntime) {
+        debugPrint('FacialPainRecognitionService: ONNX Runtime not initialized');
+        return await _runSimulatedPainRecognitionModel(faceImage);
+      }
       
-      // TODO: When PyTorch is enabled, implement proper inference:
-      // 1. Preprocess image (resize to 224x224, normalize with model metadata)
-      // 2. Run model inference to get logits (List<double> of length 3)
-      // 3. Apply softmax: final probabilities = _softmax(logits);
-      // 4. Get predicted class: final classIndex = probabilities.indexOf(probabilities.reduce(max));
-      // 5. Get confidence: final confidence = probabilities[classIndex];
-      // 6. Map to label: final painLevel = _painLabels[classIndex];
-      // 7. Return result with painLevel, confidence, and probabilities
+      // 1. Preprocess image: resize to 224x224 and normalize
+      final preprocessedImage = _preprocessImageForOnnx(faceImage);
       
-      // Fallback to simulation since PyTorch is not available
-      return await _runSimulatedPainRecognitionModel(faceImage);
+      // 2. Run inference via method channel
+      final result = await _onnxChannel.invokeMethod('run', {
+        'input': preprocessedImage,
+        'inputShape': [1, 3, _inputSize, _inputSize],
+      });
+      
+      if (result == null) {
+        debugPrint('FacialPainRecognitionService: ❌ ONNX Runtime returned null output - falling back to simulation');
+        return await _runSimulatedPainRecognitionModel(faceImage);
+      }
+      
+      debugPrint('FacialPainRecognitionService: ✅ ONNX Runtime inference successful - processing real model output');
+      
+      // 3. Extract logits from output (List<double>)
+      final outputData = result as List;
+      final logits = <double>[];
+      for (int i = 0; i < outputData.length && i < 3; i++) {
+        logits.add((outputData[i] as num).toDouble());
+      }
+      // Ensure we have exactly 3 logits
+      while (logits.length < 3) {
+        logits.add(0.0);
+      }
+      
+      // 4. Apply softmax to convert logits to probabilities
+      final probabilities = _softmax(logits);
+      
+      // 5. Get predicted class using argmax
+      int predictedClassIndex = 0;
+      double maxProb = probabilities[0];
+      for (int i = 1; i < probabilities.length; i++) {
+        if (probabilities[i] > maxProb) {
+          maxProb = probabilities[i];
+          predictedClassIndex = i;
+        }
+      }
+      
+      // 6. Map class index to label
+      final painLevel = _painLabels[predictedClassIndex];
+      final confidence = probabilities[predictedClassIndex];
+      
+      // Update last prediction
+      _lastPainConfidence = confidence;
+      _lastPainPrediction = painLevel;
+      
+      debugPrint('FacialPainRecognitionService: ✅ Real model prediction - Pain: $painLevel, Confidence: ${(confidence * 100).toStringAsFixed(1)}%');
+      
+      return {
+        'painLevel': painLevel,
+        'confidence': confidence,
+        'prediction': painLevel,
+        'probabilities': probabilities,
+        'error': null,
+      };
+      
     } catch (e) {
-      debugPrint('FacialPainRecognitionService: Error in real model inference: $e');
+      debugPrint('FacialPainRecognitionService: ❌ Error in ONNX Runtime inference: $e - falling back to simulation');
       // Fallback to simulation
       return await _runSimulatedPainRecognitionModel(faceImage);
     }
   }
+  
+  /// Preprocess image for ONNX model input
+  /// Converts img.Image to Float32List in NCHW format (batch=1, channels=3, height=224, width=224)
+  List<double> _preprocessImageForOnnx(img.Image image) {
+    // Resize to model input size
+    final resizedImage = img.copyResize(
+      image,
+      width: _inputSize,
+      height: _inputSize,
+      interpolation: img.Interpolation.cubic,
+    );
+    
+    // Normalize and convert to float32 tensor format [N, C, H, W] = [1, 3, 224, 224]
+    // ImageNet normalization: mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    final mean = normalizeMean;
+    final std = normalizeStd;
+    
+    final float32Data = Float32List(_inputSize * _inputSize * 3);
+    int index = 0;
+    
+    // Convert to NCHW format (channel first)
+    for (int c = 0; c < 3; c++) { // Channels: R, G, B
+      for (int y = 0; y < _inputSize; y++) {
+        for (int x = 0; x < _inputSize; x++) {
+          final pixel = resizedImage.getPixel(x, y);
+          
+          double value;
+          if (c == 0) {
+            value = (pixel.r / 255.0 - mean[0]) / std[0]; // Red
+          } else if (c == 1) {
+            value = (pixel.g / 255.0 - mean[1]) / std[1]; // Green
+          } else {
+            value = (pixel.b / 255.0 - mean[2]) / std[2]; // Blue
+          }
+          
+          float32Data[index++] = value;
+        }
+      }
+    }
+    
+    return float32Data.map((e) => e.toDouble()).toList();
+  }
+  
 
   /// Apply softmax to logits to get probability distribution
   /// This aligns with how the model was trained in pain_train.py
@@ -499,10 +640,34 @@ class FacialPainRecognitionService {
       _modelMetadata?['normalize_std'] as List<double>? ?? _defaultNormalizeStd;
   
   /// Dispose resources
-  void dispose() {
+  Future<void> dispose() async {
     _isModelLoaded = false;
-    _painModel = null;
+    _useOnnxRuntime = false;
     _modelMetadata = null;
+    
+    // Dispose ONNX Runtime session
+    if (_useOnnxRuntime) {
+      try {
+        await _onnxChannel.invokeMethod('dispose');
+        debugPrint('FacialPainRecognitionService: ONNX Runtime session disposed');
+      } catch (e) {
+        debugPrint('FacialPainRecognitionService: Error disposing ONNX Runtime session: $e');
+      }
+    }
+    
+    // Clean up temporary model file
+    if (_modelPath != null) {
+      try {
+        final file = File(_modelPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      } catch (e) {
+        debugPrint('FacialPainRecognitionService: Error deleting model file: $e');
+      }
+      _modelPath = null;
+    }
+    
     debugPrint('FacialPainRecognitionService: Disposed');
   }
 }
