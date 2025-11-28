@@ -67,18 +67,58 @@ if ($LASTEXITCODE -eq 0) {
     
     # Check if we're in a git repository
     if (Test-Path ".git") {
+        # Safety check: warn if on main branch (we'll create a temp commit but won't push it)
+        $currentBranch = git rev-parse --abbrev-ref HEAD
+        if ($currentBranch -eq "main" -or $currentBranch -eq "master") {
+            Write-Host "Warning: You are on the $currentBranch branch. A temporary commit will be created but NOT pushed to $currentBranch." -ForegroundColor Yellow
+            Write-Host "Only the gh-pages branch will be updated. The temp commit will be removed after deployment." -ForegroundColor Yellow
+        }
+        
+        # Check for uncommitted changes that might interfere
+        $uncommittedChanges = git status --porcelain | Where-Object { $_ -notmatch '^\?\?' }
+        if ($uncommittedChanges -and $uncommittedChanges.Count -gt 0) {
+            Write-Host "Warning: You have uncommitted changes. They will not be included in the deployment." -ForegroundColor Yellow
+        }
+        
         Write-Host "Deploying using git subtree split..." -ForegroundColor Cyan
 
         # Sanity checks for critical files
         if (-not (Test-Path "build/web/index.html")) { throw "Missing build/web/index.html" }
         if (-not (Test-Path "build/web/flutter_bootstrap.js")) { throw "Missing build/web/flutter_bootstrap.js" }
 
-        # Force add web build (in case parent build is ignored)
-        Write-Host "Adding web build files to git..." -ForegroundColor White
-        git add -f build/web/
+        # Exclude large model files that exceed GitHub's 100MB limit
+        Write-Host "Checking for large files in build/web..." -ForegroundColor White
+        $largeFiles = Get-ChildItem -Path "build/web" -Recurse -File | Where-Object { $_.Length -gt 100MB }
+        if ($largeFiles) {
+            Write-Host "Warning: Found large files that will be excluded from deployment:" -ForegroundColor Yellow
+            foreach ($file in $largeFiles) {
+                $sizeMB = [math]::Round($file.Length / 1MB, 2)
+                Write-Host "  - $($file.FullName) ($sizeMB MB)" -ForegroundColor Yellow
+            }
+        }
         
-        # Create temporary deploy commit
-        Write-Host "Creating temporary deploy commit..." -ForegroundColor White
+        # Force add web build, but exclude large model files
+        Write-Host "Adding web build files to git (excluding large model files)..." -ForegroundColor White
+        # Add files individually, excluding .onnx.data and other large model files
+        git add -f build/web/ -- ':!build/web/assets/**/*.onnx.data' ':!build/web/assets/**/*.pth' ':!build/web/assets/**/*.ptl'
+        
+        # Verify we're not trying to commit files > 100MB
+        $stagedLargeFiles = git diff --cached --name-only | ForEach-Object {
+            if (Test-Path $_) {
+                $file = Get-Item $_
+                if ($file.Length -gt 100MB) {
+                    $file
+                }
+            }
+        }
+        if ($stagedLargeFiles) {
+            Write-Host "Error: Large files still staged. Removing them..." -ForegroundColor Red
+            git reset HEAD $stagedLargeFiles
+            throw "Cannot deploy: build contains files exceeding GitHub's 100MB limit"
+        }
+        
+        # Create temporary deploy commit (never push this to main!)
+        Write-Host "Creating temporary deploy commit (local only, will not be pushed to main)..." -ForegroundColor White
         git commit -m "chore(deploy): web build $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" --allow-empty --no-verify
 
         # Split subtree and push to gh-pages
@@ -112,10 +152,16 @@ if ($LASTEXITCODE -eq 0) {
         git push origin gh-pages-temp:gh-pages --force
         if ($LASTEXITCODE -ne 0) { throw "Failed to push to gh-pages" }
 
-        # Cleanup
-        git branch -D gh-pages-temp
+        # Cleanup: Remove temp commit and unstage files
+        Write-Host "Cleaning up temporary commit and staged files..." -ForegroundColor White
+        git branch -D gh-pages-temp 2>$null
         git reset --soft HEAD~1
-        git restore --staged build/web 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            git restore --staged build/web 2>$null
+            Write-Host "Cleanup completed. No changes were pushed to main branch." -ForegroundColor Green
+        } else {
+            Write-Host "Warning: Could not reset commit. You may need to manually run: git reset --soft HEAD~1" -ForegroundColor Yellow
+        }
 
         Write-Host "Deployment completed successfully!" -ForegroundColor Green
         Write-Host "Your web app should be available at: https://cosmicmashups.github.io/PocketPT/" -ForegroundColor Cyan
