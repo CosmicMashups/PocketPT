@@ -36,9 +36,9 @@ Assessment modules SHALL maintain existing clinical thresholds and pain scale ma
 
 #### Scenario: Triceps clinical thresholds
 - **WHEN** triceps ROM is assessed
-- **THEN** severe limitation is defined as angle < 90°
+- **THEN** low limitation is defined as angle < 90°
 - **AND** moderate limitation is defined as 90° ≤ angle < 135°
-- **AND** good ROM is defined as angle ≥ 135°
+- **AND** severe limitation is defined as angle ≥ 135°
 
 #### Scenario: Hamstrings clinical thresholds
 - **WHEN** hamstrings ROM is assessed

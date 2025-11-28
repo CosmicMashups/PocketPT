@@ -28,6 +28,22 @@ class _EditPlanPageState extends State<EditPlanPage> {
   static const subColor = MedicalDesignSystem.brandAccent;
   static const detailColor = MedicalDesignSystem.textSecondary;
 
+  // Standardized muscle list for custom exercises
+  static const List<String> standardizedMuscles = [
+    'Deltoids',
+    'Biceps',
+    'Triceps',
+    'Upper Back',
+    'Lower Back',
+    'Abdominals',
+    'Obliques',
+    'Multifidus',
+    'Quadriceps',
+    'Hamstrings',
+    'Calf',
+    'Gluteals',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -877,6 +893,7 @@ class _EditPlanPageState extends State<EditPlanPage> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: mainColor,
+                foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Delete'),
@@ -1027,11 +1044,9 @@ class _EditPlanPageState extends State<EditPlanPage> {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
-    final imageController = TextEditingController(text: 'exercise.jpg');
-    final videoController = TextEditingController();
-    final otherMusclesController = TextEditingController();
     
-    String selectedMuscle = 'Deltoids';
+    String selectedMuscle = standardizedMuscles.first;
+    String? selectedOtherMuscle;
     String selectedPainLevel = 'Low';
     String selectedGoal = 'Alleviate Pain';
     int repetitions = 10;
@@ -1046,7 +1061,7 @@ class _EditPlanPageState extends State<EditPlanPage> {
             children: [
               Icon(Icons.create, color: subColor),
               const SizedBox(width: 8),
-              const Text('Create Custom Exercise'),
+              const Text('Custom Exercise'),
             ],
           ),
           content: SingleChildScrollView(
@@ -1104,18 +1119,17 @@ class _EditPlanPageState extends State<EditPlanPage> {
                       labelText: 'Muscle Group *',
                       border: OutlineInputBorder(),
                     ),
-                    items: const [
-                      'Deltoids', 'Biceps', 'Triceps', 'Chest', 'Back',
-                      'Abdominals', 'Obliques', 'Quadriceps', 'Hamstrings',
-                      'Gluteals', 'Calf', 'Ankle', 'Cervical Muscle',
-                      'Lower Back', 'Multifidus'
-                    ].map((muscle) => DropdownMenuItem(
+                    items: standardizedMuscles.map((muscle) => DropdownMenuItem(
                       value: muscle,
                       child: Text(muscle),
                     )).toList(),
                     onChanged: (value) {
                       setState(() {
                         selectedMuscle = value!;
+                        // Clear other muscle if it matches the new primary muscle
+                        if (selectedOtherMuscle == value) {
+                          selectedOtherMuscle = null;
+                        }
                       });
                     },
                   ),
@@ -1207,36 +1221,25 @@ class _EditPlanPageState extends State<EditPlanPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Image Filename
-                  TextFormField(
-                    controller: imageController,
-                    decoration: const InputDecoration(
-                      labelText: 'Image Filename',
-                      hintText: 'exercise.jpg',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Video URL
-                  TextFormField(
-                    controller: videoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Video URL',
-                      hintText: 'https://example.com/video.mp4',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
                   // Other Muscles
-                  TextFormField(
-                    controller: otherMusclesController,
+                  DropdownButtonFormField<String>(
+                    value: selectedOtherMuscle,
                     decoration: const InputDecoration(
-                      labelText: 'Other Muscles',
-                      hintText: 'Comma-separated list of other muscles involved',
+                      labelText: 'Other Muscles (Optional)',
                       border: OutlineInputBorder(),
                     ),
+                    items: standardizedMuscles
+                        .where((muscle) => muscle != selectedMuscle)
+                        .map((muscle) => DropdownMenuItem(
+                              value: muscle,
+                              child: Text(muscle),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedOtherMuscle = value;
+                      });
+                    },
                   ),
                 ],
               ),
@@ -1264,9 +1267,9 @@ class _EditPlanPageState extends State<EditPlanPage> {
                       goal: selectedGoal,
                       rep: repetitions,
                       set: sets,
-                      imageUrl: imageController.text.trim().isEmpty ? 'exercise.jpg' : imageController.text.trim(),
-                      videoUrl: videoController.text.trim(),
-                      otherMuscles: otherMusclesController.text.trim(),
+                      imageUrl: '.jpg',
+                      videoUrl: '.mp4',
+                      otherMuscles: selectedOtherMuscle ?? '',
                     );
 
                     await CustomExerciseService.saveExercise(customExercise);
@@ -1337,82 +1340,263 @@ class _EditPlanPageState extends State<EditPlanPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              "💊 Treatments",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: mainColor,
-                letterSpacing: 0.3,
+            Flexible(
+              child: Text(
+                "💊 Treatments",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: mainColor,
+                  letterSpacing: 0.3,
+                ),
               ),
             ),
-            TextButton.icon(
-              onPressed: _isLoadingTreatments ? null : _refreshTreatments,
-              icon: _isLoadingTreatments 
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(subColor),
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: _isLoadingTreatments ? null : _showAddOptionalTreatmentsDialog,
+                      icon: Icon(Icons.add_circle_outline, size: 18, color: subColor),
+                      label: Text(
+                        'Add Optional',
+                        style: TextStyle(
+                          color: subColor, 
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                     ),
-                  )
-                : Icon(Icons.refresh_rounded, size: 18, color: subColor),
-              label: Text(
-                _isLoadingTreatments ? 'Loading...' : '',
-                style: TextStyle(
-                  color: _isLoadingTreatments ? subColor.withOpacity(0.6) : subColor, 
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: _isLoadingTreatments ? null : _refreshTreatments,
+                      icon: _isLoadingTreatments 
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(subColor),
+                            ),
+                          )
+                        : Icon(Icons.refresh_rounded, size: 18, color: subColor),
+                      label: Text(
+                        _isLoadingTreatments ? 'Loading...' : '',
+                        style: TextStyle(
+                          color: _isLoadingTreatments ? subColor.withOpacity(0.6) : subColor, 
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _treatments!.length,
-          itemBuilder: (context, index) => AnimatedOpacity(
-            opacity: 1.0,
-            duration: Duration(milliseconds: 300 + (index * 100)),
-            child: _buildTreatmentCard(_treatments![index]),
-          ),
-        ),
+        // Separate mandatory (T001-T003) from optional treatments
+        if (_treatments != null && _treatments!.isNotEmpty) ...[
+          // Mandatory treatments section
+          if (_hasMandatoryTreatments()) ...[
+            Row(
+              children: [
+                Text(
+                  "Core Treatments",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: MedicalDesignSystem.primaryBrand,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: 'Core Treatments (T001, T002, T003) are the only treatments automatically included in your plan. These foundational treatments provide essential care and must be completed in order. You can manually add additional optional treatments if needed.',
+                  preferBelow: false,
+                  child: Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: MedicalDesignSystem.primaryBrand.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ..._treatments!.where((t) => ['T001', 'T002', 'T003'].contains(t.treatmentId)).map((treatment) => 
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildTreatmentCard(treatment, isMandatory: true),
+              )
+            ),
+            const SizedBox(height: 16),
+          ],
+          // Optional treatments section
+          if (_hasOptionalTreatments()) ...[
+            Text(
+              "Additional Treatments",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: detailColor,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ..._treatments!.where((t) => !['T001', 'T002', 'T003'].contains(t.treatmentId)).map((treatment) => 
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildTreatmentCard(treatment, isMandatory: false),
+              )
+            ),
+          ],
+        ],
       ],
     );
   }
 
-  Widget _buildTreatmentCard(Treatment treatment) {
+  bool _hasMandatoryTreatments() {
+    if (_treatments == null || _treatments!.isEmpty) return false;
+    return _treatments!.any((t) => ['T001', 'T002', 'T003'].contains(t.treatmentId));
+  }
+
+  bool _hasOptionalTreatments() {
+    if (_treatments == null || _treatments!.isEmpty) return false;
+    return _treatments!.any((t) => !['T001', 'T002', 'T003'].contains(t.treatmentId));
+  }
+
+  Widget _buildTreatmentCard(Treatment treatment, {bool isMandatory = false}) {
     return InkWell(
       onTap: () {
         _showTreatmentDetail(treatment);
       },
       borderRadius: BorderRadius.circular(16),
-      child: MedicalDesignSystem.medicalCardWithHeader(
-        title: treatment.treatmentName,
-        icon: MedicalIcons.medicalServices,
-        iconColor: MedicalDesignSystem.primaryBrand,
-        content: Column(
+      child: Container(
+        decoration: MedicalDesignSystem.medicalCardAccentDecoration,
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              treatment.description,
-              style: MedicalDesignSystem.bodyStyle,
+            // Header with title and optional badge
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: MedicalDesignSystem.primaryBrand.withOpacity(0.05),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(MedicalIcons.medicalServices, color: MedicalDesignSystem.primaryBrand, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      treatment.treatmentName,
+                      style: MedicalDesignSystem.subheaderStyle.copyWith(
+                        color: MedicalDesignSystem.primaryBrand,
+                      ),
+                    ),
+                  ),
+                  if (isMandatory)
+                    Tooltip(
+                      message: 'This is a Core Treatment. Core Treatments (T001, T002, T003) are the only treatments automatically included in your plan and cannot be removed or reordered. They provide essential foundational care.',
+                      preferBelow: false,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: MedicalDesignSystem.primaryBrand.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: MedicalDesignSystem.primaryBrand.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          'Core',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: MedicalDesignSystem.primaryBrand,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            MedicalDesignSystem.medicalStatusBadge(
-              text: 'Pain Level: ${treatment.painLevel}',
-              status: MedicalStatus.warning,
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    treatment.description,
+                    style: MedicalDesignSystem.bodyStyle,
+                  ),
+                  // Display treatment instructions if available
+                  if (treatment.treatmentInstruction.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: MedicalDesignSystem.primaryBrand.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: MedicalDesignSystem.primaryBrand.withOpacity(0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(MedicalIcons.info, size: 16, color: MedicalDesignSystem.primaryBrand),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Instructions',
+                                style: MedicalDesignSystem.subheaderStyle.copyWith(
+                                  fontSize: 13,
+                                  color: MedicalDesignSystem.primaryBrand,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            treatment.treatmentInstruction,
+                            style: MedicalDesignSystem.bodyStyle.copyWith(
+                              fontSize: 13,
+                              color: MedicalDesignSystem.textPrimary,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  MedicalDesignSystem.medicalStatusBadge(
+                    text: 'Pain Level: ${treatment.painLevel}',
+                    status: MedicalStatus.warning,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1449,6 +1633,29 @@ class _EditPlanPageState extends State<EditPlanPage> {
                 treatment.description,
                 style: MedicalDesignSystem.bodyStyle,
               ),
+              // Display treatment instructions if available
+              if (treatment.treatmentInstruction.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Instructions',
+                  style: MedicalDesignSystem.subheaderStyle,
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: MedicalDesignSystem.primaryBrand.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: MedicalDesignSystem.primaryBrand.withOpacity(0.2)),
+                  ),
+                  child: Text(
+                    treatment.treatmentInstruction,
+                    style: MedicalDesignSystem.bodyStyle.copyWith(
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Text(
                 'Details',
@@ -1592,6 +1799,103 @@ class _EditPlanPageState extends State<EditPlanPage> {
     );
   }
 
+  void _showAddOptionalTreatmentsDialog() async {
+    try {
+      // Load all treatments to show in selection dialog
+      final allTreatments = await ExerciseDataService.loadAllTreatments();
+      
+      // Filter to show only optional treatments (T004+) that aren't already in the plan
+      final currentTreatmentIds = _treatments?.map((t) => t.treatmentId).toSet() ?? <String>{};
+      final mandatoryTreatmentIds = {'T001', 'T002', 'T003'};
+      
+      final availableOptionalTreatments = allTreatments.where((treatment) {
+        return !mandatoryTreatmentIds.contains(treatment.treatmentId) &&
+               !currentTreatmentIds.contains(treatment.treatmentId);
+      }).toList();
+      
+      if (availableOptionalTreatments.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('No additional optional treatments available to add.'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+        return;
+      }
+      
+      // Show selection dialog
+      final selectedTreatments = await showDialog<List<Treatment>>(
+        context: context,
+        builder: (context) => _AddOptionalTreatmentsDialog(
+          availableTreatments: availableOptionalTreatments,
+        ),
+      );
+      
+      if (selectedTreatments != null && selectedTreatments.isNotEmpty) {
+        // Append selected treatments after existing optional treatments
+        // Ensure mandatory treatments are present first
+        List<TreatmentReference> updatedTreatments = [];
+        
+        // Start with existing treatments (which should have mandatory treatments)
+        if (UserRehabilitation.instance.treatmentReferences != null && 
+            UserRehabilitation.instance.treatmentReferences!.isNotEmpty) {
+          updatedTreatments = List.from(UserRehabilitation.instance.treatmentReferences!);
+        } else {
+          // If no treatments exist, inject mandatory treatments first
+          const mandatoryIds = ['T001', 'T002', 'T003'];
+          updatedTreatments = mandatoryIds.map((id) => TreatmentReference(treatmentId: id)).toList();
+        }
+        
+        // Add selected optional treatments (avoid duplicates)
+        final existingIds = updatedTreatments.map((t) => t.treatmentId).toSet();
+        for (final treatment in selectedTreatments) {
+          if (!existingIds.contains(treatment.treatmentId)) {
+            updatedTreatments.add(TreatmentReference(treatmentId: treatment.treatmentId));
+            existingIds.add(treatment.treatmentId);
+          }
+        }
+        
+        // Update state
+        setState(() {
+          UserRehabilitation.instance.treatmentReferences = updatedTreatments;
+          // Reload full treatment data for display
+          _loadTreatments();
+        });
+        
+        // Persist to Hive and Firebase
+        await UserRehabilitation.instance.savePlansToHive();
+        await UserRehabilitation.instance.savePlansToFirebase();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added ${selectedTreatments.length} optional treatment(s) to your plan'),
+            backgroundColor: subColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error showing add optional treatments dialog: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading treatments: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+
   void _showHelpDialog() {
     showDialog(
       context: context,
@@ -1603,38 +1907,40 @@ class _EditPlanPageState extends State<EditPlanPage> {
             const Text('Medical Support'),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Plan Management:\n\n',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              '• Add prescribed exercises to your rehabilitation plan\n'
-              '• Replace exercises with healthcare provider-approved alternatives\n'
-              '• Remove exercises that are no longer appropriate\n'
-              '• Review recommended medical treatments\n'
-              '• Document your progress and pain levels\n\n'
-              'Complete a medical assessment to generate your personalized rehabilitation plan.',
-            ),
-            const SizedBox(height: 16),
-            MedicalDesignSystem.medicalDisclaimerBanner(
-              text: 'Always consult your healthcare provider before making changes to your exercise plan.',
-              isWarning: true,
-            ),
-            const SizedBox(height: 12),
-            MedicalDesignSystem.medicalDisclaimerBanner(
-              text: 'Follow proper form and consult healthcare provider if experiencing pain during exercises.',
-              isWarning: false,
-            ),
-            const SizedBox(height: 12),
-            MedicalDesignSystem.medicalDisclaimerBanner(
-              text: 'Treatment recommendations are for informational purposes only. Consult your healthcare provider before starting any treatment.',
-              isWarning: true,
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Plan Management:\n\n',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const Text(
+                '• Add prescribed exercises to your rehabilitation plan\n'
+                '• Replace exercises with healthcare provider-approved alternatives\n'
+                '• Remove exercises that are no longer appropriate\n'
+                '• Review recommended medical treatments\n'
+                '• Document your progress and pain levels\n\n'
+                'Complete a medical assessment to generate your personalized rehabilitation plan.',
+              ),
+              const SizedBox(height: 16),
+              MedicalDesignSystem.medicalDisclaimerBanner(
+                text: 'Always consult your healthcare provider before making changes to your exercise plan.',
+                isWarning: true,
+              ),
+              const SizedBox(height: 12),
+              MedicalDesignSystem.medicalDisclaimerBanner(
+                text: 'Follow proper form and consult healthcare provider if experiencing pain during exercises.',
+                isWarning: false,
+              ),
+              const SizedBox(height: 12),
+              MedicalDesignSystem.medicalDisclaimerBanner(
+                text: 'Treatment recommendations are for informational purposes only. Consult your healthcare provider before starting any treatment.',
+                isWarning: true,
+              ),
+            ],
+          ),
         ),
         actions: [
           ElevatedButton(
@@ -1682,5 +1988,152 @@ class _EditPlanPageState extends State<EditPlanPage> {
       debugPrint('Error generating random exercise: $e');
       return null;
     }
+  }
+}
+
+/// Dialog for selecting optional treatments to add to the plan
+class _AddOptionalTreatmentsDialog extends StatefulWidget {
+  final List<Treatment> availableTreatments;
+
+  const _AddOptionalTreatmentsDialog({
+    required this.availableTreatments,
+  });
+
+  @override
+  State<_AddOptionalTreatmentsDialog> createState() => _AddOptionalTreatmentsDialogState();
+}
+
+class _AddOptionalTreatmentsDialogState extends State<_AddOptionalTreatmentsDialog> {
+  final Set<String> _selectedTreatmentIds = <String>{};
+  String _searchQuery = '';
+
+  List<Treatment> get _filteredTreatments {
+    if (_searchQuery.isEmpty) {
+      return widget.availableTreatments;
+    }
+    final query = _searchQuery.toLowerCase();
+    return widget.availableTreatments.where((treatment) {
+      return treatment.treatmentName.toLowerCase().contains(query) ||
+             treatment.description.toLowerCase().contains(query) ||
+             treatment.musclesInvolved.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(MedicalIcons.medicalServices, color: MedicalDesignSystem.primaryBrand),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('Add Optional Treatments'),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Search field
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Search treatments...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            
+            // Treatment list
+            Flexible(
+              child: _filteredTreatments.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Text(
+                          _searchQuery.isEmpty 
+                              ? 'No optional treatments available'
+                              : 'No treatments match your search',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _filteredTreatments.length,
+                      itemBuilder: (context, index) {
+                        final treatment = _filteredTreatments[index];
+                        final isSelected = _selectedTreatmentIds.contains(treatment.treatmentId);
+                        
+                        return CheckboxListTile(
+                          value: isSelected,
+                          onChanged: (checked) {
+                            setState(() {
+                              if (checked == true) {
+                                _selectedTreatmentIds.add(treatment.treatmentId);
+                              } else {
+                                _selectedTreatmentIds.remove(treatment.treatmentId);
+                              }
+                            });
+                          },
+                          title: Text(
+                            treatment.treatmentName,
+                            style: MedicalDesignSystem.subheaderStyle.copyWith(fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            treatment.description.length > 80
+                                ? '${treatment.description.substring(0, 80)}...'
+                                : treatment.description,
+                            style: MedicalDesignSystem.bodyStyle.copyWith(fontSize: 12),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          secondary: Icon(
+                            MedicalIcons.medicalServices,
+                            color: isSelected 
+                                ? MedicalDesignSystem.primaryBrand 
+                                : Colors.grey.shade400,
+                          ),
+                          activeColor: MedicalDesignSystem.primaryBrand,
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedTreatmentIds.isEmpty
+              ? null
+              : () {
+                  final selectedTreatments = widget.availableTreatments
+                      .where((t) => _selectedTreatmentIds.contains(t.treatmentId))
+                      .toList();
+                  Navigator.of(context).pop(selectedTreatments);
+                },
+          style: MedicalDesignSystem.primaryMedicalButton,
+          child: Text(
+            'Add (${_selectedTreatmentIds.length})',
+          ),
+        ),
+      ],
+    );
   }
 }

@@ -1616,15 +1616,27 @@ class _DashboardPageState extends State<DashboardPage>
     // Incomplete exercise reminders
     final hasActivePlan = UserRehabilitation.instance.rehabPlans.isNotEmpty;
     if (hasActivePlan) {
+      // Calculate today's progress percentage
+      double progress = 0.0;
+      try {
+        progress = ExerciseHistory.calculateTodaysProgressPercentage();
+      } catch (e) {
+        debugPrint('Dashboard: Error calculating progress in notifications: $e');
+        progress = 0.0;
+      }
+      
       // Suppose we infer started-but-not-finished if there is a DailyProgress today with any false
       final plan = UserRehabilitation.instance.rehabPlans.first;
       final today = DateTime.now();
       final todayProgress = plan.daily.where((d) => d.date.year == today.year && d.date.month == today.month && d.date.day == today.day).toList();
       if (todayProgress.isEmpty) {
-        dynamicNotes.add(NotificationItem(
-          text: '📋 Reminder: Complete today\'s exercises.',
-          actionType: 'start_exercise',
-        ));
+        // Only show reminder if progress is less than 100%
+        if (progress < 1.0) {
+          dynamicNotes.add(NotificationItem(
+            text: '📋 Reminder: Complete today\'s exercises.',
+            actionType: 'start_exercise',
+          ));
+        }
       } else {
         final anyIncomplete = todayProgress.any((d) => d.completedExercises.values.any((done) => done == false));
         if (anyIncomplete) {

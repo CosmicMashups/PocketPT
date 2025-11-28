@@ -35,15 +35,33 @@ class CustomExerciseService {
       
       // Save to Hive
       await _saveToHive(hiveExercise);
+      print('CustomExerciseService: ✅ Successfully saved to Hive: ${exercise.name}');
       
-      // Save to Firebase if authenticated
-      await _saveToFirebase(hiveExercise);
+      // Save to Firebase if authenticated (don't fail if Firebase save fails)
+      bool firebaseSaveSuccess = false;
+      try {
+        await _saveToFirebase(hiveExercise);
+        firebaseSaveSuccess = true;
+        print('CustomExerciseService: ✅ Successfully saved to both Hive and Firebase: ${exercise.name}');
+      } on FirebaseException catch (firebaseEx) {
+        print('CustomExerciseService: ⚠️ Firebase save failed, but Hive save succeeded:');
+        print('  Firebase Error Code: ${firebaseEx.code}');
+        print('  Firebase Error Message: ${firebaseEx.message}');
+        print('  Firebase Plugin: ${firebaseEx.plugin}');
+        print('  Exercise was saved locally and will sync when connection is restored.');
+      } catch (firebaseError, stackTrace) {
+        print('CustomExerciseService: ⚠️ Firebase save failed with unexpected error:');
+        print('  Error: $firebaseError');
+        print('  Type: ${firebaseError.runtimeType}');
+        print('  Stack: $stackTrace');
+        print('  Exercise was saved locally and will sync when connection is restored.');
+      }
       
       // Update cache
       _cachedCustomExercises ??= [];
       _cachedCustomExercises!.add(hiveExercise);
       
-      print('CustomExerciseService: Successfully saved custom exercise: ${exercise.name}');
+      print('CustomExerciseService: ✅ Custom exercise saved successfully (Hive: ✅, Firebase: ${firebaseSaveSuccess ? "✅" : "⚠️"})');
     } catch (e) {
       print('CustomExerciseService: Error saving exercise: $e');
       rethrow;
@@ -165,26 +183,29 @@ class CustomExerciseService {
   /// Save to Firebase
   static Future<void> _saveToFirebase(HiveCustomExercise exercise) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        print('CustomExerciseService: No authenticated user, skipping Firebase save');
+      // Ensure user is authenticated and get the authenticated user
+      final authenticatedUser = await FirebaseHelper.ensureAuthenticatedUser();
+      if (authenticatedUser == null) {
+        print('CustomExerciseService: No authenticated user available, skipping Firebase save');
         return;
       }
 
-      await FirebaseHelper.ensureAuthenticatedUser();
-      if (FirebaseAuth.instance.currentUser == null) {
-        print('CustomExerciseService: User authentication failed, skipping Firebase save');
-        return;
+      // Ensure user document exists before saving to subcollection
+      try {
+        await FirebaseHelper.ensureUserDocument();
+        print('CustomExerciseService: User document verified/created');
+      } catch (userDocError) {
+        print('CustomExerciseService: Warning - Could not ensure user document: $userDocError');
+        // Continue anyway - Firestore rules might allow the write
       }
 
       final firestore = FirebaseFirestore.instance;
-      await firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('customExercises')
-          .doc(exercise.id)
-          .set({
+      final userId = authenticatedUser.uid;
+      
+      // Include userId in document data to satisfy Firestore rules validation
+      final exerciseData = {
         'id': exercise.id,
+        'userId': userId, // Required by Firestore rules isValidUserId check
         'name': exercise.name,
         'description': exercise.description,
         'muscle': exercise.muscle,
@@ -197,12 +218,71 @@ class CustomExerciseService {
         'otherMuscles': exercise.otherMuscles,
         'createdAt': exercise.createdAt.toIso8601String(),
         'lastModified': exercise.lastModified.toIso8601String(),
-      });
+      };
 
-      print('CustomExerciseService: Saved to Firebase: ${exercise.name}');
-    } catch (e) {
+      // Match the deployed Firestore rules path: customExercises/{userId}/exercises/{exerciseId}
+      final collectionPath = 'customExercises/$userId/exercises';
+      final documentPath = '$collectionPath/${exercise.id}';
+
+      print('CustomExerciseService: Attempting to save to Firebase:');
+      print('  User ID: $userId');
+      print('  User Email: ${authenticatedUser.email}');
+      print('  Exercise ID: ${exercise.id}');
+      print('  Collection Path: $collectionPath');
+      print('  Document Path: $documentPath');
+      print('  Exercise Data Keys: ${exerciseData.keys.toList()}');
+      print('  Document includes userId: ${exerciseData.containsKey('userId')}');
+
+      // Attempt the save operation with explicit error handling
+      try {
+        await firestore
+            .collection('customExercises')
+            .doc(userId)
+            .collection('exercises')
+            .doc(exercise.id)
+            .set(exerciseData, SetOptions(merge: false));
+        
+        print('CustomExerciseService: Set operation completed without exception');
+      } catch (setError) {
+        print('CustomExerciseService: Set operation failed: $setError');
+        print('CustomExerciseService: Set error type: ${setError.runtimeType}');
+        rethrow;
+      }
+
+      // Verify the save by reading it back (with a small delay to ensure consistency)
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      final docSnapshot = await firestore
+          .collection('customExercises')
+          .doc(userId)
+          .collection('exercises')
+          .doc(exercise.id)
+          .get();
+
+      if (docSnapshot.exists) {
+        print('CustomExerciseService: ✅ Successfully saved and verified in Firebase: ${exercise.name}');
+        print('  Document ID: ${docSnapshot.id}');
+        print('  Document exists: ${docSnapshot.exists}');
+        final savedData = docSnapshot.data();
+        if (savedData != null) {
+          print('  Saved fields: ${savedData.keys.toList()}');
+        }
+      } else {
+        final errorMsg = 'Document verification failed: document does not exist after save. Path: $documentPath';
+        print('CustomExerciseService: ❌ $errorMsg');
+        throw Exception(errorMsg);
+      }
+    } on FirebaseException catch (e) {
+      print('CustomExerciseService: FirebaseException saving to Firebase:');
+      print('  Code: ${e.code}');
+      print('  Message: ${e.message}');
+      print('  Plugin: ${e.plugin}');
+      rethrow;
+    } catch (e, stackTrace) {
       print('CustomExerciseService: Error saving to Firebase: $e');
-      // Don't rethrow - Firebase is optional
+      print('CustomExerciseService: Error type: ${e.runtimeType}');
+      print('CustomExerciseService: Stack trace: $stackTrace');
+      rethrow;
     }
   }
 
@@ -222,10 +302,11 @@ class CustomExerciseService {
       }
 
       final firestore = FirebaseFirestore.instance;
+      final userId = user.uid;
       final snapshot = await firestore
-          .collection('users')
-          .doc(user.uid)
           .collection('customExercises')
+          .doc(userId)
+          .collection('exercises')
           .get();
 
       final firebaseExercises = <HiveCustomExercise>[];
@@ -318,10 +399,11 @@ class CustomExerciseService {
       }
 
       final firestore = FirebaseFirestore.instance;
+      final userId = user.uid;
       await firestore
-          .collection('users')
-          .doc(user.uid)
           .collection('customExercises')
+          .doc(userId)
+          .collection('exercises')
           .doc(exerciseId)
           .delete();
 

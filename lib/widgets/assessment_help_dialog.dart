@@ -119,7 +119,7 @@ class AssessmentHelpDialog extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     _buildSection(
-                      'Step-by-Step Instructions',
+                      'Instructions',
                       Icons.list_alt,
                       _getInstructionsContent(),
                     ),
@@ -163,12 +163,15 @@ class AssessmentHelpDialog extends StatelessWidget {
               size: 20,
             ),
             const SizedBox(width: 8),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1F2937),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1F2937),
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

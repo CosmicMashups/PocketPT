@@ -9,6 +9,7 @@ import 'arom/assessment_result.dart';
 import 'c_painlevel.dart';
 import 'c_video.dart';
 import 'c_preview.dart';
+import 'b_focus1.dart';
 
 class AssessUpload extends StatefulWidget {
   const AssessUpload({super.key});
@@ -116,7 +117,22 @@ class _AssessUploadState extends State<AssessUpload> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => const AssessFocus1(),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          const begin = Offset(-1.0, 0.0);
+                          const end = Offset.zero;
+                          const curve = Curves.easeInOut;
+                          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                          var offsetAnimation = animation.drive(tween);
+                          return SlideTransition(position: offsetAnimation, child: child);
+                        },
+                      ),
+                    );
+                  },
                 ),
                 Expanded(
                   child: Text(

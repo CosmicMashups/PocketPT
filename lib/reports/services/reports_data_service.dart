@@ -187,24 +187,41 @@ class ReportsDataService {
     }
   }
 
-  /// Load all reports data
+  /// Load all reports data with comprehensive error handling
   Future<ReportsData> loadAllReportsData({bool forceRefresh = false}) async {
     try {
+      // Use Future.wait with individual error handling to prevent one failure from blocking all
       final results = await Future.wait([
-        loadRehabPlans(forceRefresh: forceRefresh),
-        loadExerciseHistory(forceRefresh: forceRefresh),
-        loadPainHistory(forceRefresh: forceRefresh),
-      ]);
+        loadRehabPlans(forceRefresh: forceRefresh).catchError((e) {
+          debugPrint('ReportsDataService: Error loading rehab plans: $e');
+          return <RehabilitationPlan>[]; // Return empty list on error
+        }),
+        loadExerciseHistory(forceRefresh: forceRefresh).catchError((e) {
+          debugPrint('ReportsDataService: Error loading exercise history: $e');
+          return <ExerciseRecordEntry>[]; // Return empty list on error
+        }),
+        loadPainHistory(forceRefresh: forceRefresh).catchError((e) {
+          debugPrint('ReportsDataService: Error loading pain history: $e');
+          return <PainRecordEntry>[]; // Return empty list on error
+        }),
+      ], eagerError: false); // Don't stop on first error
 
       return ReportsData(
-        rehabPlans: results[0] as List<RehabilitationPlan>,
-        exerciseHistory: results[1] as List<ExerciseRecordEntry>,
-        painHistory: results[2] as List<PainRecordEntry>,
+        rehabPlans: results[0] as List<RehabilitationPlan>? ?? <RehabilitationPlan>[],
+        exerciseHistory: results[1] as List<ExerciseRecordEntry>? ?? <ExerciseRecordEntry>[],
+        painHistory: results[2] as List<PainRecordEntry>? ?? <PainRecordEntry>[],
         lastUpdated: DateTime.now(),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('ReportsDataService: Error loading all reports data: $e');
-      rethrow;
+      debugPrint('ReportsDataService: Stack trace: $stackTrace');
+      // Return empty data structure instead of rethrowing to prevent blank page
+      return ReportsData(
+        rehabPlans: <RehabilitationPlan>[],
+        exerciseHistory: <ExerciseRecordEntry>[],
+        painHistory: <PainRecordEntry>[],
+        lastUpdated: DateTime.now(),
+      );
     }
   }
 
@@ -266,9 +283,20 @@ class ReportsData {
       .length;
 
   /// Get average pain level
-  double get averagePainLevel => painHistory.isNotEmpty
-      ? painHistory.map((entry) => entry.painScale).reduce((a, b) => a + b) / painHistory.length
-      : 0.0;
+  double get averagePainLevel {
+    if (painHistory.isEmpty) return 0.0;
+    try {
+      final validScales = painHistory
+          .where((entry) => entry.painScale >= 0 && entry.painScale <= 10)
+          .map((entry) => entry.painScale)
+          .toList();
+      if (validScales.isEmpty) return 0.0;
+      return validScales.reduce((a, b) => a + b) / validScales.length;
+    } catch (e) {
+      debugPrint('ReportsData: Error calculating average pain level: $e');
+      return 0.0;
+    }
+  }
 
   /// Get exercise completion rate
   double get exerciseCompletionRate => exerciseHistory.isNotEmpty
@@ -279,15 +307,28 @@ class ReportsData {
   double get painTrend {
     if (painHistory.length < 2) return 0.0;
     
-    final recent = painHistory.take(7).map((e) => e.painScale).toList();
-    final older = painHistory.skip(painHistory.length - 7).take(7).map((e) => e.painScale).toList();
-    
-    if (recent.isEmpty || older.isEmpty) return 0.0;
-    
-    final recentAvg = recent.reduce((a, b) => a + b) / recent.length;
-    final olderAvg = older.reduce((a, b) => a + b) / older.length;
-    
-    return recentAvg - olderAvg;
+    try {
+      final validEntries = painHistory
+          .where((entry) => entry.painScale >= 0 && entry.painScale <= 10)
+          .toList();
+      
+      if (validEntries.length < 2) return 0.0;
+      
+      final recent = validEntries.take(7).map((e) => e.painScale).toList();
+      final older = validEntries.length > 7 
+          ? validEntries.skip(validEntries.length - 7).take(7).map((e) => e.painScale).toList()
+          : validEntries.take(validEntries.length ~/ 2).map((e) => e.painScale).toList();
+      
+      if (recent.isEmpty || older.isEmpty) return 0.0;
+      
+      final recentAvg = recent.reduce((a, b) => a + b) / recent.length;
+      final olderAvg = older.reduce((a, b) => a + b) / older.length;
+      
+      return recentAvg - olderAvg;
+    } catch (e) {
+      debugPrint('ReportsData: Error calculating pain trend: $e');
+      return 0.0;
+    }
   }
 }
 

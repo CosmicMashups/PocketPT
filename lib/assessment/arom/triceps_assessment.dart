@@ -56,20 +56,20 @@ class TricepsAssessment {
   /// Evaluate ROM level based on triceps angle
   static String _evaluateROM(double angle) {
     // Triceps: 0° (flexed) -> 180° (extended)
-    if (angle < AssessmentConstants.tricepsSevereThreshold) return 'good';      // Angle < 90° -> Severe
+    if (angle < AssessmentConstants.tricepsSevereThreshold) return 'low';      // Angle < 90° -> Low
     if (angle < AssessmentConstants.tricepsModerateThreshold) return 'moderate';  // 90° <= Angle < 135° -> Moderate
-    return 'severe';                      // Angle >= 135° -> Good
+    return 'severe';                      // Angle >= 135° -> Severe
   }
 
   /// Get ROM label for display
   static String _getROMLabel(double angle, String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Triceps ROM: Severe (<90°)';
+        return 'Triceps ROM: Severe (>=135°)';
       case 'moderate':
         return 'Triceps ROM: Moderate (90-134°)';
-      case 'good':
-        return 'Triceps ROM: Good (>=135°)';
+      case 'low':
+        return 'Triceps ROM: Low (<90°)';
       default:
         return 'Triceps ROM: Unknown';
     }
@@ -82,7 +82,7 @@ class TricepsAssessment {
         return 'Severe';
       case 'moderate':
         return 'Moderate';
-      case 'good':
+      case 'low':
         return 'Low';
       default:
         return 'Low';

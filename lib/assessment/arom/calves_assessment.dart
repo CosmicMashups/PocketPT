@@ -98,7 +98,7 @@ class CalvesAssessment {
   static String _evaluateROM(double absNormDisplacement) {
     if (absNormDisplacement < AssessmentConstants.calfSevereThreshold) return 'severe';      // < 0.15 -> Severe
     if (absNormDisplacement < AssessmentConstants.calfModerateThreshold) return 'moderate';  // 0.15-0.30 -> Moderate
-    return 'good';                                                                           // >= 0.30 -> Good
+    return 'low';                                                                           // >= 0.30 -> Low
   }
 
   /// Get ROM label for display
@@ -108,8 +108,8 @@ class CalvesAssessment {
         return 'Calf ROM: Severe (< ${AssessmentConstants.calfSevereThreshold.toStringAsFixed(2)})';
       case 'moderate':
         return 'Calf ROM: Moderate (${AssessmentConstants.calfSevereThreshold.toStringAsFixed(2)}-${AssessmentConstants.calfModerateThreshold.toStringAsFixed(2)})';
-      case 'good':
-        return 'Calf ROM: Good (> ${AssessmentConstants.calfModerateThreshold.toStringAsFixed(2)})';
+      case 'low':
+        return 'Calf ROM: Low (> ${AssessmentConstants.calfModerateThreshold.toStringAsFixed(2)})';
       default:
         return 'Calf ROM: Unknown';
     }
@@ -122,7 +122,7 @@ class CalvesAssessment {
         return 'Severe';
       case 'moderate':
         return 'Moderate';
-      case 'good':
+      case 'low':
         return 'Low';
       default:
         return 'Low';

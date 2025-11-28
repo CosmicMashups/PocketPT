@@ -91,15 +91,15 @@ class BTrunkAssessment {
   /// Evaluate trunk ROM level based on angle
   /// Trunk flexion/extension: 0° (fully flexed) -> 180° (upright/extended)
   static String _evaluateTrunkROM(final double angle) {
-    // Standing straight or extended backward (160-180°) -> severe pain (high tension)
+    // Standing straight or extended backward (>=150°) -> severe pain (high tension)
     if (angle >= AssessmentConstants.trunkSevereThreshold) {
       return 'severe';
     }
-    // Mid-level bend (60-160°) -> moderate pain
+    // Mid-level bend (80-149°) -> moderate pain
     else if (angle >= AssessmentConstants.trunkModerateThreshold) {
       return 'moderate';
     }
-    // Fully flexed forward (< 60°) -> low pain
+    // Flexed forward (< 80°) -> low pain
     else {
       return 'low';
     }
@@ -109,11 +109,11 @@ class BTrunkAssessment {
   static String _getTrunkROMLabel(final double angle, final String romLevel, final String muscleType) {
     switch (romLevel) {
       case 'severe':
-        return '$muscleType ROM: Severe (>=160°)';
+        return '$muscleType ROM: Severe (>=150°)';
       case 'moderate':
-        return '$muscleType ROM: Moderate (60-160°)';
+        return '$muscleType ROM: Moderate (80-149°)';
       case 'low':
-        return '$muscleType ROM: Low (<60°)';
+        return '$muscleType ROM: Low (<80°)';
       default:
         return '$muscleType ROM: Unknown';
     }

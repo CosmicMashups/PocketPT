@@ -758,6 +758,7 @@ class ReusableInputField extends StatefulWidget {
 class _ReusableInputFieldState extends State<ReusableInputField> {
   late bool isObscured;
   bool hasMinLength = false;
+  bool hasLowercase = false;
   bool hasUppercase = false;
   bool hasSymbol = false;
 
@@ -770,6 +771,7 @@ class _ReusableInputFieldState extends State<ReusableInputField> {
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) return 'Password is required';
     if (value.length < 8) return 'Password must be at least 8 characters';
+    if (!RegExp(r'[a-z]').hasMatch(value)) return 'Include at least one lowercase letter';
     if (!RegExp(r'[A-Z]').hasMatch(value)) return 'Include at least one uppercase letter';
     if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) return 'Include at least one symbol';
     return null;
@@ -778,6 +780,7 @@ class _ReusableInputFieldState extends State<ReusableInputField> {
   void _updatePasswordRequirements(String value) {
     setState(() {
       hasMinLength = value.length >= 8;
+      hasLowercase = RegExp(r'[a-z]').hasMatch(value);
       hasUppercase = RegExp(r'[A-Z]').hasMatch(value);
       hasSymbol = RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value);
     });
@@ -897,6 +900,7 @@ class _ReusableInputFieldState extends State<ReusableInputField> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                _buildRequirementRow('Include at least one lowercase', hasLowercase),
                 _buildRequirementRow('At least 8 characters', hasMinLength),
                 _buildRequirementRow('One uppercase letter (A-Z)', hasUppercase),
                 _buildRequirementRow('One symbol (!@#\$%^&*)', hasSymbol),

@@ -828,32 +828,10 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
               ),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _getPainIcon(_currentPainLevel),
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _currentPainLevel ?? 'Low',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (_painConfidence > 0)
-                Text(
-                  '${(_painConfidence * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                  ),
-                ),
-            ],
+          child: _buildRecordPainInfo(
+            iconColor: Colors.white,
+            modelName: _painService.activeModelDisplayName,
+            isOnnxReady: _painService.isOnnxReady,
           ),
         ),
       );
@@ -883,38 +861,93 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
                     ),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _getPainIcon(_currentPainLevel),
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _currentPainLevel ?? 'Low',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (_painConfidence > 0)
-                      Text(
-                        '${(_painConfidence * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                      ),
-                  ],
+                child: _buildRecordPainInfo(
+                  iconColor: Colors.white,
+                  modelName: _painService.activeModelDisplayName,
+                  isOnnxReady: _painService.isOnnxReady,
                 ),
               );
             },
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildRecordPainInfo({
+    required Color iconColor,
+    required String modelName,
+    required bool isOnnxReady,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              _getPainIcon(_currentPainLevel),
+              color: iconColor,
+              size: 20,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _currentPainLevel ?? 'Low',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (_painConfidence > 0)
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Text(
+                  '${(_painConfidence * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Text(
+              'Model: $modelName',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 10,
+              ),
+            ),
+            if (!isOnnxReady) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orangeAccent.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.warning, size: 10, color: Colors.orangeAccent),
+                    SizedBox(width: 4),
+                    Text(
+                      'ONNX unavailable',
+                      style: TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
     );
   }
 
@@ -1110,26 +1143,41 @@ class _RecordExercisePageState extends State<RecordExercisePage> with TickerProv
               children: [
                 const SizedBox(height: RecordingDesignSystem.spacingM),
 
-                // Camera Preview - Centered with proper constraints
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: RecordingDesignSystem.spacingM),
-                  child: Center(
-                    child: Container(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.45,
-                        maxWidth: double.infinity,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
-                        boxShadow: RecordingDesignSystem.shadowLarge,
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: AspectRatio(
-                        aspectRatio: 9 / 16,
+                // Camera Preview - Maximized width with 9:16 aspect ratio
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Calculate maximum available width (minimal padding for safety)
+                    final screenWidth = MediaQuery.of(context).size.width;
+                    final minimalPadding = 8.0; // Minimal padding for safety
+                    final maxAvailableWidth = screenWidth - (minimalPadding * 2);
+                    
+                    // Calculate maximum height constraint
+                    final maxHeight = MediaQuery.of(context).size.height * 0.5;
+                    
+                    // Calculate maximum width that fits within height constraint (9:16 ratio)
+                    final maxWidthFromHeight = maxHeight * (9 / 16);
+                    
+                    // Use the smaller of the two to maximize width while respecting constraints
+                    final finalWidth = maxAvailableWidth < maxWidthFromHeight 
+                        ? maxAvailableWidth 
+                        : maxWidthFromHeight;
+                    
+                    // Calculate height from width to maintain 9:16 aspect ratio
+                    final finalHeight = finalWidth * (16 / 9);
+                    
+                    return Center(
+                      child: Container(
+                        width: finalWidth,
+                        height: finalHeight,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(RecordingDesignSystem.radiusL),
+                          boxShadow: RecordingDesignSystem.shadowLarge,
+                        ),
+                        clipBehavior: Clip.antiAlias,
                         child: _buildCameraPreview(isDark),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
                 const SizedBox(height: RecordingDesignSystem.spacingM),
 

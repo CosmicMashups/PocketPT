@@ -55,6 +55,9 @@ Future<Box> openRehabBox() async {
     if (!Hive.isAdapterRegistered(12)) {
       Hive.registerAdapter(HiveTreatmentIdsAdapter());
     }
+    if (!Hive.isAdapterRegistered(13)) {
+      Hive.registerAdapter(HiveCustomExerciseAdapter());
+    }
     
     if (!Hive.isBoxOpen('rehabBox')) {
       debugPrint('🔓 Opening rehabBox...');
@@ -1279,12 +1282,9 @@ class PainHistory {
   // Tracks the last date we showed the "pain changed" dialog to avoid spamming
   static DateTime? _lastPromptedDate;
 
-  // Add or update today's entry. If an entry for today exists, replace it with the latest.
-  // For new days, always creates a new entry without overwriting previous days' entries.
+  // Add or update today's entry. If an entry for today exists, replace it with the latest
   static void recordToday({required int painScale, required String painLevel, DateTime? now}) {
     final DateTime today = _toDateOnly(now ?? DateTime.now());
-    
-    // Find existing entry for today (if any)
     final int existingIndex = entries.lastIndexWhere((e) => _isSameDate(e.date, today));
 
     final PainRecordEntry newEntry = PainRecordEntry(
@@ -1294,10 +1294,8 @@ class PainHistory {
     );
 
     if (existingIndex >= 0) {
-      // Update existing entry for today (same-day multiple recordings)
       entries[existingIndex] = newEntry;
     } else {
-      // Create new entry for today (new day - preserves all previous days' entries)
       entries.add(newEntry);
     }
   }
@@ -1428,57 +1426,50 @@ class PainHistory {
         final data = doc.data() as Map<String, dynamic>;
         final List<dynamic> entriesData = data['entries'] ?? [];
         
-        // Clear existing entries before loading
         entries.clear();
-        
-        // Load all entries from Firebase array, ensuring multiple entries are supported
-        for (final entryData in entriesData) {
-          try {
-            if (entryData is Map<String, dynamic>) {
-              final date = entryData['date'];
-              DateTime entryDate;
-              
-              // Handle both Timestamp and int (milliseconds) formats
-              if (date is Timestamp) {
-                entryDate = date.toDate();
-              } else if (date is int) {
-                entryDate = DateTime.fromMillisecondsSinceEpoch(date);
-              } else {
-                debugPrint('PainHistory.loadFromFirebase: Invalid date format, skipping entry');
-                continue;
-              }
-              
-              entries.add(PainRecordEntry(
-                date: entryDate,
-                painScale: entryData['painScale'] ?? 0,
-                painLevel: entryData['painLevel'] ?? '',
-              ));
-            } else {
-              debugPrint('PainHistory.loadFromFirebase: Invalid entry format, skipping: ${entryData.runtimeType}');
-            }
-          } catch (e) {
-            debugPrint('PainHistory.loadFromFirebase: Error parsing entry: $e');
-            // Continue loading other entries even if one fails
+        entries.addAll(entriesData.map((entryData) {
+          // Handle different date formats safely
+          DateTime date;
+          if (entryData['date'] is Timestamp) {
+            date = (entryData['date'] as Timestamp).toDate();
+          } else if (entryData['date'] is DateTime) {
+            date = entryData['date'] as DateTime;
+          } else if (entryData['date'] is String) {
+            date = DateTime.parse(entryData['date'] as String);
+          } else if (entryData['date'] is int) {
+            date = DateTime.fromMillisecondsSinceEpoch(entryData['date'] as int);
+          } else {
+            debugPrint('PainHistory.loadFromFirebase: Unknown date format, using current date');
+            date = DateTime.now();
           }
-        }
+          
+          return PainRecordEntry(
+            date: date,
+            painScale: entryData['painScale'] ?? 0,
+            painLevel: entryData['painLevel'] ?? '',
+          );
+        }));
         
-        // Load lastPromptedDate if available
-        if (data.containsKey('lastPromptedDate')) {
-          final lastPrompted = data['lastPromptedDate'];
-          if (lastPrompted is Timestamp) {
-            _lastPromptedDate = lastPrompted.toDate();
-          } else if (lastPrompted != null) {
-            debugPrint('PainHistory.loadFromFirebase: Invalid lastPromptedDate format');
+        // Handle lastPromptedDate safely
+        if (data['lastPromptedDate'] != null) {
+          if (data['lastPromptedDate'] is Timestamp) {
+            _lastPromptedDate = (data['lastPromptedDate'] as Timestamp).toDate();
+          } else if (data['lastPromptedDate'] is DateTime) {
+            _lastPromptedDate = data['lastPromptedDate'] as DateTime;
           }
         }
         
         debugPrint('PainHistory.loadFromFirebase: Successfully loaded ${entries.length} pain history entries from Firebase');
         
-        // Save to Hive for offline access (ensures all entries are persisted locally)
-        await saveToHive();
+        // Save to Hive for offline access
+        try {
+          await saveToHive();
+        } catch (e) {
+          debugPrint('PainHistory.loadFromFirebase: Error saving to Hive after load: $e');
+          // Continue even if Hive save fails
+        }
       } else {
         debugPrint('PainHistory.loadFromFirebase: No pain history document found in Firebase');
-        // Don't clear entries if document doesn't exist - might have local data
       }
     } catch (e) {
       debugPrint('PainHistory.loadFromFirebase: Error loading from Firebase: $e');
@@ -1486,7 +1477,7 @@ class PainHistory {
     }
   }
 
-  // Hive persistence methods - Using HivePainRecordEntry objects for type safety and multiple entries support
+  // Hive persistence methods - Simplified using List of Maps
   static Future<void> saveToHive() async {
     int retryCount = 0;
     const maxRetries = 3;
@@ -1504,10 +1495,12 @@ class PainHistory {
         }
         final box = Hive.box('rehabBox');
         
-        // Convert all entries to HivePainRecordEntry objects for proper serialization
-        final painHistoryList = entries.map((entry) => 
-          HivePainRecordEntry.fromPainRecordEntry(entry)
-        ).toList();
+        // Save pain history as a simple List of Maps
+        final painHistoryList = entries.map((entry) => {
+          'date': entry.date.millisecondsSinceEpoch,
+          'painScale': entry.painScale,
+          'painLevel': entry.painLevel,
+        }).toList();
         
         await box.put('painHistory', painHistoryList);
         debugPrint('Saved ${entries.length} pain history entries to Hive');
@@ -1553,9 +1546,11 @@ class PainHistory {
           return false;
         }
         
-        // Validate date is not in the future
-        if (entry.date.isAfter(DateTime.now())) {
-          debugPrint('PainHistory validation failed: Future date ${entry.date}');
+        // Validate date is reasonable (not too far in the future - allow up to 1 year for testing/sample data)
+        final now = DateTime.now();
+        final oneYearFromNow = DateTime(now.year + 1, now.month, now.day);
+        if (entry.date.isAfter(oneYearFromNow)) {
+          debugPrint('PainHistory validation failed: Date too far in future ${entry.date}');
           return false;
         }
       }
@@ -1573,84 +1568,93 @@ class PainHistory {
         await openRehabBox();
       }
       final box = Hive.box('rehabBox');
+      final painHistoryData = box.get('painHistory', defaultValue: <Map<String, dynamic>>[]);
       
-      // Try loading as HivePainRecordEntry objects first (preferred format)
-      final painHistoryData = box.get('painHistory');
-      
-      if (painHistoryData is List<HivePainRecordEntry>) {
-        // Load from HivePainRecordEntry objects (current format)
-        entries.clear();
-        entries.addAll(painHistoryData.map((hiveEntry) => hiveEntry.toPainRecordEntry()));
-        debugPrint('Loaded ${entries.length} pain history entries from Hive (HivePainRecordEntry format)');
-      } else if (painHistoryData is List<dynamic>) {
-        // Fallback: Try to load from old Map format for backward compatibility
+      if (painHistoryData is List<dynamic>) {
         entries.clear();
         entries.addAll(painHistoryData.map((entryData) {
-          if (entryData is HivePainRecordEntry) {
-            return entryData.toPainRecordEntry();
-          } else if (entryData is Map<String, dynamic>) {
-            // Legacy Map format support
+          try {
+            final entry = entryData as Map<String, dynamic>;
+            
+            // Handle different date formats safely
+            DateTime date;
+            if (entry['date'] is int) {
+              date = DateTime.fromMillisecondsSinceEpoch(entry['date'] as int);
+            } else if (entry['date'] is String) {
+              date = DateTime.parse(entry['date'] as String);
+            } else if (entry['date'] is DateTime) {
+              date = entry['date'] as DateTime;
+            } else {
+              debugPrint('PainHistory.loadFromHive: Unknown date format, using current date');
+              date = DateTime.now();
+            }
+            
             return PainRecordEntry(
-              date: DateTime.fromMillisecondsSinceEpoch(entryData['date'] as int),
-              painScale: entryData['painScale'] ?? 0,
-              painLevel: entryData['painLevel'] ?? '',
+              date: date,
+              painScale: entry['painScale'] is int ? entry['painScale'] as int : (entry['painScale'] ?? 0),
+              painLevel: entry['painLevel'] is String ? entry['painLevel'] as String : (entry['painLevel'] ?? ''),
             );
-          } else {
-            throw Exception('Unknown pain history entry format: ${entryData.runtimeType}');
+          } catch (e) {
+            debugPrint('PainHistory.loadFromHive: Error parsing entry: $e, skipping entry');
+            // Return a default entry to prevent crashes, but this entry will be filtered out
+            return PainRecordEntry(
+              date: DateTime.now(),
+              painScale: 0,
+              painLevel: '',
+            );
           }
-        }));
-        debugPrint('Loaded ${entries.length} pain history entries from Hive (legacy format)');
-      } else if (painHistoryData == null) {
-        // No data found, initialize empty list
-        entries.clear();
-        debugPrint('No pain history data found in Hive, initializing empty list');
-      } else {
-        debugPrint('PainHistory.loadFromHive: Unexpected data type: ${painHistoryData.runtimeType}');
-        entries.clear();
+        }).where((entry) => entry.painLevel.isNotEmpty)); // Filter out invalid entries
+        
+        debugPrint('Loaded ${entries.length} pain history entries from Hive');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('Error loading pain history from Hive: $e');
+      debugPrint('Stack trace: $stackTrace');
       // Reset to empty state on error
       entries.clear();
     }
   }
 
-  // Enhanced recordToday method that also saves to Hive and Firebase
-  // Ensures all historical entries are preserved in both storage systems
+  // Enhanced recordToday method that also saves to Hive
   static Future<void> recordTodayAndSave({required int painScale, required String painLevel, DateTime? now}) async {
     recordToday(painScale: painScale, painLevel: painLevel, now: now);
-    
-    // Attempt to save to both Firebase and Hive simultaneously
-    // Firebase failure is acceptable, but Hive must succeed for the operation to proceed
-    
-    // Start Firebase save (non-blocking, errors are acceptable)
-    Future<void>? firebaseSaveFuture;
-    if (!UserDetails.isGuest && _auth.currentUser != null) {
-      firebaseSaveFuture = saveToFirebase().then((_) {
-        debugPrint('PainHistory.recordTodayAndSave: Successfully saved to Firebase');
-      }).catchError((e) {
-        debugPrint('PainHistory.recordTodayAndSave: Firebase save failed (non-critical): $e');
-        // Firebase failure is acceptable, operation will proceed if Hive succeeds
-      });
-    } else {
-      debugPrint('PainHistory.recordTodayAndSave: User is guest or not authenticated, saving to Hive only');
-    }
-    
-    // Save to Hive - this must succeed for the operation to proceed
-    // If Hive save fails, the exception will be thrown and operation will fail
     await saveToHive();
-    debugPrint('PainHistory.recordTodayAndSave: Successfully saved to Hive');
+  }
+
+  // Add a new entry without overwriting existing entries for the same date
+  // This allows multiple entries per day to be preserved
+  static void addEntry({required int painScale, required String painLevel, DateTime? date}) {
+    final DateTime entryDate = _toDateOnly(date ?? DateTime.now());
     
-    // Wait for Firebase save to complete (if it was started), but don't fail if it errors
-    // At this point, Hive save has succeeded, so we can proceed regardless of Firebase status
-    if (firebaseSaveFuture != null) {
-      try {
-        await firebaseSaveFuture;
-      } catch (e) {
-        // Already logged in the catchError above, just ensure we don't throw
-        // Hive save succeeded, so operation can proceed even if Firebase failed
-        debugPrint('PainHistory.recordTodayAndSave: Firebase save completed with error (non-critical): $e');
-      }
+    final PainRecordEntry newEntry = PainRecordEntry(
+      date: entryDate,
+      painScale: painScale,
+      painLevel: painLevel,
+    );
+    
+    // Always add the entry without checking for existing entries
+    entries.add(newEntry);
+    
+    // Sort entries by date to maintain chronological order
+    entries.sort((a, b) => a.date.compareTo(b.date));
+  }
+
+  // Add entry and save to both Hive and Firebase (like sample data)
+  static Future<void> addEntryAndSave({required int painScale, required String painLevel, DateTime? date}) async {
+    try {
+      // Add the entry without overwriting
+      addEntry(painScale: painScale, painLevel: painLevel, date: date);
+      
+      // Save to Hive
+      await saveToHive();
+      
+      // Save to Firebase
+      await saveToFirebase();
+      
+      debugPrint('PainHistory.addEntryAndSave: Successfully added and saved pain entry (scale: $painScale, level: $painLevel)');
+    } catch (e) {
+      debugPrint('PainHistory.addEntryAndSave: Error saving entry: $e');
+      rethrow;
     }
   }
 }

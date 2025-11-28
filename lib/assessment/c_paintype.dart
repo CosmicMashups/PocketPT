@@ -6,6 +6,7 @@ import 'assessment_data.dart';
 // Sync removed for assessment (local-only)
 // removed unused import
 import 'c_painduration.dart';
+import 'c_painlevel.dart';
 
 class AssessPainType extends StatefulWidget {
   const AssessPainType({super.key});
@@ -75,7 +76,22 @@ class _AssessPainTypeState extends State<AssessPainType> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => const AssessPainLevel(),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          const begin = Offset(-1.0, 0.0);
+                          const end = Offset.zero;
+                          const curve = Curves.easeInOut;
+                          final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                          final offsetAnimation = animation.drive(tween);
+                          return SlideTransition(position: offsetAnimation, child: child);
+                        },
+                      ),
+                    );
+                  },
                 ),
                 Expanded(
                   child: Text(

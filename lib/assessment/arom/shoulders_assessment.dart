@@ -59,7 +59,7 @@ class ShouldersAssessment {
     if (angle < AssessmentConstants.shoulderSevereThreshold) return 'severe';   // Angle < 90° -> Severe Pain
     if (angle <= AssessmentConstants.shoulderModerateThreshold) return 'moderate'; // 90° <= Angle <= 110° -> Moderate Pain
     if (angle <= AssessmentConstants.shoulderLowThreshold) return 'low';     // 111° <= Angle <= 150° -> Low Pain
-    return 'good';                      // Angle > 150° -> Good Mobility/Low Pain
+    return 'low';                      // Angle > 150° -> Low Pain
   }
 
   /// Get ROM label for display
@@ -70,9 +70,7 @@ class ShouldersAssessment {
       case 'moderate':
         return 'Shoulder Pain: Moderate (90-110°)';
       case 'low':
-        return 'Shoulder Pain: Low (111-150°)';
-      case 'good':
-        return 'Shoulder Mobility: Good (>=151°)';
+        return 'Shoulder Pain: Low (>=111°)';
       default:
         return 'Shoulder ROM: Unknown';
     }
@@ -86,8 +84,6 @@ class ShouldersAssessment {
       case 'moderate':
         return 'Moderate';
       case 'low':
-        return 'Low';
-      case 'good':
         return 'Low';
       default:
         return 'Low';

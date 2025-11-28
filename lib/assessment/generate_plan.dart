@@ -346,6 +346,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
   }
 
   Widget _buildPlanUI() {
+    final statusMessage = _getExerciseStatusMessage();
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -439,6 +440,16 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
                                 color: const Color(0xFF1F2937),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Tooltip(
+                              message: 'Your treatment plan includes only Core Treatments (T001, T002, T003). These foundational treatments provide essential care and must be completed in order. You can add additional optional treatments later in the Edit Plan page.',
+                              preferBelow: false,
+                              child: Icon(
+                                Icons.info_outline,
+                                size: 18,
+                                color: const Color(0xFF6B7280).withOpacity(0.7),
                               ),
                             ),
                           ],
@@ -566,8 +577,7 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                   ),
                 ],
                 // Show message if no exercises or treatments
-                if ((_rehabPlan == null || _rehabPlan!.exerciseReferences.isEmpty) &&
-                    (_treatmentReferences == null || _treatmentReferences!.isEmpty)) ...[
+                if (statusMessage != null) ...[
                   Container(
                     margin: const EdgeInsets.only(bottom: 24),
                     padding: const EdgeInsets.all(20),
@@ -576,22 +586,27 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFFCD34D), width: 1),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
-                          Icons.info_outline,
-                          color: Color(0xFF92400E),
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'No exercises or treatments available at this time. Please try again or contact support.',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 14,
-                              color: const Color(0xFF92400E),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline,
+                              color: Color(0xFF92400E),
+                              size: 24,
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                statusMessage,
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 14,
+                                  color: const Color(0xFF92400E),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -763,6 +778,44 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
     );
   }
 
+  String? _getExerciseStatusMessage() {
+    final hasExercises = _rehabPlan != null && _rehabPlan!.exerciseReferences.isNotEmpty;
+    final hasTreatments = _treatmentReferences != null && _treatmentReferences!.isNotEmpty;
+    if (hasExercises || hasTreatments) {
+      return null;
+    }
+
+    if (_hasSeverePain()) {
+      return 'Your assessed pain score is in the severe range (7-10). Exercises are not recommended at this time, so we will focus on treatments only.';
+    }
+
+    if (_hasRecentPain()) {
+      return 'You reported pain within the last 48 hours, so we recommend resting before resuming exercises. Only treatments are available for now.';
+    }
+
+    if (_hasFilteredOtherMuscles()) {
+      return 'Your selected “Other Muscles” filters removed all available exercises. You can unfilter those muscles from the History screen and try again, or continue with treatments only.';
+    }
+
+    return 'No exercises or treatments available at this time. Please try again or contact support.';
+  }
+
+  bool _hasSeverePain() {
+    return UserAssess.painScale >= 7;
+  }
+
+  bool _hasRecentPain() {
+    return UserAssess.painDuration.toLowerCase() == 'less than 48 hours ago';
+  }
+
+  bool _hasFilteredOtherMuscles() {
+    if (UserAssess.injuredMuscles.isEmpty) return false;
+    return UserAssess.injuredMuscles.any((muscle) {
+      final painLevel = UserAssess.musclePainLevels[muscle] ?? 0;
+      return painLevel >= 8;
+    });
+  }
+
   Widget _buildExerciseCard(Exercise exercise) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -900,6 +953,29 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
                     ),
                   ),
                 ),
+                // Add Core badge for mandatory treatments
+                if (['T001', 'T002', 'T003'].contains(treatment.treatmentId))
+                  Tooltip(
+                    message: 'Core Treatment: This treatment is mandatory and must be completed in order.',
+                    preferBelow: false,
+                    child: Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B2E2E).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        'Core',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF8B2E2E),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
@@ -912,6 +988,46 @@ class _GeneratePlanPageState extends State<GeneratePlanPage> {
               ),
             ),
             const SizedBox(height: 16),
+            // Display treatment instructions if available
+            if (treatment.treatmentInstruction.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F9FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFB3E5FC)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.info_outline, size: 16, color: Color(0xFF0288D1)),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Instructions',
+                          style: GoogleFonts.ptSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF0288D1),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      treatment.treatmentInstruction,
+                      style: GoogleFonts.ptSans(
+                        fontSize: 13,
+                        color: const Color(0xFF01579B),
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

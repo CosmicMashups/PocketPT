@@ -89,12 +89,10 @@ class HamstringsAssessment {
   /// Evaluate ROM level based on hamstring angle
   static String _evaluateROM(double angle) {
     // Hamstring: Shoulder-Hip-Knee angle
-    // Angle < 190° -> Low (Poor flexion)
-    // 190° <= angle < 210° -> Moderate (Partial flexion)
-    // Angle >= 210° -> Severe (Leg extended, good flexion)
-    if (angle < AssessmentConstants.hamstringLowThreshold) return 'low';   // Angle < 190° -> Low
-    if (angle < AssessmentConstants.hamstringModerateThreshold) return 'moderate'; // 190° <= Angle < 210° -> Moderate
-    return 'severe';                      // Angle >= 210° -> Severe
+    if (angle >= AssessmentConstants.hamstringSevereThreshold) return 'severe';        // Angle >= 180° -> Severe (Extended)
+    if (angle >= AssessmentConstants.hamstringLowThreshold &&
+        angle < AssessmentConstants.hamstringModerateUpperThreshold) return 'moderate'; // 140° <= Angle < 160° -> Moderate
+    return 'low';                                                                       // Angle < 140° -> Low
   }
 
   /// Get ROM label for display
@@ -103,9 +101,9 @@ class HamstringsAssessment {
       case 'low':
         return 'Hamstring ROM: Low (< ${AssessmentConstants.hamstringLowThreshold.toInt()}°)';
       case 'moderate':
-        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringLowThreshold.toInt()}-${AssessmentConstants.hamstringModerateThreshold.toInt() - 1}°)';
+        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringLowThreshold.toInt()}-${(AssessmentConstants.hamstringModerateUpperThreshold.toInt() - 1)}°)';
       case 'severe':
-        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringModerateThreshold.toInt()}°)';
+        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringSevereThreshold.toInt()}°)';
       default:
         return 'Hamstring ROM: Unknown';
     }

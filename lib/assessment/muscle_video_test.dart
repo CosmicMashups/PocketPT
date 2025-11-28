@@ -11,7 +11,7 @@ class MuscleVideoTest {
       'totalMuscles': 0,
       'mappedMuscles': 0,
       'unmappedMuscles': <String>[],
-      'invalidUrls': <String>[],
+      'invalidPaths': <String>[],
       'validMappings': <String, String>{},
     };
 
@@ -20,16 +20,16 @@ class MuscleVideoTest {
     results['totalMuscles'] = allMuscles.length;
 
     for (final muscle in allMuscles) {
-      final videoUrl = MuscleVideoMapping.getVideoUrl(muscle);
+      final videoPath = MuscleVideoMapping.getVideoPath(muscle);
       
       // Check if muscle has a specific video (not default)
       if (MuscleVideoMapping.hasSpecificVideo(muscle)) {
         results['mappedMuscles']++;
-        results['validMappings'][muscle] = videoUrl;
+        results['validMappings'][muscle] = videoPath;
         
-        // Validate URL format
-        if (!MuscleVideoMapping.isValidYouTubeUrl(videoUrl)) {
-          results['invalidUrls'].add('$muscle: $videoUrl');
+        // Validate path format
+        if (!MuscleVideoMapping.isValidVideoPath(videoPath)) {
+          results['invalidPaths'].add('$muscle: $videoPath');
         }
       } else {
         results['unmappedMuscles'].add(muscle);
@@ -40,12 +40,12 @@ class MuscleVideoTest {
   }
 
   /// Test specific muscle mappings
-  static Map<String, String> testSpecificMuscles(List<String> muscleNames) {
+  static Map<String, String> testSpecificMuscles(final List<String> muscleNames) {
     final results = <String, String>{};
     
     for (final muscle in muscleNames) {
-      final videoUrl = MuscleVideoMapping.getVideoUrl(muscle);
-      results[muscle] = videoUrl;
+      final videoPath = MuscleVideoMapping.getVideoPath(muscle);
+      results[muscle] = videoPath;
     }
     
     return results;
@@ -54,34 +54,33 @@ class MuscleVideoTest {
   /// Test fallback mechanisms
   static Map<String, dynamic> testFallbacks() {
     final results = <String, dynamic>{
-      'emptyMuscle': MuscleVideoMapping.getVideoUrl(''),
-      'nullMuscle': MuscleVideoMapping.getVideoUrl(''),
-      'unknownMuscle': MuscleVideoMapping.getVideoUrl('Unknown Muscle'),
-      'caseInsensitive': MuscleVideoMapping.getVideoUrl('deltoids'),
-      'withFallback': MuscleVideoMapping.getVideoUrlWithFallback(
+      'emptyMuscle': MuscleVideoMapping.getVideoPath(''),
+      'unknownMuscle': MuscleVideoMapping.getVideoPath('Unknown Muscle'),
+      'caseInsensitive': MuscleVideoMapping.getVideoPath('deltoids'),
+      'withFallback': MuscleVideoMapping.getVideoPathWithFallback(
         'Unknown Muscle',
         fallbackMuscle: 'Deltoids',
-        defaultUrl: 'https://youtu.be/fallback',
+        defaultPath: 'assets/videos/fallback.mp4',
       ),
     };
     
     return results;
   }
 
-  /// Test URL extraction
-  static Map<String, String?> testUrlExtraction() {
-    final testUrls = [
-      'https://youtu.be/am0-6R-ceEs',
-      'https://www.youtube.com/watch?v=am0-6R-ceEs',
-      'https://www.youtube.com/shorts/Hs6FQNoI2TM',
-      'https://youtube.com/watch?v=invalid',
-      'not-a-youtube-url',
+  /// Test path validation
+  static Map<String, bool> testPathValidation() {
+    final testPaths = [
+      'assets/videos/deltoids_chest.mp4',
+      'assets/videos/triceps.mp4',
+      'assets/videos/invalid.txt',
+      'invalid/path/video.mp4',
+      'assets/videos/missing.mp4',
     ];
     
-    final results = <String, String?>{};
+    final results = <String, bool>{};
     
-    for (final url in testUrls) {
-      results[url] = MuscleVideoMapping.extractVideoId(url);
+    for (final path in testPaths) {
+      results[path] = MuscleVideoMapping.isValidVideoPath(path);
     }
     
     return results;
@@ -92,7 +91,7 @@ class MuscleVideoTest {
     return {
       'mappingTest': testAllMappings(),
       'fallbackTest': testFallbacks(),
-      'urlExtractionTest': testUrlExtraction(),
+      'pathValidationTest': testPathValidation(),
       'specificMuscleTest': testSpecificMuscles([
         'Deltoids',
         'Biceps',
@@ -120,30 +119,30 @@ class MuscleVideoTest {
     print('  Total muscles: ${mappingResults['totalMuscles']}');
     print('  Mapped muscles: ${mappingResults['mappedMuscles']}');
     print('  Unmapped muscles: ${mappingResults['unmappedMuscles']}');
-    print('  Invalid URLs: ${mappingResults['invalidUrls']}');
+    print('  Invalid paths: ${mappingResults['invalidPaths']}');
     print('');
     
     // Fallback test results
     final fallbackResults = results['fallbackTest'] as Map<String, dynamic>;
     print('🔄 Fallback Tests:');
-    fallbackResults.forEach((key, value) {
+    fallbackResults.forEach((final key, final value) {
       print('  $key: $value');
     });
     print('');
     
-    // URL extraction test results
-    final urlResults = results['urlExtractionTest'] as Map<String, String?>;
-    print('🔗 URL Extraction Tests:');
-    urlResults.forEach((url, extractedId) {
-      print('  $url -> $extractedId');
+    // Path validation test results
+    final pathResults = results['pathValidationTest'] as Map<String, bool>;
+    print('✅ Path Validation Tests:');
+    pathResults.forEach((final path, final isValid) {
+      print('  $path -> ${isValid ? "Valid" : "Invalid"}');
     });
     print('');
     
     // Specific muscle test results
     final muscleResults = results['specificMuscleTest'] as Map<String, String>;
     print('💪 Specific Muscle Tests:');
-    muscleResults.forEach((muscle, videoUrl) {
-      print('  $muscle: $videoUrl');
+    muscleResults.forEach((final muscle, final videoPath) {
+      print('  $muscle: $videoPath');
     });
     print('');
     

@@ -31,6 +31,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
   late CameraController _controller;
   late List<CameraDescription> cameras;
   bool _isCameraInitialized = false;
+  bool _isCameraInitializing = false; // Track if camera initialization is in progress
   bool _isRecording = false;
 
   // New: pose estimation and camera switching state
@@ -111,7 +112,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
   AssessmentResult? _currentAssessmentResult;
 
   // Skeleton visualization state - improved for better synchronization
-  bool _showSkeleton = false;
+  bool _showSkeleton = true; // Enabled by default
   List<Map<String, dynamic>> _currentKeypoints = []; // Raw keypoints from custom model
   Size? _cameraImageSize; // Store camera image dimensions for coordinate scaling
   SkeletonOverlayConfig _skeletonConfig = const SkeletonOverlayConfig();
@@ -331,10 +332,18 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
   // Initialize the camera and set the controller
   Future<void> _initializeCamera() async {
+    // Prevent multiple simultaneous initialization attempts
+    if (_isCameraInitializing) {
+      debugPrint('Camera initialization already in progress, skipping...');
+      return;
+    }
+    
     try {
+      _isCameraInitializing = true;
       cameras = await availableCameras();  // Get available cameras
       if (cameras.isEmpty) {
         debugPrint('No cameras available');
+        _isCameraInitializing = false;
         return;
       }
       
@@ -355,9 +364,13 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
           await _controller.initialize();  // Initialize the camera
           initialized = true;
           
-          if (!mounted) return;
+          if (!mounted) {
+            _isCameraInitializing = false;
+            return;
+          }
           setState(() {
             _isCameraInitialized = true;  // Camera is initialized
+            _isCameraInitializing = false;  // Initialization complete
           });
           
           // Start image stream after a short delay to ensure camera is ready
@@ -379,7 +392,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
         }
       }
       
-      if (!initialized && mounted) {
+      _isCameraInitializing = false; // Reset initialization flag
+      
+      if (!initialized && mounted && !_isCameraInitialized) {
         debugPrint('Failed to initialize any camera after trying all available cameras');
         setState(() {
           _isCameraInitialized = false;
@@ -397,7 +412,8 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
       }
     } catch (e) {
       debugPrint('Camera initialization error: $e');
-      if (mounted) {
+      _isCameraInitializing = false; // Reset initialization flag
+      if (mounted && !_isCameraInitialized) {
         setState(() {
           _isCameraInitialized = false;
         });
@@ -418,6 +434,18 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
   Future<void> _startImageStream() async {
     if (_isStreaming || !_controller.value.isInitialized) {
       debugPrint('Cannot start image stream: isStreaming=$_isStreaming, isInitialized=${_controller.value.isInitialized}');
+      return;
+    }
+    
+    // Check if camera supports image streaming
+    try {
+      if (!_controller.value.isInitialized) {
+        debugPrint('⚠️ Camera not initialized, cannot start image stream');
+        return;
+      }
+      // Note: Some cameras may not support streaming - we'll catch the error if it fails
+    } catch (e) {
+      debugPrint('⚠️ Error checking camera streaming support: $e');
       return;
     }
     
@@ -507,10 +535,16 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                 setState(() {
                   _currentAssessmentResult = assessmentResult;
                   
-                  // Update UserAssess for integration (persists during recording)
+                  // Update both UserAssess and AssessmentData for integration (persists during recording)
                   // Only update if page is active and values are not locked
                   UserAssess.painScale = assessmentResult.painScore;
-                  UserAssess.painLevel = assessmentResult.clinicalContext;
+                  UserAssess.painLevel = assessmentResult.categoricalPainLevel;
+                  
+                  // Also update AssessmentData to ensure it's available in the pain level page
+                  AssessmentData.painScale = assessmentResult.painScore;
+                  AssessmentData.painLevel = assessmentResult.categoricalPainLevel;
+                  
+                  debugPrint('AROM Assessment updated - painScore: ${assessmentResult.painScore}, categoricalPainLevel: ${assessmentResult.categoricalPainLevel}');
                   
                   PainHistory.recordTodayAndSave(
                     painScale: UserAssess.painScale,
@@ -534,11 +568,28 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
               image: image,
               camera: cameras[_selectedCameraIndex],
             );
-            if (_isPageActive && mounted && painResult['error'] == null) {
-              _handlePainDetectionResult(painResult);
+            if (_isPageActive && mounted) {
+              // Always handle result, even if there's an error (to show error state)
+              if (painResult['error'] == null) {
+                // Successful detection - update UI
+                debugPrint('✅ Pain detection successful: ${painResult['painLevel']}, confidence: ${painResult['confidence']}');
+                _handlePainDetectionResult(painResult);
+              } else {
+                // Error occurred - log it but still update UI with last known values if available
+                debugPrint('⚠️ Pain detection returned error: ${painResult['error']}');
+                if (painResult['painLevel'] != null && painResult['confidence'] != null) {
+                  // Update with last known values to keep UI responsive
+                  debugPrint('Using last known pain level: ${painResult['painLevel']}');
+                  _handlePainDetectionResult(painResult);
+                } else {
+                  // No valid values available - log warning
+                  debugPrint('❌ Pain detection error with no fallback values available');
+                }
+              }
             }
-          } catch (e) {
+          } catch (e, stackTrace) {
             debugPrint('Pain detection error: $e');
+            debugPrint('Pain detection stack trace: $stackTrace');
           }
         }
       } catch (e) {
@@ -550,6 +601,14 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
     } catch (e) {
       debugPrint('Error starting image stream: $e');
       _isStreaming = false;
+      
+      // Check if error is due to streaming not being supported
+      if (e.toString().contains('supportsImageStreaming') || e.toString().contains('is not true')) {
+        debugPrint('⚠️ Camera does not support image streaming on this device');
+        debugPrint('⚠️ Pose detection and pain recognition will not work without image streaming');
+        return;
+      }
+      
       // Retry once after a short delay to handle devices that fail on first attempt
       if (mounted && _controller.value.isInitialized) {
         await Future.delayed(const Duration(milliseconds: 300));
@@ -622,10 +681,16 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                         setState(() {
                           _currentAssessmentResult = assessmentResult;
                           
-                          // Update UserAssess for integration (persists during recording)
+                          // Update both UserAssess and AssessmentData for integration (persists during recording)
                           // Only update if page is active and values are not locked
                           UserAssess.painScale = assessmentResult.painScore;
-                          UserAssess.painLevel = assessmentResult.clinicalContext;
+                          UserAssess.painLevel = assessmentResult.categoricalPainLevel;
+                          
+                          // Also update AssessmentData to ensure it's available in the pain level page
+                          AssessmentData.painScale = assessmentResult.painScore;
+                          AssessmentData.painLevel = assessmentResult.categoricalPainLevel;
+                          
+                          debugPrint('AROM Assessment updated (retry) - painScore: ${assessmentResult.painScore}, categoricalPainLevel: ${assessmentResult.categoricalPainLevel}');
                           
                           PainHistory.recordTodayAndSave(
                             painScale: UserAssess.painScale,
@@ -660,12 +725,6 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
   // Assessment logic moved to modular services
 
-  // Color coding for pain scores
-  Color _getScoreColor(int score) {
-    if (score <= 3) return Colors.green;      // Good (0-3)
-    if (score <= 7) return Colors.orange;     // Moderate (4-7)
-    return Colors.red;                         // Severe (8-10)
-  }
 
   Future<void> _switchCamera() async {
     if (cameras.isEmpty) return;
@@ -726,13 +785,26 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
   // Handle pain detection results
   void _handlePainDetectionResult(Map<String, dynamic> result) {
+    // Only update UI if we have real model output (not cached/error values)
+    final isRealTime = result['isRealTime'] == true;
+    final hasError = result['error'] != null;
+    
+    if (isRealTime) {
+      debugPrint('✅ Updating UI with REAL-TIME model output: ${result['painLevel']}, confidence: ${result['confidence']}');
+    } else if (hasError) {
+      debugPrint('⚠️ Pain detection has error, using last known value if available: ${result['error']}');
+    } else {
+      debugPrint('ℹ️ Using cached/last known pain level: ${result['painLevel']}');
+    }
     // Don't process if page is no longer active or values are locked
     if (!_isPageActive || _painValuesLocked) return;
     
-    final painLevel = result['painLevel'];
-    final confidence = result['confidence'];
+    final painLevel = result['painLevel'] as String?;
+    final confidence = (result['confidence'] as num?)?.toDouble() ?? 0.0;
     
-    if (confidence > 0.7) {
+    // Always update state if we have valid values (even with low confidence)
+    // This ensures the UI reflects the current model output
+    if (painLevel != null && painLevel.isNotEmpty) {
       // Check if pain level changed for smooth animation
       final painLevelChanged = _currentPainLevel != painLevel;
       
@@ -741,12 +813,19 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
         _painConfidence = confidence;
       });
       
+      debugPrint('Pain detection result updated: Level=$painLevel, Confidence=${(confidence * 100).toStringAsFixed(1)}%');
+      
       // Animate color change and scale when pain level changes
       if (painLevelChanged && _currentPainLevel != null) {
         _animatePainLevelChange(_currentPainLevel!);
       }
       
-      _triggerPainIntervention(painLevel);
+      // Only trigger interventions for higher confidence detections
+      if (confidence > 0.7) {
+        _triggerPainIntervention(painLevel);
+      }
+    } else {
+      debugPrint('Pain detection result invalid: painLevel=$painLevel, confidence=$confidence');
     }
   }
 
@@ -986,29 +1065,25 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
   // Build pain detection status overlay - moved to top left
   Widget _buildPainDetectionOverlay() {
-    if (!PocketPTAnimations.shouldAnimate(context)) {
-      // Fallback to non-animated version if animations are disabled
-      return Positioned(
-        top: 8,
-        left: 8,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.7),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
+    final iconColor = _getPainColor(_currentPainLevel);
+    final modelName = _painService.activeModelDisplayName;
+    final isOnnxReady = _painService.isOnnxReady;
+
+    Widget buildContent(Color currentIconColor) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
               Icon(
                 _getPainIcon(_currentPainLevel),
-                color: _getPainColor(_currentPainLevel),
+                color: currentIconColor,
                 size: 16,
               ),
               const SizedBox(width: 4),
               Text(
-                _currentPainLevel ?? 'Low',
+                _currentPainLevel ?? (_isPainDetectionEnabled ? 'Analyzing...' : 'N/A'),
                 style: GoogleFonts.ptSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -1027,8 +1102,59 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
               ],
             ],
           ),
-        ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Text(
+                'Model: $modelName',
+                style: GoogleFonts.ptSans(
+                  fontSize: 10,
+                  color: Colors.white70,
+                ),
+              ),
+              if (!isOnnxReady) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orangeAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, size: 10, color: Colors.orangeAccent),
+                      const SizedBox(width: 4),
+                      Text(
+                        'ONNX unavailable',
+                        style: GoogleFonts.ptSans(
+                          fontSize: 10,
+                          color: Colors.orangeAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       );
+    }
+
+    Widget buildOverlay(Color currentColor) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: buildContent(currentColor),
+      );
+    }
+
+    if (!PocketPTAnimations.shouldAnimate(context)) {
+      return Positioned(top: 8, left: 8, child: buildOverlay(iconColor));
     }
 
     return Positioned(
@@ -1041,86 +1167,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
           child: AnimatedBuilder(
             animation: _painColorController,
             builder: (context, child) {
-              final currentColor = _painColorAnimation.value ?? _getPainColor(_currentPainLevel);
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _getPainIcon(_currentPainLevel),
-                      color: currentColor,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _currentPainLevel ?? 'Low',
-                      style: GoogleFonts.ptSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    if (_painConfidence > 0) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        '${(_painConfidence * 100).toInt()}%',
-                        style: GoogleFonts.ptSans(
-                          fontSize: 10,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
+              final animatedColor = _painColorAnimation.value ?? iconColor;
+              return buildOverlay(animatedColor);
             },
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Build information button for assessment instructions
-  Widget _buildInstructionsButton() {
-    return Positioned(
-      top: 8,
-      right: 8,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: _showInstructionsDialog,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.help_outline,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
           ),
         ),
       ),
@@ -1254,6 +1303,20 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
     }
   }
 
+  int _mapFacialPainScore(String? painLevel) {
+    switch (painLevel) {
+      case 'Low':
+        return 2;
+      case 'Moderate':
+        return 5;
+      case 'Severe':
+        return 8;
+      default:
+        // Return null/0 to indicate no valid pain level instead of hardcoded 2
+        return 0; // Will be handled by UI to show "N/A" or last known value
+    }
+  }
+
   // Get pain icon based on level
   IconData _getPainIcon(String? painLevel) {
     switch (painLevel) {
@@ -1326,8 +1389,44 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
   // Show pain level confirmation dialog
   void _showPainLevelConfirmationDialog() {
-    final detectedPainLevel = _currentPainLevel ?? 'Low';
-    final detectedConfidence = _painConfidence;
+    // This dialog should ONLY display AROM assessment values from @arom/
+    // If AROM assessment result is not available, show an error or use last known AROM values
+    if (_currentAssessmentResult == null) {
+      debugPrint('⚠️ Pain Level Dialog: AROM assessment result is null - using AssessmentData as fallback');
+      // Use AssessmentData which should contain AROM values from previous assessment
+      if (AssessmentData.painScale <= 0 || AssessmentData.painLevel.isEmpty) {
+        debugPrint('❌ Pain Level Dialog: No AROM assessment data available');
+        // Show error dialog instead
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Assessment Required'),
+              content: const Text('Please complete the ROM assessment first before viewing pain level.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+        return;
+      }
+    }
+    
+    // Use AROM assessment result values (from @arom/)
+    final romPainLevel = _currentAssessmentResult?.categoricalPainLevel ?? AssessmentData.painLevel;
+    final romPainScale = _currentAssessmentResult?.painScore ?? AssessmentData.painScale;
+    final poseAngle = _currentAssessmentResult?.additionalData['angle'] as double?;
+    
+    debugPrint('✅ Pain Level Confirmation Dialog - AROM Assessment Result:');
+    debugPrint('   painScore: $romPainScale, categoricalPainLevel: $romPainLevel');
+    if (_currentAssessmentResult != null) {
+      debugPrint('   displayLabel: ${_currentAssessmentResult!.displayLabel}');
+      debugPrint('   romLevel: ${_currentAssessmentResult!.romLevel}');
+    }
     
     showDialog(
       context: context,
@@ -1336,7 +1435,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
         return AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.health_and_safety, color: _getPainColor(detectedPainLevel), size: 24),
+              Icon(Icons.health_and_safety, color: _getPainColor(romPainLevel), size: 24),
               const SizedBox(width: 8),
               Text('Pain Level'),
             ],
@@ -1346,36 +1445,79 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'The application has detected the following pain level during your ROM assessment:',
+                'Your Active Range of Motion (AROM) assessment recorded the following values:',
                 style: GoogleFonts.ptSans(fontSize: 14),
               ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _getPainColor(detectedPainLevel).withOpacity(0.1),
+                  color: _getPainColor(romPainLevel).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _getPainColor(detectedPainLevel)),
+                  border: Border.all(color: _getPainColor(romPainLevel)),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(_getPainIcon(detectedPainLevel), color: _getPainColor(detectedPainLevel)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Detected: $detectedPainLevel Pain',
-                      style: GoogleFonts.ptSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: _getPainColor(detectedPainLevel),
-                      ),
+                    Row(
+                      children: [
+                        Icon(_getPainIcon(romPainLevel), color: _getPainColor(romPainLevel)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$romPainLevel Pain',
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: _getPainColor(romPainLevel),
+                                ),
+                              ),
+                              if (_currentAssessmentResult != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  _currentAssessmentResult!.displayLabel,
+                                  style: GoogleFonts.ptSans(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    if (detectedConfidence > 0) ...[
-                      const Spacer(),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Text(
+                          'Pain Scale: ',
+                          style: GoogleFonts.ptSans(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        Text(
+                          '$romPainScale / 10',
+                          style: GoogleFonts.ptSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _getPainColor(romPainLevel),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (poseAngle != null) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        '${(detectedConfidence * 100).toInt()}% confidence',
+                        'Pose angle: ${poseAngle.toStringAsFixed(1)}°',
                         style: GoogleFonts.ptSans(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                          fontSize: 14,
+                          color: Colors.grey[700],
                         ),
                       ),
                     ],
@@ -1384,7 +1526,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
               ),
               const SizedBox(height: 16),
               Text(
-                'Is this pain level accurate for your assessment?',
+                'Is this AROM-based pain level accurate for your assessment?',
                 style: GoogleFonts.ptSans(fontSize: 14, fontWeight: FontWeight.w500),
               ),
             ],
@@ -1393,7 +1535,9 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _proceedToPainLevelInput(detectedPainLevel);
+                // ALWAYS use AROM assessment result if available (romPainLevel is already from AROM)
+                // The _proceedToPainLevelInput will use _currentAssessmentResult if available
+                _proceedToPainLevelInput(romPainLevel);
               },
               child: Text('Yes, Continue'),
             ),
@@ -1412,26 +1556,60 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
 
   // Proceed to pain level input with detected or manual option
   void _proceedToPainLevelInput(String painLevel) {
-    // Set the detected pain level in UserAssess before locking (if not already locked)
-    if (painLevel != 'Manual' && !_painValuesLocked) {
-      switch (painLevel) {
-        case 'Low':
-          UserAssess.painScale = 2;
-          UserAssess.painLevel = 'Low';
-          break;
-        case 'Moderate':
-          UserAssess.painScale = 5;
-          UserAssess.painLevel = 'Moderate';
-          break;
-        case 'Severe':
-          UserAssess.painScale = 8;
-          UserAssess.painLevel = 'Severe';
-          break;
+    // ALWAYS use AROM assessment result if available, regardless of painLevel parameter
+    if (!_painValuesLocked) {
+      // ALWAYS prefer AROM assessment result over facial pain detection
+      if (_currentAssessmentResult != null) {
+        // Use the AROM assessment result values - this is the authoritative source
+        UserAssess.painScale = _currentAssessmentResult!.painScore;
+        UserAssess.painLevel = _currentAssessmentResult!.categoricalPainLevel;
+        AssessmentData.painScale = _currentAssessmentResult!.painScore;
+        AssessmentData.painLevel = _currentAssessmentResult!.categoricalPainLevel;
+        
+        debugPrint('✅ Proceeding to pain level input with AROM result - painScore: ${_currentAssessmentResult!.painScore}, categoricalPainLevel: ${_currentAssessmentResult!.categoricalPainLevel}');
+        debugPrint('✅ AROM values set: UserAssess.painScale=${UserAssess.painScale}, UserAssess.painLevel=${UserAssess.painLevel}');
+        debugPrint('✅ AROM values set: AssessmentData.painScale=${AssessmentData.painScale}, AssessmentData.painLevel=${AssessmentData.painLevel}');
+      } else if (painLevel != 'Manual') {
+        // Only use facial pain detection if AROM is not available AND not manual input
+        // Fallback to facial pain detection if AROM result not available
+        debugPrint('⚠️ AROM assessment not available, using facial pain detection fallback: $painLevel');
+        switch (painLevel) {
+          case 'Low':
+            UserAssess.painScale = 2;
+            UserAssess.painLevel = 'Low';
+            AssessmentData.painScale = 2;
+            AssessmentData.painLevel = 'Low';
+            break;
+          case 'Moderate':
+            UserAssess.painScale = 5;
+            UserAssess.painLevel = 'Moderate';
+            AssessmentData.painScale = 5;
+            AssessmentData.painLevel = 'Moderate';
+            break;
+          case 'Severe':
+            UserAssess.painScale = 8;
+            UserAssess.painLevel = 'Severe';
+            AssessmentData.painScale = 8;
+            AssessmentData.painLevel = 'Severe';
+            break;
+        }
+        debugPrint('Proceeding to pain level input with facial pain detection - painLevel: $painLevel');
       }
+    } else if (painLevel == 'Manual' && _currentAssessmentResult != null) {
+      // Even for manual input, preserve AROM assessment values as starting point
+      UserAssess.painScale = _currentAssessmentResult!.painScore;
+      UserAssess.painLevel = _currentAssessmentResult!.categoricalPainLevel;
+      AssessmentData.painScale = _currentAssessmentResult!.painScore;
+      AssessmentData.painLevel = _currentAssessmentResult!.categoricalPainLevel;
+      
+      debugPrint('Proceeding to manual pain level input with AROM result as starting point - painScore: ${_currentAssessmentResult!.painScore}');
     }
     
     // Stop pain detection and lock values before navigation (prevents further updates)
     _stopPainDetection();
+    
+    debugPrint('Final values before navigation - UserAssess.painScale: ${UserAssess.painScale}, UserAssess.painLevel: ${UserAssess.painLevel}');
+    debugPrint('Final values before navigation - AssessmentData.painScale: ${AssessmentData.painScale}, AssessmentData.painLevel: ${AssessmentData.painLevel}');
     
     // Navigate directly to pain level input
     Navigator.push(
@@ -1562,6 +1740,10 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
               icon: const Icon(Icons.settings, color: Color(0xFF8B2E2E), size: 20),
               tooltip: 'Settings',
               onSelected: (value) {
+                // Don't close menu for skeleton toggle - handled by switch directly
+                if (value == 'skeleton') {
+                  return;
+                }
                 switch (value) {
                   case 'help':
                     _showHelpDialog();
@@ -1569,11 +1751,6 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                   case 'video':
                     setState(() {
                       _enableVideoRecording = !_enableVideoRecording;
-                    });
-                    break;
-                  case 'skeleton':
-                    setState(() {
-                      _showSkeleton = !_showSkeleton;
                     });
                     break;
                   case 'skeleton_config':
@@ -1633,14 +1810,19 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                       const SizedBox(width: 12),
                       Text('Skeleton Overlay', style: GoogleFonts.ptSans(fontSize: 14)),
                       const Spacer(),
-                      Switch(
-                        value: _showSkeleton,
-                        activeColor: const Color(0xFF8B2E2E),
-                        onChanged: (value) {
-                          setState(() {
-                            _showSkeleton = value;
-                          });
+                      GestureDetector(
+                        onTap: () {
+                          // Prevent menu item tap from interfering with switch
                         },
+                        child: Switch(
+                          value: _showSkeleton,
+                          activeColor: const Color(0xFF8B2E2E),
+                          onChanged: (value) {
+                            setState(() {
+                              _showSkeleton = value;
+                            });
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -1722,8 +1904,6 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                               if (_isPainDetectionEnabled) _buildPainDetectionOverlay(),
                               // Pain banner for moderate pain
                               if (_showPainBanner) _buildModeratePainBanner(),
-                              // Information button for assessment instructions
-                              _buildInstructionsButton(),
                             ],
                           )
                         : Container(
@@ -1763,45 +1943,6 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                   right: 8,
                   child: Row(
                     children: [
-                      // LIVE indicator
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 3,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 4,
-                              height: 4,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'LIVE',
-                              style: GoogleFonts.ptSans(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
                       // Skeleton toggle indicator
                       if (_showSkeleton)
                         Container(
@@ -1867,115 +2008,66 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                           ),
                         ),
                       
-                      // Assessment mode indicator
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _enableVideoRecording 
-                              ? const Color(0xFF8B2E2E).withOpacity(0.9)
-                              : const Color(0xFF10B981).withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.06),
-                              blurRadius: 3,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _enableVideoRecording ? Icons.videocam : Icons.speed,
-                              color: Colors.white,
-                              size: 10,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              _enableVideoRecording ? 'VIDEO' : 'REAL-TIME',
-                              style: GoogleFonts.ptSans(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      
-                      // Pose detection status indicator during recording
-                      if (_isRecording && _isStreaming)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF3B82F6).withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
-                                blurRadius: 3,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.accessibility, color: Colors.white, size: 10),
-                              const SizedBox(width: 3),
-                              Text(
-                                'POSE',
-                                style: GoogleFonts.ptSans(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 0.3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      
                       const Spacer(),
                       
                       // Pain score indicator - mobile optimized
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getScoreColor(UserAssess.painScale).withOpacity(0.95),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.25), width: 0.8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.health_and_safety,
-                              color: Colors.white,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${UserAssess.painScale}/10',
-                              style: GoogleFonts.ptSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
+                      decoration: BoxDecoration(
+                        // Use facial recognition color only
+                        color: _getPainColor(_currentPainLevel).withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withOpacity(0.25), width: 0.8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.health_and_safety,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 3),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                // Display pain level from facial recognition model (Low, Moderate, or Severe)
+                                _currentPainLevel != null && ['Low', 'Moderate', 'Severe'].contains(_currentPainLevel)
+                                    ? '$_currentPainLevel Pain'
+                                    : _isPainDetectionEnabled 
+                                        ? 'Analyzing...' // Show analyzing if model is enabled but no result yet
+                                        : 'N/A', // Show N/A if model not enabled
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                // Display pain scale mapped from facial recognition (2, 5, or 8)
+                                _currentPainLevel != null && ['Low', 'Moderate', 'Severe'].contains(_currentPainLevel)
+                                    ? '${_mapFacialPainScore(_currentPainLevel)}/10'
+                                    : '--/10', // Show --/10 if no valid prediction
+                                style: GoogleFonts.ptSans(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                     ],
                   ),
                 ),
@@ -2023,12 +2115,14 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                 // Enhanced assessment results panel - translucent and color-coded
                 Positioned(
                   bottom: 8,
-                  left: 8,
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 280),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: _getPainBasedBackgroundColor().withOpacity(0.85),
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 280),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _getPainBasedBackgroundColor().withOpacity(0.5),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: _getPainBasedBorderColor().withOpacity(0.6), 
@@ -2243,6 +2337,7 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
                         ],
                       ],
                     ),
+                    ),
                   ),
                 ),
               ],
@@ -2391,163 +2486,6 @@ class _AssessPainCameraState extends State<AssessPainCamera> with TickerProvider
   }
 
   // ROM Display Update Methods - moved to modular services
-
-  String _getModeInstructions() {
-    return AssessmentService.getInstructions(_getAssessmentMode(), _selectedSide);
-  }
-
-  /// Show assessment instructions dialog
-  /// 
-  /// Displays the current assessment instructions in a clean dialog format
-  /// instead of overlaying them on the camera preview.
-  void _showInstructionsDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              const Icon(Icons.info_outline, color: Color(0xFF8B2E2E), size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'Assessment Instructions',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                  color: const Color(0xFF1F2937),
-                ),
-              ),
-            ],
-          ),
-          content: Container(
-            constraints: const BoxConstraints(maxWidth: 300),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Assessment mode indicator
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF8B2E2E).withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _enableVideoRecording ? Icons.videocam : Icons.speed,
-                        color: const Color(0xFF8B2E2E),
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${_enableVideoRecording ? 'Video' : 'Real-time'} Assessment',
-                        style: GoogleFonts.ptSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF8B2E2E),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Muscle and side information
-                Row(
-                  children: [
-                    Icon(Icons.accessibility, color: const Color(0xFF6B7280), size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle : 'Muscle Assessment'} (${_selectedSide} Side)',
-                      style: GoogleFonts.ptSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1F2937),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Instructions
-                Text(
-                  'Instructions:',
-                  style: GoogleFonts.ptSans(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1F2937),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _getModeInstructions(),
-                  style: GoogleFonts.ptSans(
-                    fontSize: 13,
-                    color: const Color(0xFF6B7280),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Tips section
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.lightbulb_outline, color: const Color(0xFF8B2E2E), size: 16),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Tips:',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF8B2E2E),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '• Ensure good lighting\n• Position yourself in the center of the frame\n• Move slowly and deliberately\n• Keep the camera steady',
-                        style: GoogleFonts.ptSans(
-                          fontSize: 11,
-                          color: const Color(0xFF6B7280),
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Got it',
-                style: GoogleFonts.ptSans(
-                  color: const Color(0xFF8B2E2E),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   /// Show comprehensive help dialog for muscle-specific assessment guidance
   /// 

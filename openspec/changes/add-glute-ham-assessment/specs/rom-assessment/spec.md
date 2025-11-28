@@ -4,43 +4,43 @@
 The system SHALL provide gluteal assessment capability that evaluates pain levels based on hip flexion and extension angles using Google ML Kit's pose detection service.
 
 #### Scenario: Gluteal assessment with severe pain (extended leg)
-- **WHEN** a gluteal assessment is requested with pose landmarks showing shoulder-hip-knee angle >= 160°
+- **WHEN** a gluteal assessment is requested with pose landmarks showing shoulder-hip-knee angle >= 180°
 - **THEN** the gluteal assessment module returns severe ROM limitation
 - **AND** maps to pain score 8-10 (severe pain)
-- **AND** displays "Gluteal ROM: Severe (>= 160°)"
+- **AND** displays "Gluteal ROM: Severe (>= 180°)"
 
 #### Scenario: Gluteal assessment with moderate pain (mid-range flexion)
-- **WHEN** a gluteal assessment is requested with pose landmarks showing shoulder-hip-knee angle between 100° and 160°
+- **WHEN** a gluteal assessment is requested with pose landmarks showing shoulder-hip-knee angle between 140° and 159°
 - **THEN** the gluteal assessment module returns moderate ROM limitation
 - **AND** maps to pain score 5-7 (moderate pain)
-- **AND** displays "Gluteal ROM: Moderate (100-160°)"
+- **AND** displays "Gluteal ROM: Moderate (140-159°)"
 
-#### Scenario: Gluteal assessment with low pain (fully flexed leg)
-- **WHEN** a gluteal assessment is requested with pose landmarks showing shoulder-hip-knee angle < 100°
+#### Scenario: Gluteal assessment with low pain (flexed leg)
+- **WHEN** a gluteal assessment is requested with pose landmarks showing shoulder-hip-knee angle < 140°
 - **THEN** the gluteal assessment module returns low ROM limitation
 - **AND** maps to pain score 2-4 (low pain)
-- **AND** displays "Gluteal ROM: Low (< 100°)"
+- **AND** displays "Gluteal ROM: Low (< 140°)"
 
 ### Requirement: Enhanced Hamstring ROM Assessment
 The system SHALL provide enhanced hamstring assessment capability that evaluates pain levels based on hip-knee-ankle angles using Google ML Kit's pose detection service.
 
 #### Scenario: Enhanced hamstring assessment with severe pain (extended leg)
-- **WHEN** a hamstring assessment is requested with pose landmarks showing hip-knee-ankle angle >= 160°
+- **WHEN** a hamstring assessment is requested with pose landmarks showing hip-knee-ankle angle >= 180°
 - **THEN** the hamstring assessment module returns severe ROM limitation
 - **AND** maps to pain score 8-10 (severe pain)
-- **AND** displays "Hamstring ROM: Severe (>= 160°)"
+- **AND** displays "Hamstring ROM: Severe (>= 180°)"
 
 #### Scenario: Enhanced hamstring assessment with moderate pain (mid-range flexion)
-- **WHEN** a hamstring assessment is requested with pose landmarks showing hip-knee-ankle angle between 100° and 160°
+- **WHEN** a hamstring assessment is requested with pose landmarks showing hip-knee-ankle angle between 140° and 159°
 - **THEN** the hamstring assessment module returns moderate ROM limitation
 - **AND** maps to pain score 5-7 (moderate pain)
-- **AND** displays "Hamstring ROM: Moderate (100-160°)"
+- **AND** displays "Hamstring ROM: Moderate (140-159°)"
 
-#### Scenario: Enhanced hamstring assessment with low pain (fully flexed leg)
-- **WHEN** a hamstring assessment is requested with pose landmarks showing hip-knee-ankle angle < 100°
+#### Scenario: Enhanced hamstring assessment with low pain (flexed leg)
+- **WHEN** a hamstring assessment is requested with pose landmarks showing hip-knee-ankle angle < 140°
 - **THEN** the hamstring assessment module returns low ROM limitation
 - **AND** maps to pain score 2-4 (low pain)
-- **AND** displays "Hamstring ROM: Low (< 100°)"
+- **AND** displays "Hamstring ROM: Low (< 140°)"
 
 #### Scenario: Missing landmarks for both muscle groups
 - **WHEN** gluteal or hamstring assessment is requested but required landmarks are missing

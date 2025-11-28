@@ -5,7 +5,7 @@ import 'assessment_data.dart';
 import 'c_camera.dart';
 import 'c_painlevel.dart';
 import 'c_upload.dart';
-import 'dynamic_video_player.dart';
+import 'local_muscle_video_player.dart';
 
 class AssessPainVideo extends StatefulWidget {
   const AssessPainVideo({super.key});
@@ -150,6 +150,7 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -163,16 +164,19 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
                   color: const Color(0xFF1F2937),
                 ),
               ),
-              const Spacer(),
-              Text(
-                "Step 3 of 5",
-                style: GoogleFonts.ptSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: detailColor,
-                ),
-              ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              "Step 3 of 5",
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: detailColor,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           LinearProgressIndicator(
@@ -265,10 +269,12 @@ class _AssessPainVideoState extends State<AssessPainVideo> {
             ],
           ),
           const SizedBox(height: 16),
-          // Let the video maximize horizontal space and size its height dynamically (16:9)
-          MuscleVideoPlayer(
+          // Local video player with proper aspect ratio
+          LocalMuscleVideoPlayer(
             muscleName: selectedMuscle,
             showMuscleInfo: false, // Info is already shown in the question section
+            showControls: true,
+            autoPlay: false,
           ),
         ],
       ),

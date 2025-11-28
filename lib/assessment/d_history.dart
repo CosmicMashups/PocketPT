@@ -403,6 +403,27 @@ class _AssessHistoryState extends State<AssessHistory> {
             
             isInjured = value;
             UserAssess.isInjured = value;
+            
+            // If user switches from 'Yes' to 'No', clear all muscle selection data
+            if (value == false) {
+              print('AssessHistory: User selected "No" - clearing muscle selection data');
+              
+              // Clear AssessmentData muscle fields
+              AssessmentData.injuredMuscles = [];
+              AssessmentData.musclePainLevels = {};
+              AssessmentData.musclePainCategories = {};
+              AssessmentData.muscleStillPainful = {};
+              
+              // Clear UserAssess muscle fields
+              UserAssess.injuredMuscles = [];
+              UserAssess.musclePainLevels = {};
+              UserAssess.musclePainCategories = {};
+              UserAssess.muscleStillPainful = {};
+              
+              print('AssessHistory: Cleared all muscle selection data');
+              print('AssessHistory: AssessmentData.injuredMuscles = ${AssessmentData.injuredMuscles}');
+              print('AssessHistory: UserAssess.injuredMuscles = ${UserAssess.injuredMuscles}');
+            }
           });
           
           print('AssessHistory: Selected injury status: $value');

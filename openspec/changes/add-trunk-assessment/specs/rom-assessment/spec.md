@@ -4,22 +4,22 @@
 The system SHALL provide unified trunk assessment capability that evaluates pain levels for all four trunk muscle groups (abdominals, obliques, lower back, multifidus) based on trunk flexion and extension angles using Google ML Kit's pose detection service.
 
 #### Scenario: Trunk assessment with severe pain (upright/extended trunk)
-- **WHEN** a trunk assessment is requested with pose landmarks showing shoulder-hip-knee angle >= 160°
+- **WHEN** a trunk assessment is requested with pose landmarks showing shoulder-hip-knee angle >= 150°
 - **THEN** the trunk assessment module returns severe ROM limitation for the specified muscle group
 - **AND** maps to pain score 8-10 (severe pain)
-- **AND** displays "Trunk ROM: Severe (>= 160°)" for the specific muscle group
+- **AND** displays "Trunk ROM: Severe (>= 150°)" for the specific muscle group
 
 #### Scenario: Trunk assessment with moderate pain (mid-range flexion)
-- **WHEN** a trunk assessment is requested with pose landmarks showing shoulder-hip-knee angle between 60° and 160°
+- **WHEN** a trunk assessment is requested with pose landmarks showing shoulder-hip-knee angle between 80° and 149°
 - **THEN** the trunk assessment module returns moderate ROM limitation for the specified muscle group
 - **AND** maps to pain score 5-7 (moderate pain)
-- **AND** displays "Trunk ROM: Moderate (60-160°)" for the specific muscle group
+- **AND** displays "Trunk ROM: Moderate (80-149°)" for the specific muscle group
 
-#### Scenario: Trunk assessment with low pain (fully flexed trunk)
-- **WHEN** a trunk assessment is requested with pose landmarks showing shoulder-hip-knee angle < 60°
+#### Scenario: Trunk assessment with low pain (flexed trunk)
+- **WHEN** a trunk assessment is requested with pose landmarks showing shoulder-hip-knee angle < 80°
 - **THEN** the trunk assessment module returns low ROM limitation for the specified muscle group
 - **AND** maps to pain score 2-4 (low pain)
-- **AND** displays "Trunk ROM: Low (< 60°)" for the specific muscle group
+- **AND** displays "Trunk ROM: Low (< 80°)" for the specific muscle group
 
 #### Scenario: Trunk assessment with missing landmarks
 - **WHEN** trunk assessment is requested but required landmarks (shoulders, hips, knees) are missing

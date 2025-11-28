@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
-import 'dart:math';
 import 'dart:io';
 
 /// Service for handling forgot password functionality with secure verification
@@ -17,9 +16,6 @@ class ForgotPasswordService {
   // Timeout duration for operations
   static const Duration _timeout = Duration(seconds: 20);
   
-  // Verification code expiration time (10 minutes)
-  static const Duration _codeExpiration = Duration(minutes: 10);
-  
   /// Check network connectivity
   Future<bool> hasNetworkConnection() async {
     try {
@@ -31,10 +27,11 @@ class ForgotPasswordService {
     }
   }
   
-  /// Check if email exists in Firebase users collection
+  /// Send password reset email using Firebase Auth
+  /// This method directly sends a password reset email to the provided email address
   Future<ForgotPasswordResult> checkEmailExists(String email) async {
     try {
-      print('ForgotPasswordService: Checking if email exists...');
+      print('ForgotPasswordService: Sending password reset email to $email');
       
       // Check network
       if (!await hasNetworkConnection()) {
@@ -49,82 +46,28 @@ class ForgotPasswordService {
       // Normalize email (lowercase) to avoid case-sensitivity issues
       final String normalizedEmail = email.trim().toLowerCase();
       
-      // Check sign-in methods via Auth (do not disclose existence)
-      final signInMethods = await _auth.fetchSignInMethodsForEmail(normalizedEmail).timeout(_timeout);
+      // Send password reset email directly using Firebase Auth
+      // Firebase will handle email validation and only send if the email exists
+      // This prevents email enumeration attacks
+      await _auth.sendPasswordResetEmail(email: normalizedEmail).timeout(_timeout);
       
-      if (signInMethods.isEmpty) {
-        print('ForgotPasswordService: No sign-in methods found; returning generic success.');
-        return ForgotPasswordResult.codeSent(normalizedEmail);
-      }
+      print('ForgotPasswordService: Password reset email sent successfully to $normalizedEmail');
       
-      print('ForgotPasswordService: Email recognized by Auth, generating verification code...');
-      
-      // Generate and send verification code
-      return await _generateAndSendVerificationCode(normalizedEmail);
+      // Return success - Firebase doesn't disclose whether email exists for security
+      return ForgotPasswordResult.passwordResetSent(normalizedEmail);
       
     } on FirebaseAuthException catch (e) {
-      return ForgotPasswordResult.error(_getAuthErrorMessage(e));
+      print('ForgotPasswordService: FirebaseAuthException: ${e.code} - ${e.message}');
+      return ForgotPasswordResult.error(_getPasswordResetErrorMessage(e));
+    } on TimeoutException {
+      print('ForgotPasswordService: Timeout sending password reset email');
+      return ForgotPasswordResult.error('Connection timeout. Please check your internet connection and try again.');
     } catch (e) {
+      print('ForgotPasswordService: Unexpected error: $e');
       if (e.toString().contains('timeout')) {
         return ForgotPasswordResult.error('Connection timeout. Please check your internet connection and try again.');
       }
-      return ForgotPasswordResult.error('An error occurred while checking your email. Please try again.');
-    }
-  }
-  
-  /// Generate and send verification code
-  Future<ForgotPasswordResult> _generateAndSendVerificationCode(String email) async {
-    try {
-      // Generate 6-digit verification code
-      final verificationCode = _generateVerificationCode();
-      final expirationTime = DateTime.now().add(_codeExpiration);
-      
-      // Store verification code in Firestore with expiration
-      await _firestore
-          .collection('password_reset_codes')
-          .doc(email)
-          .set({
-        'code': verificationCode,
-        'email': email,
-        'createdAt': FieldValue.serverTimestamp(),
-        'expiresAt': Timestamp.fromDate(expirationTime),
-        'used': false,
-      })
-          .timeout(_timeout);
-      
-      print('ForgotPasswordService: Verification code stored in Firestore');
-      
-      // Send verification email using Firebase Auth
-      await _sendVerificationEmail(email, verificationCode);
-      
-      return ForgotPasswordResult.codeSent(email);
-      
-    } catch (e) {
-      print('ForgotPasswordService: Error generating/sending code: $e');
-      return ForgotPasswordResult.error('Failed to send verification code. Please try again.');
-    }
-  }
-  
-  /// Send verification email (simulated - in production, use email service)
-  Future<void> _sendVerificationEmail(String email, String code) async {
-    try {
-      // In a real implementation, you would integrate with an email service
-      // For now, we'll simulate the email sending
-      print('ForgotPasswordService: Sending verification email to $email');
-      print('ForgotPasswordService: Verification code: $code');
-      
-      // You can integrate with services like:
-      // - SendGrid
-      // - AWS SES
-      // - Firebase Functions with email service
-      // - Custom email API
-      
-      // For development/testing purposes, the code is logged
-      // In production, remove this logging for security
-      
-    } catch (e) {
-      print('ForgotPasswordService: Error sending email: $e');
-      rethrow;
+      return ForgotPasswordResult.error('An error occurred while sending the password reset email. Please try again.');
     }
   }
   
@@ -292,12 +235,6 @@ class ForgotPasswordService {
     }
   }
   
-  /// Generate 6-digit verification code
-  String _generateVerificationCode() {
-    final random = Random();
-    return (100000 + random.nextInt(900000)).toString();
-  }
-  
   /// Validate password strength
   Map<String, dynamic> _validatePasswordStrength(String password) {
     if (password.length < 8) {
@@ -338,31 +275,21 @@ class ForgotPasswordService {
     return {'valid': true};
   }
   
-  /// Get authentication error message
-  String _getAuthErrorMessage(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'user-not-found':
-        return 'No account found with this email address';
-      case 'invalid-email':
-        return 'Invalid email address';
-      case 'too-many-requests':
-        return 'Too many attempts. Please try again later';
-      default:
-        return e.message ?? 'An error occurred. Please try again.';
-    }
-  }
-  
   /// Get password reset error message
   String _getPasswordResetErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
-        return 'No account found with this email address';
+        // For security, don't disclose if email exists - use generic message
+        return 'If an account exists for this email, you will receive a password reset link shortly.';
       case 'invalid-email':
-        return 'Invalid email address';
+        return 'Invalid email address. Please check and try again.';
       case 'too-many-requests':
-        return 'Too many password reset attempts. Please try again later';
+        return 'Too many password reset attempts. Please try again later.';
+      case 'network-request-failed':
+        return 'Network error. Please check your internet connection and try again.';
       default:
-        return e.message ?? 'Failed to reset password. Please try again.';
+        // For security, use generic message that doesn't reveal email existence
+        return 'If an account exists for this email, you will receive a password reset link shortly.';
     }
   }
 }

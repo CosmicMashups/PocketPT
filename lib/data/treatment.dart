@@ -1,3 +1,8 @@
+/// Treatment data model containing all treatment information including instructions.
+/// 
+/// The treatmentInstruction field contains step-by-step instructions on how to 
+/// perform or apply the treatment. This field is populated from the 
+/// "Treatment_Instruction" column in treatment.csv (7th column, index 6).
 class Treatment {
   final String treatmentId;
   final String treatmentName;
@@ -5,6 +10,7 @@ class Treatment {
   final String musclesInvolved;
   final String painLevel;
   final String painDuration;
+  final String treatmentInstruction;
 
   Treatment({
     required this.treatmentId,
@@ -13,11 +19,12 @@ class Treatment {
     required this.musclesInvolved,
     required this.painLevel,
     required this.painDuration,
+    this.treatmentInstruction = '', // Optional for backward compatibility with older CSV files
   });
 
   @override
   String toString() {
-    return 'Treatment{treatmentId: $treatmentId, treatmentName: $treatmentName, description: $description, musclesInvolved: $musclesInvolved, painLevel: $painLevel, painDuration: $painDuration}';
+    return 'Treatment{treatmentId: $treatmentId, treatmentName: $treatmentName, description: $description, musclesInvolved: $musclesInvolved, painLevel: $painLevel, painDuration: $painDuration, treatmentInstruction: $treatmentInstruction}';
   }
 }
 

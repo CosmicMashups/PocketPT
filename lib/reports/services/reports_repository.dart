@@ -23,23 +23,32 @@ class ReportsRepository {
       debugPrint('ReportsRepository: Loading rehabilitation plans...');
       
       // Try to load from local storage first
-      await DataPersistenceService.loadAllDataFromHive();
+      try {
+        await DataPersistenceService.loadAllDataFromHive();
+      } catch (e) {
+        debugPrint('ReportsRepository: Error loading from Hive, continuing with in-memory data: $e');
+        // Continue with whatever data is already in memory
+      }
       
       final userRehab = UserRehabilitation.instance;
-      final plans = userRehab.rehabPlans;
+      final plans = userRehab.rehabPlans.isNotEmpty ? userRehab.rehabPlans : <RehabilitationPlan>[];
       
       debugPrint('ReportsRepository: Loaded ${plans.length} rehabilitation plans from local storage');
       
-      // Attempt Firebase sync in background
-      _syncRehabPlansToFirebase(plans).catchError((e) {
-        debugPrint('ReportsRepository: Firebase sync failed: $e');
-      });
+      // Attempt Firebase sync in background (non-blocking)
+      if (plans.isNotEmpty) {
+        _syncRehabPlansToFirebase(plans).catchError((e) {
+          debugPrint('ReportsRepository: Firebase sync failed: $e');
+        });
+      }
       
       return plans;
       
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('ReportsRepository: Error loading rehabilitation plans: $e');
-      rethrow;
+      debugPrint('ReportsRepository: Stack trace: $stackTrace');
+      // Return empty list instead of rethrowing to prevent blank page
+      return <RehabilitationPlan>[];
     }
   }
 
@@ -58,22 +67,39 @@ class ReportsRepository {
           debugPrint('ReportsRepository: Loaded ${ExerciseHistory.entries.length} exercise history entries from Firebase');
           
           // Save to Hive for offline access
-          await ExerciseHistory.saveToHive();
+          try {
+            await ExerciseHistory.saveToHive();
+          } catch (e) {
+            debugPrint('ReportsRepository: Error saving to Hive after Firebase load: $e');
+            // Continue even if Hive save fails
+          }
         } catch (e) {
           debugPrint('ReportsRepository: Error loading from Firebase, falling back to Hive: $e');
           // Fall back to Hive if Firebase fails
-          await ExerciseHistory.loadFromHive();
+          try {
+            await ExerciseHistory.loadFromHive();
+          } catch (hiveError) {
+            debugPrint('ReportsRepository: Error loading from Hive: $hiveError');
+            // Return empty list if both fail
+            return <ExerciseRecordEntry>[];
+          }
         }
       } else {
         // For guests or unauthenticated users, load from Hive only
-        await ExerciseHistory.loadFromHive();
+        try {
+          await ExerciseHistory.loadFromHive();
+        } catch (e) {
+          debugPrint('ReportsRepository: Error loading exercise history from Hive: $e');
+          // Return empty list if Hive load fails
+          return <ExerciseRecordEntry>[];
+        }
       }
       
-      final history = ExerciseHistory.entries;
+      final history = ExerciseHistory.entries.isNotEmpty ? ExerciseHistory.entries : <ExerciseRecordEntry>[];
       debugPrint('ReportsRepository: Loaded ${history.length} exercise history entries total');
       
       // Attempt Firebase sync in background (only if not already synced)
-      if (!forceRefresh && user != null && !UserDetails.isGuest) {
+      if (!forceRefresh && user != null && !UserDetails.isGuest && history.isNotEmpty) {
         _syncExerciseHistoryToFirebase(history).catchError((e) {
           debugPrint('ReportsRepository: Firebase sync failed: $e');
         });
@@ -81,9 +107,11 @@ class ReportsRepository {
       
       return history;
       
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('ReportsRepository: Error loading exercise history: $e');
-      rethrow;
+      debugPrint('ReportsRepository: Stack trace: $stackTrace');
+      // Return empty list instead of rethrowing to prevent blank page
+      return <ExerciseRecordEntry>[];
     }
   }
 
@@ -102,22 +130,39 @@ class ReportsRepository {
           debugPrint('ReportsRepository: Loaded ${PainHistory.entries.length} pain history entries from Firebase');
           
           // Save to Hive for offline access
-          await PainHistory.saveToHive();
+          try {
+            await PainHistory.saveToHive();
+          } catch (e) {
+            debugPrint('ReportsRepository: Error saving to Hive after Firebase load: $e');
+            // Continue even if Hive save fails
+          }
         } catch (e) {
           debugPrint('ReportsRepository: Error loading from Firebase, falling back to Hive: $e');
           // Fall back to Hive if Firebase fails
-          await PainHistory.loadFromHive();
+          try {
+            await PainHistory.loadFromHive();
+          } catch (hiveError) {
+            debugPrint('ReportsRepository: Error loading from Hive: $hiveError');
+            // Return empty list if both fail
+            return <PainRecordEntry>[];
+          }
         }
       } else {
         // For guests or unauthenticated users, load from Hive only
-        await PainHistory.loadFromHive();
+        try {
+          await PainHistory.loadFromHive();
+        } catch (e) {
+          debugPrint('ReportsRepository: Error loading pain history from Hive: $e');
+          // Return empty list if Hive load fails
+          return <PainRecordEntry>[];
+        }
       }
       
-      final history = PainHistory.entries;
+      final history = PainHistory.entries.isNotEmpty ? PainHistory.entries : <PainRecordEntry>[];
       debugPrint('ReportsRepository: Loaded ${history.length} pain history entries total');
       
       // Attempt Firebase sync in background (only if not already synced)
-      if (!forceRefresh && user != null && !UserDetails.isGuest) {
+      if (!forceRefresh && user != null && !UserDetails.isGuest && history.isNotEmpty) {
         _syncPainHistoryToFirebase(history).catchError((e) {
           debugPrint('ReportsRepository: Firebase sync failed: $e');
         });
@@ -125,9 +170,11 @@ class ReportsRepository {
       
       return history;
       
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('ReportsRepository: Error loading pain history: $e');
-      rethrow;
+      debugPrint('ReportsRepository: Stack trace: $stackTrace');
+      // Return empty list instead of rethrowing to prevent blank page
+      return <PainRecordEntry>[];
     }
   }
 

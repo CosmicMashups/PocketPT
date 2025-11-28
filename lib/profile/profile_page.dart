@@ -17,8 +17,8 @@ import '../demo/pose_estimation_demo.dart';
 import '../main.dart';
 import '../reports/services/pdf_export_service.dart';
 import '../tutorials/tutorial_config.dart';
-import '../tutorials/tutorial_preferences.dart';
-import '../tutorials/tutorial_service.dart';
+// Temporarily hidden: import '../tutorials/tutorial_preferences.dart';
+// Temporarily hidden: import '../tutorials/tutorial_service.dart';
 // removed loader: using direct global data like a_goal1.dart
 
 class ProfilePage extends StatefulWidget {
@@ -37,7 +37,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late AnimationController _animationController;
-  bool _tutorialsEnabled = true;
+  // Temporarily hidden: bool _tutorialsEnabled = true;
 
   @override
   void initState() {
@@ -48,7 +48,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
     // Load settings from Hive/Firebase if not already loaded
     UserSettings.loadFromHive();
-    _loadTutorialPreferences();
+    // Temporarily hidden: _loadTutorialPreferences();
   }
 
   @override
@@ -80,6 +80,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     };
   }
 
+  // Temporarily hidden tutorial-related methods
+  /*
   Future<void> _loadTutorialPreferences() async {
     try {
       await TutorialPreferences.instance.ensureInitialized();
@@ -139,6 +141,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       ),
     );
   }
+  */
 
   // Removed legacy loading/error UI; page now builds directly from globals
 
@@ -213,7 +216,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 ),
                 const SizedBox(height: 24),
                 
-                // AI & Machine Learning Section
+                // AI & Machine Learning Section (temporarily hidden)
+                /*
                 AnimationConfiguration.staggeredList(
                   position: 4,
                   duration: PocketPTAnimations.pageTransition,
@@ -225,7 +229,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+                */
                 // Security Section - HIDDEN
                 // _buildSecuritySection(),
                 // const SizedBox(height: 24),
@@ -541,6 +545,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             },
           ),
 
+          // Tutorials & Guidance Section - Temporarily hidden
+          /*
           const SizedBox(height: 24),
 
           const Text(
@@ -584,6 +590,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
               _resetAllTutorials(context);
             },
           ),
+          */
               ],
             ),
     );
@@ -664,7 +671,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildSettingItem(String title, String subtitle, IconData icon, bool value, Function(bool) onChanged) {
+  Widget _buildSettingItem(String title, String subtitle, IconData icon, bool value, ValueChanged<bool> onChanged) {
     return Row(
       children: [
             Container(
@@ -698,9 +705,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           ],
         ),
       ),
-          Switch(
+        Switch(
           value: value,
-          onChanged: onChanged,
+          onChanged: (newValue) {
+            setState(() {
+              onChanged(newValue);
+            });
+          },
           activeColor: mainColor,
         ),
       ],

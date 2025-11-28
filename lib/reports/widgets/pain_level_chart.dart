@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
@@ -107,14 +108,49 @@ class PainLevelChart extends ConsumerWidget {
       );
     }
 
+    // Filter out invalid entries (entries with empty pain level or invalid dates)
+    final validEntries = painHistory.where((entry) {
+      return entry.painLevel.isNotEmpty && 
+             entry.painScale >= 0 && 
+             entry.painScale <= 10;
+    }).toList();
+
+    if (validEntries.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(context, isDark),
+          const SizedBox(height: 16),
+          _buildEmptyState(context, isDark),
+        ],
+      );
+    }
+
     // Group pain records by date and get the latest entry per day
     final Map<String, PainRecordEntry> dailyPain = {};
-    for (final entry in painHistory) {
-      final dateKey = DateFormat('yyyy-MM-dd').format(entry.date);
-      if (!dailyPain.containsKey(dateKey) || 
-          entry.date.isAfter(dailyPain[dateKey]!.date)) {
-        dailyPain[dateKey] = entry;
+    for (final entry in validEntries) {
+      try {
+        final dateKey = DateFormat('yyyy-MM-dd').format(entry.date);
+        if (!dailyPain.containsKey(dateKey) || 
+            entry.date.isAfter(dailyPain[dateKey]!.date)) {
+          dailyPain[dateKey] = entry;
+        }
+      } catch (e) {
+        debugPrint('PainLevelChart: Error processing entry date: $e');
+        // Skip invalid entries
+        continue;
       }
+    }
+
+    if (dailyPain.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(context, isDark),
+          const SizedBox(height: 16),
+          _buildEmptyState(context, isDark),
+        ],
+      );
     }
 
     // Sort by date
@@ -272,10 +308,13 @@ class PainLevelChart extends ConsumerWidget {
   Widget _buildChartLegend(BuildContext context, bool isDark, List<PainRecordEntry> recentEntries) {
     if (recentEntries.isEmpty) return const SizedBox.shrink();
 
-    final painValues = recentEntries.map((e) => e.painScale).toList();
-    final avgPain = painValues.reduce((a, b) => a + b) / painValues.length;
-    final minPain = painValues.reduce((a, b) => a < b ? a : b);
-    final maxPain = painValues.reduce((a, b) => a > b ? a : b);
+    try {
+      final painValues = recentEntries.map((e) => e.painScale).where((v) => v >= 0 && v <= 10).toList();
+      if (painValues.isEmpty) return const SizedBox.shrink();
+      
+      final avgPain = painValues.reduce((a, b) => a + b) / painValues.length;
+      final minPain = painValues.reduce((a, b) => a < b ? a : b);
+      final maxPain = painValues.reduce((a, b) => a > b ? a : b);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -303,6 +342,10 @@ class PainLevelChart extends ConsumerWidget {
         ),
       ],
     );
+    } catch (e) {
+      debugPrint('PainLevelChart: Error building legend: $e');
+      return const SizedBox.shrink();
+    }
   }
 
   Widget _buildLegendItem(

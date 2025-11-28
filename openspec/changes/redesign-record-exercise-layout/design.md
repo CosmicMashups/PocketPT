@@ -187,3 +187,8 @@ The record exercise page needs a layout redesign to prioritize the camera feed, 
 
 
 
+
+
+
+
+

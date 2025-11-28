@@ -443,14 +443,25 @@ class ExerciseDataService {
       print('ExerciseDataService: Loading treatments from CSV...');
       final csvData = await loadCSVFromAsset('assets/data/treatment.csv');
       
-      // Expected column count for treatment CSV
-      const expectedColumnCount = 6;
+      // Expected column count for treatment CSV (now 7 with Treatment_Instruction column)
+      const expectedColumnCount = 7;
       
       // Fix malformed header: if first row has too many columns, truncate to expected count
       List<dynamic> header = csvData.first;
       if (header.length > expectedColumnCount) {
         print('ExerciseDataService: [TREATMENT FIX] Header row has ${header.length} columns (expected $expectedColumnCount), truncating...');
         header = header.sublist(0, expectedColumnCount);
+      }
+      
+      // Check if Treatment_Instruction column exists (backward compatibility)
+      bool hasInstructionColumn = false;
+      if (header.length >= 7) {
+        final columnName = header[6].toString().trim().toLowerCase().replaceAll(' ', '_');
+        hasInstructionColumn = columnName.contains('treatment') && columnName.contains('instruction');
+      }
+      
+      if (!hasInstructionColumn && header.length >= expectedColumnCount) {
+        print('ExerciseDataService: [WARNING] Treatment_Instruction column not found in CSV. Defaulting to empty string.');
       }
       
       final data = csvData.sublist(1);
@@ -483,6 +494,25 @@ class ExerciseDataService {
       int col(String name) => header.indexOf(name);
 
       _cachedTreatments = data.map((row) {
+        // Parse Treatment_Instruction column (7th column) with backward compatibility
+        String treatmentInstruction = '';
+        try {
+          final instructionColIndex = col('Treatment_Instruction');
+          if (instructionColIndex >= 0 && row.length > instructionColIndex) {
+            treatmentInstruction = row[instructionColIndex].toString().trim();
+          } else if (row.length >= 7) {
+            // Fallback to position 6 if column name lookup fails
+            treatmentInstruction = row[6].toString().trim();
+          } else {
+            print('ExerciseDataService: Row has ${row.length} columns (expected 7). Treatment_Instruction will be empty.');
+          }
+        } catch (e) {
+          // Column name not found or index error - default to empty string
+          if (row.length >= 7) {
+            treatmentInstruction = row[6].toString().trim();
+          }
+        }
+        
         return Treatment(
           treatmentId: row[col('Treatment_ID')].toString(),
           treatmentName: row[col('Treatment')].toString(),
@@ -490,6 +520,7 @@ class ExerciseDataService {
           musclesInvolved: row[col('Muscle_Involved')].toString(),
           painLevel: row[col('Pain_Level')].toString(),
           painDuration: row[col('Pain_Duration')].toString(),
+          treatmentInstruction: treatmentInstruction,
         );
       }).toList();
 
@@ -1014,6 +1045,64 @@ class UserRehabilitation {
   List<TreatmentReference>? treatmentReferences;
   RehabilitationPlan? activePlan;
 
+  // Mandatory treatment IDs that must always appear first in strict order
+  static const List<String> mandatoryTreatmentIds = ['T001', 'T002', 'T003'];
+
+  /// Validates that mandatory treatments (T001, T002, T003) are present and in correct order.
+  /// Returns true if the treatment list has mandatory treatments in positions 0, 1, 2.
+  static bool _validateMandatoryTreatments(List<TreatmentReference> treatments) {
+    if (treatments.length < mandatoryTreatmentIds.length) {
+      return false;
+    }
+    for (int i = 0; i < mandatoryTreatmentIds.length; i++) {
+      if (treatments[i].treatmentId != mandatoryTreatmentIds[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Injects mandatory treatments (T001, T002, T003) at the beginning of the treatment list if missing.
+  /// Removes duplicates from optional treatments if mandatory treatments already exist in wrong positions.
+  static List<TreatmentReference> _injectMandatoryTreatments(List<TreatmentReference>? existingTreatments) {
+    final List<TreatmentReference> result = <TreatmentReference>[];
+    
+    // Add mandatory treatments first
+    for (final mandatoryId in mandatoryTreatmentIds) {
+      result.add(TreatmentReference(treatmentId: mandatoryId));
+    }
+    
+    // Add optional treatments (T004+) after mandatory treatments, avoiding duplicates
+    if (existingTreatments != null && existingTreatments.isNotEmpty) {
+      final existingIds = result.map((t) => t.treatmentId).toSet();
+      for (final treatment in existingTreatments) {
+        // Only add if it's not already in mandatory treatments and not already added
+        if (!mandatoryTreatmentIds.contains(treatment.treatmentId) && !existingIds.contains(treatment.treatmentId)) {
+          result.add(treatment);
+          existingIds.add(treatment.treatmentId);
+        }
+      }
+    }
+    
+    return result;
+  }
+
+  /// Ensures mandatory treatments are present and in correct order.
+  /// Validates and injects if needed, returning the corrected treatment list.
+  static List<TreatmentReference> _ensureMandatoryTreatmentsPresent(List<TreatmentReference>? treatments) {
+    if (treatments == null || treatments.isEmpty) {
+      return _injectMandatoryTreatments(null);
+    }
+    
+    if (_validateMandatoryTreatments(treatments)) {
+      // Already has mandatory treatments in correct order
+      return treatments;
+    }
+    
+    // Inject mandatory treatments (will deduplicate)
+    return _injectMandatoryTreatments(treatments);
+  }
+
   // Get full treatment data from CSV
   Future<List<Treatment>?> getTreatments() async {
     if (treatmentReferences == null || treatmentReferences!.isEmpty) return null;
@@ -1051,8 +1140,26 @@ class UserRehabilitation {
         'lastUpdated': FieldValue.serverTimestamp(),
       };
 
+      // Ensure mandatory treatments are present and validated before saving to Firebase
+      List<TreatmentReference> treatmentsToSave = [];
+      if (treatmentReferences != null && treatmentReferences!.isNotEmpty) {
+        // Validate and inject mandatory treatments if needed
+        if (!_validateMandatoryTreatments(treatmentReferences!)) {
+          print('UserRehabilitation.savePlansToFirebase: [MIGRATION] Mandatory treatments missing or out of order, injecting them...');
+          treatmentsToSave = _ensureMandatoryTreatmentsPresent(treatmentReferences);
+          treatmentReferences = treatmentsToSave;
+        } else {
+          treatmentsToSave = treatmentReferences!;
+        }
+      } else {
+        // No treatments - inject mandatory treatments
+        treatmentsToSave = _ensureMandatoryTreatmentsPresent(null);
+        treatmentReferences = treatmentsToSave;
+        print('UserRehabilitation.savePlansToFirebase: [MIGRATION] No treatments found, injecting mandatory treatments...');
+      }
+      
       // If there are no plans and no treatments, clear the document
-      if (rehabPlans.isEmpty && (treatmentReferences == null || treatmentReferences!.isEmpty)) {
+      if (rehabPlans.isEmpty && treatmentsToSave.isEmpty) {
         await _firestore.collection('rehabilitation').doc(userId).set(rehabDocData, SetOptions(merge: true));
         print('Saved empty rehabilitation structure with metadata');
       } else {
@@ -1070,12 +1177,13 @@ class UserRehabilitation {
 
           // Map 1: treatments as treatment# -> Treatment_ID
           final Map<String, dynamic> treatmentsMap = <String, dynamic>{};
-          if (treatmentReferences != null && treatmentReferences!.isNotEmpty) {
+          if (treatmentsToSave.isNotEmpty) {
             int treatmentCounter = 1;
-            for (final treatmentRef in treatmentReferences!) {
+            for (final treatmentRef in treatmentsToSave) {
               treatmentsMap['treatment$treatmentCounter'] = treatmentRef.treatmentId;
               treatmentCounter++;
             }
+            print('Saved ${treatmentsToSave.length} treatments to Firebase (${mandatoryTreatmentIds.length} mandatory + ${treatmentsToSave.length - mandatoryTreatmentIds.length} optional)');
           }
 
           rehabDocData['Plan$planIndex'] = <Map<String, dynamic>>[
@@ -1238,9 +1346,29 @@ class UserRehabilitation {
           }
         }
 
-        treatmentReferences = aggregatedTreatmentRefs.isNotEmpty ? aggregatedTreatmentRefs : null;
-
-        print('Loaded ${rehabPlans.length} plans and ${aggregatedTreatmentRefs.length} treatment refs from rehabilitation collection');
+        // Ensure mandatory treatments are present and in correct order (migration)
+        List<TreatmentReference> finalTreatmentRefs;
+        if (aggregatedTreatmentRefs.isEmpty || !_validateMandatoryTreatments(aggregatedTreatmentRefs)) {
+          print('UserRehabilitation.loadPlansFromFirebase: [MIGRATION] Mandatory treatments missing or out of order, injecting them...');
+          finalTreatmentRefs = _ensureMandatoryTreatmentsPresent(aggregatedTreatmentRefs.isEmpty ? null : aggregatedTreatmentRefs);
+          
+          // Save migrated treatment list back to Firebase
+          treatmentReferences = finalTreatmentRefs;
+          try {
+            await savePlansToFirebase();
+            print('UserRehabilitation.loadPlansFromFirebase: Saved migrated treatment list back to Firebase');
+          } catch (saveError) {
+            print('UserRehabilitation.loadPlansFromFirebase: Warning - Failed to save migrated treatments to Firebase: $saveError');
+          }
+        } else {
+          finalTreatmentRefs = aggregatedTreatmentRefs;
+        }
+        
+        treatmentReferences = finalTreatmentRefs;
+        
+        final mandatoryCount = mandatoryTreatmentIds.length;
+        final optionalCount = finalTreatmentRefs.length - mandatoryCount;
+        print('Loaded ${rehabPlans.length} plans and ${finalTreatmentRefs.length} treatment refs from rehabilitation collection ($mandatoryCount mandatory + $optionalCount optional)');
       } else {
         print('No rehabilitation document found for user');
       }
@@ -1304,12 +1432,30 @@ class UserRehabilitation {
         }
       }
 
-      // Save treatment IDs to Hive
+      // Save treatment IDs to Hive (with mandatory treatment validation and injection)
+      List<TreatmentReference> treatmentsToSave = [];
       if (treatmentReferences != null && treatmentReferences!.isNotEmpty) {
-        final treatmentIds = treatmentReferences!.map((ref) => ref.treatmentId).toList();
+        // Ensure mandatory treatments are present and in correct order before saving
+        treatmentsToSave = _ensureMandatoryTreatmentsPresent(treatmentReferences!);
+        if (!_validateMandatoryTreatments(treatmentReferences!)) {
+          print('UserRehabilitation.savePlansToHive: [MIGRATION] Mandatory treatments missing or out of order, injecting them...');
+          // Update instance variable to reflect corrected treatment list
+          treatmentReferences = treatmentsToSave;
+        } else {
+          treatmentsToSave = treatmentReferences!;
+        }
+      } else {
+        // No treatments - inject mandatory treatments
+        treatmentsToSave = _ensureMandatoryTreatmentsPresent(null);
+        treatmentReferences = treatmentsToSave;
+        print('UserRehabilitation.savePlansToHive: [MIGRATION] No treatments found, injecting mandatory treatments...');
+      }
+      
+      if (treatmentsToSave.isNotEmpty) {
+        final treatmentIds = treatmentsToSave.map((ref) => ref.treatmentId).toList();
         final hiveTreatmentIds = HiveTreatmentIds(treatmentIds: treatmentIds);
         await box.put('treatmentIds', hiveTreatmentIds);
-        print('Saved ${treatmentIds.length} treatment IDs to Hive');
+        print('Saved ${treatmentIds.length} treatment IDs to Hive (${mandatoryTreatmentIds.length} mandatory + ${treatmentIds.length - mandatoryTreatmentIds.length} optional)');
       } else {
         // Only clear when treatmentReferences is explicitly set (including explicitly empty list)
         if (treatmentReferences != null) {
@@ -1395,18 +1541,35 @@ class UserRehabilitation {
         print('No exercises to reconstruct rehabilitation plan from Hive');
       }
 
-      // Map treatment IDs to full treatment data from CSV
+      // Map treatment IDs to TreatmentReference objects
+      List<TreatmentReference> loadedTreatmentReferences = [];
       if (treatmentIds.isNotEmpty) {
-        final List<Treatment> treatments = await ExerciseDataService.getTreatmentsByIds(treatmentIds);
-        
-        // Convert to treatment references
-        treatmentReferences = treatments.map((treatment) => 
-          TreatmentReference(treatmentId: treatment.treatmentId)).toList();
-
-        print('Reconstructed ${treatmentReferences!.length} treatment references from Hive');
+        loadedTreatmentReferences = treatmentIds.map((id) => TreatmentReference(treatmentId: id)).toList();
+      }
+      
+      // Ensure mandatory treatments are present and in correct order (migration)
+      bool needsMigration = false;
+      if (loadedTreatmentReferences.isEmpty || !_validateMandatoryTreatments(loadedTreatmentReferences)) {
+        print('UserRehabilitation.loadPlansFromHive: [MIGRATION] Mandatory treatments missing or out of order, injecting them...');
+        loadedTreatmentReferences = _ensureMandatoryTreatmentsPresent(loadedTreatmentReferences.isEmpty ? null : loadedTreatmentReferences);
+        needsMigration = true;
+      }
+      
+      // Set treatment references (with mandatory treatments injected if needed)
+      treatmentReferences = loadedTreatmentReferences;
+      
+      // If migration was needed, save back to Hive
+      if (needsMigration && loadedTreatmentReferences.isNotEmpty) {
+        print('UserRehabilitation.loadPlansFromHive: Saving migrated treatment list back to Hive...');
+        final treatmentIdsToSave = loadedTreatmentReferences.map((ref) => ref.treatmentId).toList();
+        final hiveTreatmentIds = HiveTreatmentIds(treatmentIds: treatmentIdsToSave);
+        await box.put('treatmentIds', hiveTreatmentIds);
+      }
+      
+      if (loadedTreatmentReferences.isNotEmpty) {
+        print('Reconstructed ${loadedTreatmentReferences.length} treatment references from Hive (${mandatoryTreatmentIds.length} mandatory + ${loadedTreatmentReferences.length - mandatoryTreatmentIds.length} optional)');
       } else {
-        treatmentReferences = null;
-        print('No treatments to reconstruct from Hive');
+        print('No treatments loaded from Hive (mandatory treatments will be injected on next save)');
       }
       
       print('Successfully loaded and reconstructed rehabilitation data from Hive');

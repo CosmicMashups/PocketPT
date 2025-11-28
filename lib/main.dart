@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,9 +59,9 @@ void main() async {
   // Disable debug overflow overlays (yellow/black warning banners)
   ErrorWidget.builder = (FlutterErrorDetails details) {
     // Return a simple container instead of the debug overlay
-    return Container(
+    return const ColoredBox(
       color: Colors.transparent,
-      child: const SizedBox.shrink(),
+      child: SizedBox.shrink(),
     );
   };
 
@@ -150,6 +149,9 @@ void main() async {
         }
         if (!Hive.isAdapterRegistered(12)) {
           Hive.registerAdapter(HiveTreatmentIdsAdapter());
+        }
+        if (!Hive.isAdapterRegistered(13)) {
+          Hive.registerAdapter(HiveCustomExerciseAdapter());
         }
         debugPrint('Main: Hive adapters registered successfully');
       } catch (e) {
@@ -937,7 +939,8 @@ class _HomePageState extends State<HomePage> {
         index: _currentIndex,
         children: _pages,
       ),
-      floatingActionButton: _buildTutorialFab(context),
+      // Temporarily hide tutorial FAB while the feature is paused
+      floatingActionButton: null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,

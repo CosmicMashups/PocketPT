@@ -30,7 +30,7 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+            color: Color.fromRGBO(0, 0, 0, isDark ? 0.2 : 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -69,7 +69,7 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
             color: isDark ? Theme.of(context).colorScheme.surface : const Color(0xFFF9FAFB),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.red.withOpacity(0.3),
+          color: Color.fromRGBO(255, 0, 0, 0.3),
               width: 1,
             ),
           ),
@@ -128,30 +128,35 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(139, 46, 46, 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.calendar_today,
+                  color: Color(0xFF8B2E2E),
+                  size: 20,
+                ),
               ),
-              child: const Icon(
-                Icons.calendar_today,
-                color: Color(0xFF8B2E2E),
-                size: 20,
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Calendar',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF8B2E2E),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Calendar',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF8B2E2E),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -170,24 +175,28 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
               },
             ),
             Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B2E2E).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: const Color(0xFF8B2E2E).withOpacity(0.2),
-                    width: 1,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color.fromRGBO(139, 46, 46, 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color.fromRGBO(139, 46, 46, 0.2),
+                      width: 1,
+                    ),
                   ),
-                ),
-                child: Text(
-                  DateFormat('MMM yyyy').format(selectedDate),
-                  style: TextStyle(
-                    color: const Color(0xFF8B2E2E),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                  child: Text(
+                    DateFormat('MMM yyyy').format(selectedDate),
+                    style: const TextStyle(
+                      color: Color(0xFF8B2E2E),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
@@ -344,7 +353,7 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
                           : null,
                       boxShadow: hasExercises ? [
                         BoxShadow(
-                          color: const Color(0xFF8B2E2E).withOpacity(0.2),
+                          color: Color.fromRGBO(139, 46, 46, 0.2),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -381,9 +390,9 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: completedExercises > 0 
-                                        ? const Color(0xFF10B981).withOpacity(0.5)
-                                        : const Color(0xFFF59E0B).withOpacity(0.5),
+                                color: completedExercises > 0 
+                                    ? Color.fromRGBO(16, 185, 129, 0.5)
+                                    : Color.fromRGBO(245, 158, 11, 0.5),
                                     blurRadius: 3,
                                     spreadRadius: 0.5,
                                   ),
@@ -428,18 +437,18 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
 
   Color _getDayColor(bool isToday, bool hasExercises, int completedExercises, int partialExercises, int totalExercises) {
     if (isToday) {
-      return const Color(0xFF8B2E2E).withOpacity(0.1);
+      return Color.fromRGBO(139, 46, 46, 0.1);
     }
     
     if (hasExercises) {
       if (completedExercises == totalExercises) {
-        return const Color(0xFF10B981).withOpacity(0.2); // All completed - green
+        return Color.fromRGBO(16, 185, 129, 0.2); // All completed - green
       } else if (completedExercises > 0) {
-        return const Color(0xFF10B981).withOpacity(0.15); // Some completed - light green
+        return Color.fromRGBO(16, 185, 129, 0.15); // Some completed - light green
       } else if (partialExercises > 0) {
-        return const Color(0xFFF59E0B).withOpacity(0.2); // Only partial - orange
+        return Color.fromRGBO(245, 158, 11, 0.2); // Only partial - orange
       } else {
-        return const Color(0xFFEF4444).withOpacity(0.2); // No completed or partial - red
+        return Color.fromRGBO(239, 68, 68, 0.2); // No completed or partial - red
       }
     }
     
@@ -496,16 +505,16 @@ class _ExerciseCalendarGridState extends ConsumerState<ExerciseCalendarGrid> {
                 ...dayRecords.map((record) => Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white10 : const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: record.status.toLowerCase() == 'completed'
-                          ? const Color(0xFF10B981).withOpacity(0.3)
-                          : const Color(0xFFF59E0B).withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white10 : const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: record.status.toLowerCase() == 'completed'
+                              ? Color.fromRGBO(16, 185, 129, 0.3)
+                              : Color.fromRGBO(245, 158, 11, 0.3),
+                          width: 1,
+                        ),
+                      ),
                   child: Row(
                     children: [
                       Container(

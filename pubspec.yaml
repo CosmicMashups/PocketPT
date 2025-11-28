@@ -94,8 +94,6 @@ dependencies:
   # For file system access
   path_provider: ^2.1.2
   
-  # For YouTube video playback
-  youtube_player_iframe: ^5.2.2
 
 # App Icon
 flutter_icons:

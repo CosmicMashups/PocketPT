@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'assessment_data.dart';
 import '../data/globals.dart';
 import 'b_focus1.dart';
+import 'preliminary.dart';
 // Persistence and sync removed for assessment choices (local-only)
 
 class AssessGoal1 extends StatefulWidget {
@@ -87,8 +88,21 @@ class _AssessGoal1State extends State<AssessGoal1> {
                     print('AssessGoal1: Back button pressed');
                     print('AssessGoal1: Current AssessmentData.rehabGoal before navigation = "${AssessmentData.rehabGoal}"');
                     print('AssessGoal1: Current UserAssess.rehabGoal before navigation = "${UserAssess.rehabGoal}"');
-                    Navigator.pop(context);
-                    print('AssessGoal1: Navigator.pop() completed');
+                    Navigator.pushReplacement(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => const AssessPrelim(),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          const begin = Offset(-1.0, 0.0);
+                          const end = Offset.zero;
+                          const curve = Curves.easeInOut;
+                          final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                          final offsetAnimation = animation.drive(tween);
+                          return SlideTransition(position: offsetAnimation, child: child);
+                        },
+                      ),
+                    );
+                    print('AssessGoal1: Navigation to AssessPrelim completed');
                   },
                 ),
                 Expanded(

@@ -59,7 +59,7 @@ class ChestAssessment {
     // Higher angle = better forward elevation
     if (angle < AssessmentConstants.chestSevereThreshold) return 'severe';      // Angle < 45° -> Severe
     if (angle < AssessmentConstants.chestModerateThreshold) return 'moderate';  // 45° <= Angle < 90° -> Moderate
-    return 'good';                      // Angle >= 90° -> Good
+    return 'low';                      // Angle >= 90° -> Low
   }
 
   /// Get ROM label for display
@@ -69,8 +69,8 @@ class ChestAssessment {
         return 'Chest ROM: Severe (< 45°)';
       case 'moderate':
         return 'Chest ROM: Moderate (45-90°)';
-      case 'good':
-        return 'Chest ROM: Good (≥ 90°)';
+      case 'low':
+        return 'Chest ROM: Low (≥ 90°)';
       default:
         return 'Chest ROM: Unknown';
     }
@@ -83,7 +83,7 @@ class ChestAssessment {
         return 'Severe';
       case 'moderate':
         return 'Moderate';
-      case 'good':
+      case 'low':
         return 'Low';
       default:
         return 'Low';

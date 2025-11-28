@@ -15,11 +15,6 @@ class AssessmentConstants {
   static const double calfSevereThreshold = 0.15;  // Normalized displacement < 0.15 -> Severe
   static const double calfModerateThreshold = 0.30;  // 0.15 <= displacement < 0.30 -> Moderate
   
-  // Hamstring ROM thresholds (Shoulder-Hip-Knee angle)
-  static const double hamstringLowThreshold = 190.0;  // Angle < 190° -> Low (Poor flexion)
-  static const double hamstringModerateThreshold = 210.0;  // 190° <= Angle < 210° -> Moderate (Partial flexion)
-  // Angle >= 210° -> Severe (Leg extended, good flexion)
-  
   // Pelvic compensation threshold
   static const double pelvicCompensationThresholdNorm = 0.05; // Vertical difference > 5% of body height proxy -> Warning
   
@@ -45,17 +40,18 @@ class AssessmentConstants {
   static const double quadricepsModerateThreshold = 140.0; // 120° <= Angle < 140° -> Moderate (Partial flexion)
   
   // Gluteal ROM thresholds
-  static const double glutealSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended)
-  static const double glutealModerateThreshold = 100.0; // 100° <= Angle < 160° -> Moderate
+  static const double glutealSevereThreshold = 180.0;  // Angle >= 180° -> Severe (Extended)
+  static const double glutealModerateThreshold = 140.0; // 140° <= Angle < 160° -> Moderate
+  static const double glutealModerateUpperThreshold = 160.0; // Angle < 160° continues moderate range
   
-  // Enhanced Hamstring ROM thresholds (for shoulder-hip-knee assessment)
-  static const double hamstringEnhancedLowThreshold = 190.0;  // Angle < 190° -> Low (Poor flexion)
-  static const double hamstringEnhancedModerateThreshold = 210.0;  // 190° <= Angle < 210° -> Moderate (Partial flexion)
-  // Angle >= 210° -> Severe (Leg extended, good flexion)
+  // Hamstring ROM thresholds
+  static const double hamstringLowThreshold = 140.0;  // Angle < 140° -> Low (Flexed)
+  static const double hamstringModerateUpperThreshold = 160.0;  // 140° <= Angle < 160° -> Moderate
+  static const double hamstringSevereThreshold = 180.0;  // Angle >= 180° -> Severe (Extended)
   
   // Trunk ROM thresholds (for unified trunk muscle assessment)
-  static const double trunkSevereThreshold = 160.0;  // Angle >= 160° -> Severe (Extended/Upright)
-  static const double trunkModerateThreshold = 60.0; // 60° <= Angle < 160° -> Moderate
+  static const double trunkSevereThreshold = 150.0;  // Angle >= 150° -> Severe (Extended/Upright)
+  static const double trunkModerateThreshold = 80.0; // 80° <= Angle < 150° -> Moderate
 }
 
 /// Standardized pain scale mapping
@@ -68,8 +64,6 @@ class PainScaleMapping {
         return 6; // 5-7: Moderate limitation/pain (noticeable functional impact)
       case 'low':
         return 3; // 2-4: Low limitation/pain (minimal functional impact)
-      case 'good':
-        return 1; // 0-1: Good ROM/no pain (normal function)
       default:
         return 5; // Default moderate pain when ROM level is unknown
     }
@@ -84,8 +78,7 @@ class PainScaleMapping {
       case 'moderate':
         return 'Moderate'; // Moderate limitation/pain
       case 'low':
-      case 'good':
-        return 'Low'; // Low limitation/pain or good ROM
+        return 'Low'; // Low limitation/pain
       default:
         return 'Moderate'; // Default moderate when ROM level is unknown
     }

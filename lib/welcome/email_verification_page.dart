@@ -441,32 +441,34 @@ class _SimpleEmailVerificationPageState extends State<SimpleEmailVerificationPag
                     const SizedBox(height: 32),
                     
                   if (_isChecking)
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: const Color(0xFFE5E7EB),
-                          width: 1,
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFFE5E7EB),
+                            width: 1,
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        children: [
-                          const CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
-                            strokeWidth: 3,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Checking verification status...',
-                            style: GoogleFonts.ptSans(
-                              fontSize: 16,
-                              color: const Color(0xFF6B7280),
-                              fontWeight: FontWeight.w500,
+                        child: Column(
+                          children: [
+                            const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B2E2E)),
+                              strokeWidth: 3,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            Text(
+                              'Checking verification status...',
+                              style: GoogleFonts.ptSans(
+                                fontSize: 16,
+                                color: const Color(0xFF6B7280),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   else

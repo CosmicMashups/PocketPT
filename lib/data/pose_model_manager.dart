@@ -10,10 +10,10 @@ import 'pose_diagnostics.dart';
 
 /// Manages the pose estimation model loading and inference
 /// 
-/// This class handles the custom pose estimation model (pose_estimation_model.pt)
+/// This class handles the custom pose estimation model (pose_model.ptl)
 /// which is a YOLO11s-pose model trained with Ultralytics.
 /// 
-/// Uses ONNX Runtime for model inference.
+/// Uses PyTorch Mobile for model inference (.ptl format - PyTorch Lite).
 /// 
 /// Model specifications:
 /// - Input size: 320x320 pixels (RGB format)
@@ -95,9 +95,57 @@ class PoseModelManager {
     
     // Load model from assets and copy to temporary directory
     final byteData = await rootBundle.load(modelAssetPath);
-    final tempDir = await getTemporaryDirectory();
+    
+    // Try to get temporary directory with multiple fallbacks
+    Directory tempDir;
+    try {
+      tempDir = await getTemporaryDirectory();
+    } catch (e1) {
+      debugPrint('PoseModelManager: ⚠️ getTemporaryDirectory failed: $e1');
+      try {
+        // Try application documents directory as fallback
+        tempDir = await getApplicationDocumentsDirectory();
+        debugPrint('PoseModelManager: Using application documents directory as fallback');
+      } catch (e2) {
+        debugPrint('PoseModelManager: ⚠️ getApplicationDocumentsDirectory failed: $e2');
+        try {
+          // Try application support directory as fallback
+          tempDir = await getApplicationSupportDirectory();
+          debugPrint('PoseModelManager: Using application support directory as fallback');
+        } catch (e3) {
+          debugPrint('PoseModelManager: ⚠️ getApplicationSupportDirectory failed: $e3');
+          // Last resort: try system temp (may fail on some platforms)
+          try {
+            tempDir = Directory.systemTemp;
+            debugPrint('PoseModelManager: Using system temp directory as last resort');
+          } catch (e4) {
+            debugPrint('PoseModelManager: ❌ All directory options failed');
+            throw Exception('Cannot get temporary directory: $e1, $e2, $e3, $e4');
+          }
+        }
+      }
+    }
+    
+    // Ensure directory exists
+    if (!await tempDir.exists()) {
+      await tempDir.create(recursive: true);
+    }
+    
     final modelFile = File('${tempDir.path}/pose_model.ptl');
-    await modelFile.writeAsBytes(byteData.buffer.asUint8List());
+    
+    // Write model file with error handling
+    try {
+      await modelFile.writeAsBytes(byteData.buffer.asUint8List());
+      debugPrint('PoseModelManager: PyTorch model written to: ${modelFile.path}');
+    } catch (e) {
+      debugPrint('PoseModelManager: ❌ Error writing model file: $e');
+      throw Exception('Cannot write model file to ${modelFile.path}: $e');
+    }
+    
+    // Verify file was written
+    if (!await modelFile.exists()) {
+      throw Exception('Model file was not created at ${modelFile.path}');
+    }
     
     _modelPath = modelFile.path;
     debugPrint('PoseModelManager: PyTorch model copied to: $_modelPath');
@@ -133,6 +181,7 @@ class PoseModelManager {
       
       // Run a test inference
       final testResult = await _pytorchChannel.invokeMethod('run', {
+        'modelPath': _modelPath, // Pass model path to identify which model to use
         'input': testPreprocessed.data,
         'inputShape': [1, 3, modelInputSize, modelInputSize],
       });
@@ -193,6 +242,7 @@ class PoseModelManager {
       // Run inference via method channel
       final inferenceStart = DateTime.now();
       final result = await _pytorchChannel.invokeMethod('run', {
+        'modelPath': _modelPath, // Pass model path to identify which model to use
         'input': preprocessed.data,
         'inputShape': [1, 3, modelInputSize, modelInputSize],
       });
@@ -402,9 +452,11 @@ class PoseModelManager {
     _errorMessage = null;
     
     // Dispose PyTorch Mobile session if active
-    if (_usePyTorch) {
+    if (_usePyTorch && _modelPath != null) {
       try {
-        await _pytorchChannel.invokeMethod('dispose');
+        await _pytorchChannel.invokeMethod('dispose', {
+          'modelPath': _modelPath, // Pass model path to dispose specific model
+        });
         debugPrint('PoseModelManager: PyTorch Mobile session disposed');
       } catch (e) {
         debugPrint('PoseModelManager: Error disposing PyTorch Mobile: $e');

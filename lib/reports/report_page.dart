@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'widgets/rehab_plan_expansion_panel.dart';
@@ -10,6 +11,7 @@ import '../core/animations.dart';
 import 'services/reports_data_service.dart';
 import '../tutorials/tutorial_preferences.dart';
 import '../tutorials/tutorial_service.dart';
+import '../data/globals.dart';
 // removed data wrapper: using direct globals like a_goal1.dart
 class ReportPage extends ConsumerStatefulWidget {
   const ReportPage({super.key});
@@ -225,6 +227,60 @@ class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStat
   Widget _buildReportsContent(BuildContext context, ReportsData reportsData, ReportsDataService service) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
+    // Handle empty data state
+    final hasNoData = reportsData.rehabPlans.isEmpty && 
+                      reportsData.exerciseHistory.isEmpty && 
+                      reportsData.painHistory.isEmpty;
+    
+    if (hasNoData) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.analytics_outlined,
+                size: 64,
+                color: detailColor.withOpacity(0.5),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No Reports Data Available',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white70 : mainColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Complete some exercises or record pain levels to see your progress reports here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: detailColor,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  ref.invalidate(reportsDataProvider);
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: mainColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: AnimationLimiter(
@@ -304,10 +360,182 @@ class _ReportPageState extends ConsumerState<ReportPage> with TickerProviderStat
             ),
           ),
           const SizedBox(height: 24),
+          AnimationConfiguration.staggeredList(
+            position: 6,
+            duration: PocketPTAnimations.pageTransition,
+            child: SlideAnimation(
+              verticalOffset: 50.0,
+              child: FadeInAnimation(
+                child: _buildSampleDataButton(context, isDark),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
         ),
       ),
     );
+  }
+
+  Widget _buildSampleDataButton(BuildContext context, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Sample Data',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white : mainColor,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Add sample pain history data for testing',
+            style: TextStyle(
+              fontSize: 14,
+              color: detailColor,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => _saveSamplePainData(context),
+            icon: const Icon(Icons.add_chart),
+            label: const Text('Add Sample Pain Data'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: mainColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveSamplePainData(BuildContext context) async {
+    try {
+      // Show loading indicator
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Parse dates: 11-21-2025 00:00:00 and 11-22-2025 00:00:00
+      // Normalize to date only (remove time component)
+      final date1 = DateTime(2025, 11, 21);
+      final date2 = DateTime(2025, 11, 22);
+
+      // Create sample pain entries
+      final entry1 = PainRecordEntry(
+        date: date1,
+        painScale: 8,
+        painLevel: 'Severe',
+      );
+      final entry2 = PainRecordEntry(
+        date: date2,
+        painScale: 5,
+        painLevel: 'Moderate',
+      );
+
+      // Helper function to check if two dates are the same (ignoring time)
+      bool isSameDate(DateTime a, DateTime b) {
+        return a.year == b.year && a.month == b.month && a.day == b.day;
+      }
+
+      // Check if entries already exist for these dates and replace them
+      final existingIndex1 = PainHistory.entries.indexWhere(
+        (e) => isSameDate(e.date, date1),
+      );
+      final existingIndex2 = PainHistory.entries.indexWhere(
+        (e) => isSameDate(e.date, date2),
+      );
+
+      if (existingIndex1 >= 0) {
+        PainHistory.entries[existingIndex1] = entry1;
+      } else {
+        PainHistory.entries.add(entry1);
+      }
+
+      if (existingIndex2 >= 0) {
+        PainHistory.entries[existingIndex2] = entry2;
+      } else {
+        PainHistory.entries.add(entry2);
+      }
+
+      // Sort entries by date
+      PainHistory.entries.sort((a, b) => a.date.compareTo(b.date));
+
+      // Save to Hive
+      await PainHistory.saveToHive();
+      
+      // Save to Firebase
+      await PainHistory.saveToFirebase();
+
+      // Close loading dialog
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      // Show success message
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sample pain data saved successfully to Hive and Firebase'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Clear cache and refresh reports data
+      final service = ref.read(reportsDataServiceProvider);
+      service.clearCacheEntry('pain_history');
+      ref.invalidate(reportsDataProvider);
+      ref.invalidate(painHistoryProvider);
+    } catch (e, stackTrace) {
+      // Close loading dialog if still open
+      if (mounted) {
+        try {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        } catch (_) {
+          // Ignore navigation errors
+        }
+      }
+
+      // Show error message
+      if (!mounted) return;
+      debugPrint('Error saving sample pain data: $e');
+      debugPrint('Stack trace: $stackTrace');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving sample data: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   Widget _buildHeaderSection(BuildContext context, ReportsData reportsData, bool isDark) {

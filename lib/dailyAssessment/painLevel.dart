@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../data/globals.dart';
@@ -30,9 +31,13 @@ class _PainLevelPageState extends State<PainLevelPage> {
   }
 
   Color _getPainColor(int value) {
-    if (value <= 3) return const Color(0xFF10B981); // Green
-    if (value <= 7) return const Color(0xFFF59E0B); // Orange
-    return const Color(0xFFEF4444); // Red
+    // Low (0-3): Green
+    if (value <= 3) return const Color(0xFF10B981);
+    // Moderate (4-7): Yellow-Orange
+    if (value <= 7) return const Color(0xFFF59E0B);
+    // Severe (8-10): Red, with dark red/mahogany for most severe (9-10)
+    if (value <= 8) return const Color(0xFFEF4444);
+    return const Color(0xFF8B2E2E); // Dark red/mahogany for most severe (9-10)
   }
 
   String _getPainDescription(int level) {
@@ -346,13 +351,14 @@ class _PainLevelPageState extends State<PainLevelPage> {
               borderRadius: BorderRadius.circular(4),
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF10B981),
-                  const Color(0xFFF59E0B),
-                  const Color(0xFFC24A4A),
-                  const Color(0xFF8B2E2E),
-                  const Color(0xFFEF4444),
+                  const Color(0xFF10B981), // Low (0-3): Green
+                  const Color(0xFF10B981), // End of Low range (position 3)
+                  const Color(0xFFF59E0B), // Moderate (4-7): Yellow-Orange
+                  const Color(0xFFF59E0B), // End of Moderate range (position 7)
+                  const Color(0xFFEF4444), // Severe (8): Bright red
+                  const Color(0xFF8B2E2E), // Severe (9-10): Dark red/mahogany
                 ],
-                stops: const [0.0, 0.3, 0.6, 0.8, 1.0],
+                stops: const [0.0, 0.3, 0.4, 0.7, 0.8, 1.0],
               ),
             ),
           ),
@@ -480,12 +486,15 @@ class _PainLevelPageState extends State<PainLevelPage> {
             size: 20,
           ),
           const SizedBox(width: 8),
-          Text(
-            "Pain Level: $selectedPainLevel",
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: color,
+          Flexible(
+            child: Text(
+              "Pain Level: $selectedPainLevel",
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 8),
@@ -502,6 +511,7 @@ class _PainLevelPageState extends State<PainLevelPage> {
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -549,11 +559,11 @@ class _PainLevelPageState extends State<PainLevelPage> {
   Color _getPainColorFromLevel(String level) {
     switch (level) {
       case "Low":
-        return const Color(0xFF10B981);
+        return const Color(0xFF10B981); // Green
       case "Moderate":
-        return const Color(0xFFF59E0B);
+        return const Color(0xFFF59E0B); // Yellow-Orange
       case "Severe":
-        return const Color(0xFFEF4444);
+        return const Color(0xFF8B2E2E); // Dark red/mahogany for severe
       default:
         return const Color(0xFF6B7280);
     }
@@ -623,11 +633,35 @@ class _PainLevelPageState extends State<PainLevelPage> {
       ),
       child: ElevatedButton.icon(
         onPressed: () async {
-          await PainHistory.recordTodayAndSave(
-            painScale: selectedPainLevel,
-            painLevel: getPainDescription(selectedPainLevel),
-          );
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          try {
+            // Use addEntryAndSave to add entry without overwriting existing ones
+            // This matches the sample data behavior and saves to both Hive and Firebase
+            await PainHistory.addEntryAndSave(
+              painScale: selectedPainLevel,
+              painLevel: getPainDescription(selectedPainLevel),
+              date: DateTime.now(), // Use current date/time
+            );
+            
+            // Also update UserAssess for consistency
+            UserAssess.painScale = selectedPainLevel;
+            UserAssess.painLevel = _getCategoricalPainLevel(selectedPainLevel);
+            AssessmentData.painScale = selectedPainLevel;
+            
+            if (mounted) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
+          } catch (e) {
+            debugPrint('PainLevelPage: Error saving pain data: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error saving pain data: $e'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,

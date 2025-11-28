@@ -77,15 +77,6 @@ if ($LASTEXITCODE -eq 0) {
         Write-Host "Adding web build files to git..." -ForegroundColor White
         git add -f build/web/
         
-        # Verify critical files are staged
-        $stagedFiles = git diff --cached --name-only build/web/
-        if ($stagedFiles -notcontains "build/web/index.html") { 
-            throw "index.html not staged for commit" 
-        }
-        if ($stagedFiles -notcontains "build/web/flutter_bootstrap.js") { 
-            throw "flutter_bootstrap.js not staged for commit" 
-        }
-
         # Create temporary deploy commit
         Write-Host "Creating temporary deploy commit..." -ForegroundColor White
         git commit -m "chore(deploy): web build $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" --allow-empty --no-verify

@@ -18,7 +18,8 @@ class MainActivity : FlutterActivity() {
     private val PYTORCH_CHANNEL = "com.pocketpt/pytorch"
     private var poseSession: OrtSession? = null
     private var painSession: OrtSession? = null
-    private var pytorchModule: Module? = null
+    // Support multiple PyTorch models simultaneously (pose and pain recognition)
+    private val pytorchModules: MutableMap<String, Module> = mutableMapOf()
     private var ortEnv: OrtEnvironment? = null
 
 
@@ -135,6 +136,9 @@ class MainActivity : FlutterActivity() {
         super.onDestroy()
         poseSession?.close()
         painSession?.close()
+        // Dispose all PyTorch models
+        pytorchModules.values.forEach { it.destroy() }
+        pytorchModules.clear()
     }
     private fun handlePyTorchMethodCall(
         call: io.flutter.plugin.common.MethodCall,
@@ -149,16 +153,34 @@ class MainActivity : FlutterActivity() {
                         return
                     }
                     
-                    pytorchModule = Module.load(modelPath)
+                    // Check if model is already loaded
+                    if (pytorchModules.containsKey(modelPath)) {
+                        Log.d("PocketPT", "PyTorch model already loaded: $modelPath")
+                        result.success(true)
+                        return
+                    }
+                    
+                    // Load the model and store it with model path as key
+                    val module = Module.load(modelPath)
+                    pytorchModules[modelPath] = module
+                    Log.d("PocketPT", "PyTorch model loaded: $modelPath (Total models: ${pytorchModules.size})")
                     result.success(true)
                 } catch (e: Exception) {
+                    Log.e("PocketPT", "Error loading PyTorch model: ${e.message}", e)
                     result.error("INIT_ERROR", e.message, null)
                 }
             }
             "run" -> {
                 try {
-                    if (pytorchModule == null) {
-                        result.error("NOT_INITIALIZED", "Module not initialized", null)
+                    val modelPath = call.argument<String>("modelPath")
+                    if (modelPath == null) {
+                        result.error("INVALID_ARGUMENT", "modelPath is required for run", null)
+                        return
+                    }
+                    
+                    val module = pytorchModules[modelPath]
+                    if (module == null) {
+                        result.error("NOT_INITIALIZED", "Module not initialized for path: $modelPath", null)
                         return
                     }
 
@@ -172,33 +194,62 @@ class MainActivity : FlutterActivity() {
                     val inputTensor = Tensor.fromBlob(floatArray, shape)
 
                     // DEBUG LOGGING
+                    Log.d("PocketPT", "Running inference on model: $modelPath")
                     Log.d("PocketPT", "Input Tensor Shape: ${shape.joinToString()}")
                     Log.d("PocketPT", "Input Tensor First 5: ${floatArray.take(5).joinToString()}")
-                    var minVal = Float.MAX_VALUE
-                    var maxVal = Float.MIN_VALUE
-                    for (f in floatArray) {
-                        if (f < minVal) minVal = f
-                        if (f > maxVal) maxVal = f
-                    }
-                    Log.d("PocketPT", "Input Tensor Range: [$minVal, $maxVal]")
 
-                    val outputTensor = pytorchModule!!.forward(IValue.from(inputTensor)).toTensor()
+                    val outputTensor = module.forward(IValue.from(inputTensor)).toTensor()
+
+                    // DEBUG LOGGING - Check tensor shape first
+                    val tensorShape = outputTensor.shape()
+                    Log.d("PocketPT", "Output Tensor Shape: ${tensorShape.joinToString()}")
+                    
+                    // Get the actual shape dimensions
+                    val totalElements = tensorShape.fold(1L) { acc, dim -> acc * dim }
+                    Log.d("PocketPT", "Output Tensor Total Elements: $totalElements")
+                    
+                    // Extract all output values - let Dart side handle format-specific parsing
+                    // Different models have different output formats:
+                    // - Pain model: [1, 3] -> 3 logit values
+                    // - Pose model: YOLO output with keypoints (much larger array)
                     val outputArray = outputTensor.dataAsFloatArray
-
-                    // DEBUG LOGGING
-                    Log.d("PocketPT", "Output Tensor Size: ${outputArray.size}")
-                    Log.d("PocketPT", "Output Tensor First 5: ${outputArray.take(5).joinToString()}")
-
+                    
+                    // DEBUG LOGGING - Show output info (limit values shown to avoid log spam)
+                    Log.d("PocketPT", "Output Array Size: ${outputArray.size}")
+                    if (outputArray.size <= 10) {
+                        Log.d("PocketPT", "Output Array All Values: ${outputArray.joinToString(", ")}")
+                    } else {
+                        Log.d("PocketPT", "Output Array First 5: ${outputArray.take(5).joinToString(", ")}")
+                        Log.d("PocketPT", "Output Array Last 5: ${outputArray.takeLast(5).joinToString(", ")}")
+                    }
+                    
+                    // Return ALL output values - let Dart service parse based on model type
                     val outputList = outputArray.map { it.toDouble() }.toList()
                     result.success(outputList)
                 } catch (e: Exception) {
+                    Log.e("PocketPT", "Error running PyTorch inference: ${e.message}", e)
                     result.error("INFERENCE_ERROR", e.message, null)
                 }
             }
             "dispose" -> {
-                pytorchModule?.destroy()
-                pytorchModule = null
-                result.success(null)
+                try {
+                    val modelPath = call.argument<String>("modelPath")
+                    if (modelPath != null) {
+                        // Dispose specific model
+                        pytorchModules[modelPath]?.destroy()
+                        pytorchModules.remove(modelPath)
+                        Log.d("PocketPT", "PyTorch model disposed: $modelPath")
+                    } else {
+                        // Dispose all models (backward compatibility)
+                        pytorchModules.values.forEach { it.destroy() }
+                        pytorchModules.clear()
+                        Log.d("PocketPT", "All PyTorch models disposed")
+                    }
+                    result.success(null)
+                } catch (e: Exception) {
+                    Log.e("PocketPT", "Error disposing PyTorch model: ${e.message}", e)
+                    result.error("DISPOSE_ERROR", e.message, null)
+                }
             }
             else -> result.notImplemented()
         }

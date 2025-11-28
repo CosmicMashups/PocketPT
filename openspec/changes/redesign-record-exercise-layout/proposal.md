@@ -53,3 +53,8 @@ These issues reduce usability, hinder focus on exercise recording, and create in
 
 
 
+
+
+
+
+

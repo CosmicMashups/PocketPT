@@ -22,7 +22,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
   static const backgroundColor = Color(0xFFF8FAFC);
   static const successColor = Color(0xFF10B981);
 
-  int selectedPainLevel = 0;
+  int selectedPainLevel = 1;
 
   @override
   void initState() {
@@ -31,8 +31,29 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
     print('AssessPainLevel: Current AssessmentData.painScale = "${AssessmentData.painScale}"');
     print('AssessPainLevel: Current UserAssess.painScale = "${UserAssess.painScale}"');
     
-    // Initialize selectedPainLevel from local data
-    selectedPainLevel = UserAssess.painScale;
+    // Initialize selectedPainLevel from AROM assessment data (preferred) or UserAssess
+    // AROM assessment values are set in c_camera.dart via AssessmentData and UserAssess
+    // Ensure value is within valid range (1-10, not 0-10)
+    // 0 is explicitly not allowed - clamp to minimum of 1
+    
+    // Prefer AssessmentData.painScale (from AROM) over UserAssess.painScale
+    final initialValue = AssessmentData.painScale > 0 ? AssessmentData.painScale : UserAssess.painScale;
+    
+    print('AssessPainLevel: Initializing from AROM assessment');
+    print('AssessPainLevel: AssessmentData.painScale = ${AssessmentData.painScale}');
+    print('AssessPainLevel: UserAssess.painScale = ${UserAssess.painScale}');
+    print('AssessPainLevel: Using initialValue = $initialValue');
+    
+    if (initialValue < 1) {
+      selectedPainLevel = 1;
+      // Also update the stored values to prevent 0 from persisting
+      UserAssess.painScale = 1;
+      AssessmentData.painScale = 1;
+    } else if (initialValue > 10) {
+      selectedPainLevel = 10;
+    } else {
+      selectedPainLevel = initialValue;
+    }
     print('AssessPainLevel: selectedPainLevel initialized to: $selectedPainLevel');
     print('AssessPainLevel: initState() completed');
   }
@@ -114,7 +135,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                     // Question Section
                     _buildQuestionSection(
                       "Pain Intensity",
-                      "On a scale of 0-10, how would you rate your current pain level?",
+                      "On a scale of 1-10, how would you rate your current pain level?",
                       Icons.sentiment_neutral,
                     ),
 
@@ -144,7 +165,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                         ],
                       ),
                       child: ElevatedButton(
-                        onPressed: selectedPainLevel > 0 ? () {
+                        onPressed: selectedPainLevel >= 1 ? () {
             Navigator.push(
               context,
               PageRouteBuilder(
@@ -326,15 +347,16 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
 
 
   Color _getPainColor(int level) {
-    if (level <= 2) return successColor;
-    if (level <= 4) return const Color(0xFFF59E0B);
-    if (level <= 6) return const Color(0xFFC24A4A);
-    if (level <= 8) return mainColor;
-    return const Color(0xFFEF4444);
+    // Low (1-3): Green
+    if (level <= 3) return successColor;
+    // Moderate (4-7): Yellow-Orange
+    if (level <= 7) return const Color(0xFFF59E0B);
+    // Severe (8-10): Red, with dark red/mahogany for most severe (9-10)
+    if (level <= 8) return const Color(0xFFEF4444);
+    return mainColor; // Dark red/mahogany for most severe (9-10)
   }
 
   String _getPainDescription(int level) {
-    if (level == 0) return "No pain";
     if (level <= 2) return "Mild pain - barely noticeable";
     if (level <= 4) return "Moderate pain - noticeable but manageable";
     if (level <= 6) return "Moderately severe pain - interferes with daily activities";
@@ -350,7 +372,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
     return Icons.sick;
   }
 
-  // Convert numerical pain scale (0-10) to categorical for filtering
+  // Convert numerical pain scale (1-10) to categorical for filtering
   String _getCategoricalPainLevel(int level) {
     if (level <= 3) return "Low";
     if (level <= 6) return "Moderate";
@@ -418,13 +440,14 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
               borderRadius: BorderRadius.circular(4),
               gradient: LinearGradient(
                 colors: [
-                  successColor,
-                  const Color(0xFFF59E0B),
-                  const Color(0xFFC24A4A),
-                  mainColor,
-                  const Color(0xFFEF4444),
+                  successColor, // Low (1-3): Green
+                  successColor, // End of Low range (position 3)
+                  const Color(0xFFF59E0B), // Moderate (4-7): Yellow-Orange
+                  const Color(0xFFF59E0B), // End of Moderate range (position 7)
+                  const Color(0xFFEF4444), // Severe (8): Bright red
+                  mainColor, // Severe (9-10): Dark red/mahogany
                 ],
-                stops: const [0.0, 0.3, 0.6, 0.8, 1.0],
+                stops: const [0.0, 0.222, 0.333, 0.667, 0.778, 1.0],
               ),
             ),
           ),
@@ -445,20 +468,21 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                 trackHeight: 8,
               ),
               child: Slider(
-                value: selectedPainLevel.toDouble(),
-                min: 0,
+                value: selectedPainLevel.clamp(1, 10).toDouble(),
+                min: 1,
                 max: 10,
-                divisions: 10,
+                divisions: 9,
                 onChanged: (value) {
-                  final newValue = value.round();
+                  final newValue = value.round().clamp(1, 10); // Ensure 0 is never allowed
                   print('AssessPainLevel: Slider changed to: $newValue');
                   print('AssessPainLevel: Before setState - AssessmentData.painScale = "${AssessmentData.painScale}"');
                   print('AssessPainLevel: Before setState - UserAssess.painScale = "${UserAssess.painScale}"');
                   
                   setState(() {
                     selectedPainLevel = newValue;
-                    UserAssess.painScale = newValue;
-                    AssessmentData.painScale = newValue;
+                    // Ensure 0 is never set in data storage
+                    UserAssess.painScale = newValue.clamp(1, 10);
+                    AssessmentData.painScale = newValue.clamp(1, 10);
                     
                     // Set categorical pain level for filtering
                     UserAssess.painLevel = _getCategoricalPainLevel(newValue);
@@ -481,39 +505,42 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
             top: 0,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(11, (index) {
+              children: List.generate(10, (index) {
+                final painLevel = index + 1; // Convert 0-9 index to 1-10 pain level
                 return GestureDetector(
                   onTap: () {
-                    print('AssessPainLevel: Marker tapped - index: $index');
+                    print('AssessPainLevel: Marker tapped - painLevel: $painLevel');
+                    // Ensure painLevel is always >= 1 (painLevel is already 1-10 from index conversion)
+                    final clampedLevel = painLevel.clamp(1, 10);
                     setState(() {
-                      selectedPainLevel = index;
-                      UserAssess.painScale = index;
-                      AssessmentData.painScale = index;
-                      UserAssess.painLevel = _getCategoricalPainLevel(index);
+                      selectedPainLevel = clampedLevel;
+                      UserAssess.painScale = clampedLevel;
+                      AssessmentData.painScale = clampedLevel;
+                      UserAssess.painLevel = _getCategoricalPainLevel(clampedLevel);
                     });
                   },
                   child: Container(
                     width: 20,
                     height: 20,
                     decoration: BoxDecoration(
-                      color: selectedPainLevel == index 
-                          ? _getPainColor(index) 
+                      color: selectedPainLevel == painLevel 
+                          ? _getPainColor(painLevel) 
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: selectedPainLevel == index 
-                            ? _getPainColor(index) 
+                        color: selectedPainLevel == painLevel 
+                            ? _getPainColor(painLevel) 
                             : const Color(0xFFE5E7EB),
                         width: 2,
                       ),
                     ),
                     child: Center(
                       child: Text(
-                        '$index',
+                        '$painLevel',
                         style: GoogleFonts.poppins(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: selectedPainLevel == index 
+                          color: selectedPainLevel == painLevel 
                               ? Colors.white 
                               : detailColor,
                         ),
@@ -562,13 +589,16 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                   size: 20,
                 ),
               ),
-              const SizedBox(width: 16),
-              Text(
-                "Pain Level: $selectedPainLevel",
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: color,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  "Pain Level: $selectedPainLevel",
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
@@ -585,6 +615,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -609,7 +640,7 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildCategoryIndicator("Low", 0, 3),
+        _buildCategoryIndicator("Low", 1, 3),
         _buildCategoryIndicator("Moderate", 4, 6),
         _buildCategoryIndicator("Severe", 7, 10),
       ],
@@ -645,11 +676,11 @@ class _AssessPainLevelState extends State<AssessPainLevel> {
   Color _getPainColorFromLevel(String level) {
     switch (level) {
       case "Low":
-        return successColor;
+        return successColor; // Green
       case "Moderate":
-        return const Color(0xFFF59E0B);
+        return const Color(0xFFF59E0B); // Yellow-Orange
       case "Severe":
-        return const Color(0xFFEF4444);
+        return mainColor; // Dark red/mahogany for severe
       default:
         return detailColor;
     }

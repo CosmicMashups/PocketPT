@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import '../data/forgot_password_service.dart';
 import '../widgets/progressive_loading_widget.dart';
-import 'verification_code_page.dart';
 /// Forgot password page with email verification
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -46,11 +45,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (result.success) {
         setState(() {
           _isLoading = false;
-          _successMessage = 'If an account exists for this email, you\'ll receive a verification code shortly.';
+          _successMessage = 'If an account exists for this email, you\'ll receive a password reset link shortly. Please check your email inbox and follow the instructions to reset your password.';
         });
         
-        // Navigate to verification code page
-        _navigateToVerificationCode(result.email!);
+        // Don't navigate - show success message on this page
+        // User should check their email for the reset link
       } else {
         setState(() {
           _errorMessage = result.error;
@@ -68,16 +67,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         _isLoading = false;
       });
     }
-  }
-
-  /// Navigate to verification code page
-  void _navigateToVerificationCode(String email) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => VerificationCodePage(email: email),
-      ),
-    );
   }
 
   /// Navigate back to login
@@ -189,7 +178,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Enter your email to receive a verification code',
+                            'Enter your email to receive a password reset link',
                             style: GoogleFonts.ptSans(
                               fontSize: 16,
                               color: Colors.white.withOpacity(0.9),
@@ -261,7 +250,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                       ),
                                       const SizedBox(height: 8),
                                       Text(
-                                        "We'll send a verification code to your email address to confirm your identity",
+                                        "We'll send a password reset link to your email address",
                                         style: GoogleFonts.ptSans(
                                           fontSize: 14,
                                           color: const Color(0xFF6B7280),
@@ -293,7 +282,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      'The verification code will expire in 10 minutes for security purposes',
+                                      'The password reset link will expire in 1 hour for security purposes',
                                       style: GoogleFonts.ptSans(
                                         fontSize: 13,
                                         color: const Color(0xFF8B2E2E),
@@ -436,7 +425,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     ),
                                     const SizedBox(width: 12),
                                     Text(
-                                      "Sending Code...",
+                                      "Sending...",
                                       style: GoogleFonts.ptSans(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -455,7 +444,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      "Send Verification Code",
+                                      "Send Reset Link",
                                       style: GoogleFonts.ptSans(
                                         fontSize: 18,
                                         fontWeight: FontWeight.w600,

@@ -118,6 +118,14 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
     
+    // Custom exercises collection - User-specific custom exercises
+    match /users/{userId}/customExercises/{exerciseId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+    
     // Password reset codes collection - Temporary access for password reset
     match /password_reset_codes/{codeId} {
       allow read, write: if isAuthenticated();
@@ -131,16 +139,6 @@ service cloud.firestore {
     // Backup collections - For data backup operations
     match /_backups/{backupId} {
       allow read, write: if isAuthenticated();
-    }
-    
-    // Custom exercises collection - User-specific custom exercises
-    match /customExercises/{userId}/exercises/{exerciseId} {
-      allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && 
-        isValidUserId(request.resource.data.userId);
-      allow update: if isOwner(userId) && 
-        isValidUserId(request.resource.data.userId);
-      allow delete: if isOwner(userId);
     }
     
     // Deny all other access by default

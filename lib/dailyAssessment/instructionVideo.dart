@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../data/globals.dart';
 import '../assessment/assessment_data.dart';
-import '../assessment/dynamic_video_player.dart';
+import '../assessment/local_muscle_video_player.dart';
 import 'cameraPose.dart';
 import 'painLevel.dart';
 
@@ -20,9 +20,6 @@ class _InstructionVideoPageState extends State<InstructionVideoPage> {
   static const subColor = Color(0xFFC24A4A);
   static const detailColor = Color(0xFF6B7280);
   static const backgroundColor = Color(0xFFF8FAFC);
-
-  String painLevel = UserAssess.painLevel;
-  int painScale = UserAssess.painScale;
 
   @override
   void initState() {
@@ -137,6 +134,7 @@ class _InstructionVideoPageState extends State<InstructionVideoPage> {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -150,16 +148,19 @@ class _InstructionVideoPageState extends State<InstructionVideoPage> {
                   color: const Color(0xFF1F2937),
                 ),
               ),
-              const Spacer(),
-              Text(
-                "Step 1 of 3",
-                style: GoogleFonts.ptSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: detailColor,
-                ),
-              ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              "Step 1 of 3",
+              style: GoogleFonts.ptSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: detailColor,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           LinearProgressIndicator(
@@ -206,7 +207,7 @@ class _InstructionVideoPageState extends State<InstructionVideoPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            "Follow the guided video instructions to assess your ${_getSelectedMuscle().isNotEmpty ? _getSelectedMuscle().toLowerCase() : 'muscle'}. This helps us understand your current range of motion and identify any limitations.",
+            "Follow the guided video instructions to assess your ${UserAssess.specificMuscle.isNotEmpty ? UserAssess.specificMuscle.toLowerCase() : 'muscle'}. This helps us understand your current range of motion and identify any limitations.",
             style: GoogleFonts.ptSans(
               fontSize: 16,
               color: detailColor,
@@ -252,10 +253,12 @@ class _InstructionVideoPageState extends State<InstructionVideoPage> {
             ],
           ),
           const SizedBox(height: 16),
-          // Let the video maximize horizontal space and size its height dynamically (16:9)
-          MuscleVideoPlayer(
+          // Local video player with proper aspect ratio
+          LocalMuscleVideoPlayer(
             muscleName: selectedMuscle,
             showMuscleInfo: false, // Info is already shown in the question section
+            showControls: true,
+            autoPlay: false,
           ),
         ],
       ),

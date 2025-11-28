@@ -210,65 +210,25 @@ class ExerciseDetailPage extends StatelessWidget {
               const SizedBox(height: 20),
 
               // Medical Action Buttons
-              AnimationConfiguration.staggeredList(
-                position: 3,
-                duration: PocketPTAnimations.pageTransition,
-                child: SlideAnimation(
-                  verticalOffset: 50.0,
-                  child: FadeInAnimation(
-                    child: Column(
-                      children: [
-                        if (isSelecting) ...[
-                          // Selection mode - show Select button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              style: MedicalDesignSystem.primaryMedicalButton,
-                              onPressed: () => _selectExercise(context),
-                              icon: const Icon(MedicalIcons.checkCircle),
-                              label: const Text('Select Exercise'),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ] else ...[
-                          // Normal mode - show exercise action buttons
-                          Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  style: MedicalDesignSystem.primaryMedicalButton,
-                                  onPressed: () => _startExercise(context),
-                                  icon: const Icon(MedicalIcons.fitnessCenter),
-                                  label: const Text('Start Exercise'),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  style: MedicalDesignSystem.warningMedicalButton,
-                                  onPressed: () => _reportPain(context),
-                                  icon: const Icon(MedicalIcons.emergency),
-                                  label: const Text('Report Pain'),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            style: MedicalDesignSystem.secondaryMedicalButton,
-                            onPressed: () => _contactHealthcareProvider(context),
-                            icon: const Icon(MedicalIcons.contactSupport),
-                            label: const Text('Contact Healthcare Provider'),
-                          ),
+              if (isSelecting)
+                AnimationConfiguration.staggeredList(
+                  position: 3,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: MedicalDesignSystem.primaryMedicalButton,
+                          onPressed: () => _selectExercise(context),
+                          icon: const Icon(MedicalIcons.checkCircle),
+                          label: const Text('Select Exercise'),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -279,66 +239,6 @@ class ExerciseDetailPage extends StatelessWidget {
   void _selectExercise(BuildContext context) {
     // Return the exercise to the calling page
     Navigator.pop(context, exercise);
-  }
-
-  void _startExercise(BuildContext context) {
-    // TODO: Implement exercise start logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Starting exercise...'),
-        backgroundColor: MedicalDesignSystem.primaryBrand,
-      ),
-    );
-  }
-
-  void _reportPain(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(MedicalIcons.emergency, color: MedicalDesignSystem.dangerRed),
-            const SizedBox(width: 8),
-            const Text('Report Pain'),
-          ],
-        ),
-        content: const Text(
-          'If you are experiencing pain during this exercise, please stop immediately and consult your healthcare provider.',
-        ),
-        actions: [
-          ElevatedButton(
-            style: MedicalDesignSystem.warningMedicalButton,
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Understood'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _contactHealthcareProvider(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(MedicalIcons.contactSupport, color: MedicalDesignSystem.primaryBrand),
-            const SizedBox(width: 8),
-            const Text('Contact Healthcare Provider'),
-          ],
-        ),
-        content: const Text(
-          'For medical concerns or questions about your exercise plan, please contact your healthcare provider.',
-        ),
-        actions: [
-          ElevatedButton(
-            style: MedicalDesignSystem.primaryMedicalButton,
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showMedicalSupport(BuildContext context) {

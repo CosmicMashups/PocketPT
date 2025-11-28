@@ -5,6 +5,7 @@ import '../data/globals.dart';
 import 'b_upperbody.dart';
 import 'b_lowerbody.dart';
 import 'b_core.dart';
+import 'a_goal1.dart';
 
 class AssessFocus1 extends StatefulWidget {
   const AssessFocus1({super.key});
@@ -92,9 +93,22 @@ class _AssessFocus1State extends State<AssessFocus1> {
             print('AssessFocus1: Context hashCode = ${context.hashCode}');
             print('AssessFocus1: Current AssessmentData.generalMuscle before navigation = "${AssessmentData.generalMuscle}"');
             print('AssessFocus1: Current UserAssess.generalMuscle before navigation = "${UserAssess.generalMuscle}"');
-            print('AssessFocus1: About to call Navigator.pop()');
-            Navigator.pop(context);
-            print('AssessFocus1: Navigator.pop() completed successfully');
+            print('AssessFocus1: About to navigate to AssessGoal1');
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => const AssessGoal1(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  const begin = Offset(-1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                  var offsetAnimation = animation.drive(tween);
+                  return SlideTransition(position: offsetAnimation, child: child);
+                },
+              ),
+            );
+            print('AssessFocus1: Navigation to AssessGoal1 completed successfully');
           },
         ),
         title: Text(

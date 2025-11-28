@@ -459,7 +459,7 @@ class _AssessSummaryState extends State<AssessSummary> {
               ),
               const SizedBox(width: 12),
               Text(
-                "Muscle Injury Assessment",
+                "Muscle Injury",
                 style: GoogleFonts.ptSans(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,

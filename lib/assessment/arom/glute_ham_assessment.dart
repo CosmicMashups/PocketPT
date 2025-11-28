@@ -105,20 +105,19 @@ class GluteHamAssessment {
     // Gluteals: Shoulder-hip-knee angle
     // Higher angle = more extended = more pain
     // Lower angle = more flexed = less pain
-    if (angle >= AssessmentConstants.glutealSevereThreshold) return 'severe';      // Angle >= 160° -> Severe (Extended)
-    if (angle >= AssessmentConstants.glutealModerateThreshold) return 'moderate';  // 100° <= Angle < 160° -> Moderate
-    return 'low';                                                                 // Angle < 100° -> Low pain (Flexed)
+    if (angle >= AssessmentConstants.glutealSevereThreshold) return 'severe';      // Angle >= 180° -> Severe (Extended)
+    if (angle >= AssessmentConstants.glutealModerateThreshold &&
+        angle < AssessmentConstants.glutealModerateUpperThreshold) return 'moderate';  // 140° <= Angle < 160° -> Moderate
+    return 'low';                                                                 // Angle < 140° -> Low pain (Flexed)
   }
 
   /// Evaluate ROM level based on hamstring angle
   static String _evaluateHamstringROM(double angle) {
     // Hamstrings: Shoulder-hip-knee angle
-    // Angle < 190° -> Low (Poor flexion)
-    // 190° <= angle < 210° -> Moderate (Partial flexion)
-    // Angle >= 210° -> Severe (Leg extended, good flexion)
-    if (angle < AssessmentConstants.hamstringEnhancedLowThreshold) return 'low';   // Angle < 190° -> Low
-    if (angle < AssessmentConstants.hamstringEnhancedModerateThreshold) return 'moderate';  // 190° <= Angle < 210° -> Moderate
-    return 'severe';                                                                           // Angle >= 210° -> Severe
+    if (angle >= AssessmentConstants.hamstringSevereThreshold) return 'severe';        // Angle >= 180° -> Severe (Extended)
+    if (angle >= AssessmentConstants.hamstringLowThreshold &&
+        angle < AssessmentConstants.hamstringModerateUpperThreshold) return 'moderate'; // 140° <= Angle < 160° -> Moderate
+    return 'low';                                                                       // Angle < 140° -> Low pain (Flexed)
   }
 
   /// Get ROM label for gluteal display
@@ -127,7 +126,7 @@ class GluteHamAssessment {
       case 'severe':
         return 'Gluteal ROM: Severe (>= ${AssessmentConstants.glutealSevereThreshold.toInt()}°)';
       case 'moderate':
-        return 'Gluteal ROM: Moderate (${AssessmentConstants.glutealModerateThreshold.toInt()}-${AssessmentConstants.glutealSevereThreshold.toInt() - 1}°)';
+        return 'Gluteal ROM: Moderate (${AssessmentConstants.glutealModerateThreshold.toInt()}-${(AssessmentConstants.glutealModerateUpperThreshold.toInt() - 1)}°)';
       case 'low':
         return 'Gluteal ROM: Low (< ${AssessmentConstants.glutealModerateThreshold.toInt()}°)';
       default:
@@ -139,11 +138,11 @@ class GluteHamAssessment {
   static String _getHamstringROMLabel(double angle, String romLevel) {
     switch (romLevel) {
       case 'low':
-        return 'Hamstring ROM: Low (< ${AssessmentConstants.hamstringEnhancedLowThreshold.toInt()}°)';
+        return 'Hamstring ROM: Low (< ${AssessmentConstants.hamstringLowThreshold.toInt()}°)';
       case 'moderate':
-        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringEnhancedLowThreshold.toInt()}-${AssessmentConstants.hamstringEnhancedModerateThreshold.toInt() - 1}°)';
+        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringLowThreshold.toInt()}-${(AssessmentConstants.hamstringModerateUpperThreshold.toInt() - 1)}°)';
       case 'severe':
-        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringEnhancedModerateThreshold.toInt()}°)';
+        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringSevereThreshold.toInt()}°)';
       default:
         return 'Hamstring ROM: Unknown';
     }

@@ -155,12 +155,15 @@ class MuscleInjuryConfirmationDialog extends StatelessWidget {
                 size: 20,
               ),
               const SizedBox(width: 8),
-              Text(
-                'Injured Muscles That Would Be Targeted:',
-                style: GoogleFonts.ptSans(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: errorColor,
+              Expanded(
+                child: Text(
+                  'Target Muscles:',
+                  style: GoogleFonts.ptSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: errorColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -395,7 +398,7 @@ class MuscleInjuryConfirmationDialog extends StatelessWidget {
                 const Icon(Icons.arrow_back, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Cancel & Return to Assessment',
+                  'Cancel',
                   style: GoogleFonts.ptSans(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
