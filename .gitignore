@@ -34,6 +34,9 @@ migrate_working_dir/
 # Ignore build directories except for web build
 /build/
 !/build/web/
+# Ignore large model files in build/web (exceed GitHub's 100MB limit)
+build/web/**/*.onnx.data
+build/web/**/*.onnx
 
 # Symbolication related
 app.*.symbols

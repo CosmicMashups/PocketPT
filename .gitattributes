@@ -7,3 +7,5 @@ assets/model/*.onnx* filter=lfs diff=lfs merge=lfs -text
 assets/model/pain_detection_model.onnx filter=lfs diff=lfs merge=lfs -text
 assets/model/pain_detection_model.onnx.data filter=lfs diff=lfs merge=lfs -text
 assets/model/pose_estimation_model.onnx filter=lfs diff=lfs merge=lfs -text
+# Build output model files should not be tracked (too large for GitHub)
+build/web/**/*.onnx* -text
