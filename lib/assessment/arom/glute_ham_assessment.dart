@@ -102,33 +102,43 @@ class GluteHamAssessment {
 
   /// Evaluate ROM level based on gluteal angle
   static String _evaluateGlutealROM(double angle) {
-    // Gluteals: Shoulder-hip-knee angle
-    // Higher angle = more extended = more pain
-    // Lower angle = more flexed = less pain
-    if (angle >= AssessmentConstants.glutealSevereThreshold) return 'severe';      // Angle >= 180° -> Severe (Extended)
-    if (angle >= AssessmentConstants.glutealModerateThreshold &&
-        angle < AssessmentConstants.glutealModerateUpperThreshold) return 'moderate';  // 140° <= Angle < 160° -> Moderate
-    return 'low';                                                                 // Angle < 140° -> Low pain (Flexed)
+    // Gluteals: Shoulder-Hip-Knee angle
+    //
+    // Low:      angle <= 130°          -> Leg extended, good flexion
+    // Moderate: 145° <= angle < 160°   -> Partial flexion
+    // Severe:   angle < 190°           -> Poor flexion (default for other angles)
+    if (angle <= 130.0) return 'low';
+    if (angle >= 145.0 && angle < 160.0) return 'moderate';
+    // For all remaining angles (including 131°–144° and 160°–189°), treat as severe (poor flexion)
+    if (angle < 190.0) return 'severe';
+    // Fallback (should rarely be hit with typical human ROM ranges)
+    return 'severe';
   }
 
   /// Evaluate ROM level based on hamstring angle
   static String _evaluateHamstringROM(double angle) {
-    // Hamstrings: Shoulder-hip-knee angle
-    if (angle >= AssessmentConstants.hamstringSevereThreshold) return 'severe';        // Angle >= 180° -> Severe (Extended)
-    if (angle >= AssessmentConstants.hamstringLowThreshold &&
-        angle < AssessmentConstants.hamstringModerateUpperThreshold) return 'moderate'; // 140° <= Angle < 160° -> Moderate
-    return 'low';                                                                       // Angle < 140° -> Low pain (Flexed)
+    // Hamstrings: Shoulder-Hip-Knee angle
+    //
+    // Low:      angle <= 130°          -> Leg extended, good flexion
+    // Moderate: 145° <= angle < 160°   -> Partial flexion
+    // Severe:   angle < 190°           -> Poor flexion (default for other angles)
+    if (angle <= 130.0) return 'low';
+    if (angle >= 145.0 && angle < 160.0) return 'moderate';
+    // For all remaining angles (including 131°–144° and 160°–189°), treat as severe (poor flexion)
+    if (angle < 190.0) return 'severe';
+    // Fallback (should rarely be hit with typical human ROM ranges)
+    return 'severe';
   }
 
   /// Get ROM label for gluteal display
   static String _getGlutealROMLabel(double angle, String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Gluteal ROM: Severe (>= ${AssessmentConstants.glutealSevereThreshold.toInt()}°)';
+        return 'Gluteal ROM: Severe (<190° - poor flexion)';
       case 'moderate':
-        return 'Gluteal ROM: Moderate (${AssessmentConstants.glutealModerateThreshold.toInt()}-${(AssessmentConstants.glutealModerateUpperThreshold.toInt() - 1)}°)';
+        return 'Gluteal ROM: Moderate (145-159° - partial flexion)';
       case 'low':
-        return 'Gluteal ROM: Low (< ${AssessmentConstants.glutealModerateThreshold.toInt()}°)';
+        return 'Gluteal ROM: Low (≤130° - leg extended, good flexion)';
       default:
         return 'Gluteal ROM: Unknown';
     }
@@ -138,11 +148,11 @@ class GluteHamAssessment {
   static String _getHamstringROMLabel(double angle, String romLevel) {
     switch (romLevel) {
       case 'low':
-        return 'Hamstring ROM: Low (< ${AssessmentConstants.hamstringLowThreshold.toInt()}°)';
+        return 'Hamstring ROM: Low (≤130° - leg extended, good flexion)';
       case 'moderate':
-        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringLowThreshold.toInt()}-${(AssessmentConstants.hamstringModerateUpperThreshold.toInt() - 1)}°)';
+        return 'Hamstring ROM: Moderate (145-159° - partial flexion)';
       case 'severe':
-        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringSevereThreshold.toInt()}°)';
+        return 'Hamstring ROM: Severe (<190° - poor flexion)';
       default:
         return 'Hamstring ROM: Unknown';
     }

@@ -1,0 +1,132 @@
+REHAB GOAL,MUSCLE,PAIN LEVEL,PAIN DURATION,INJURY HISTORY
+Alleviate Pain,Deltoids,1 to 3,Any,None
+Alleviate Pain,Deltoids,4 to 6,Any,None
+Alleviate Pain,Deltoids,7 to 10,Any,None
+Improve Mobility,Deltoids,1 to 3,Any,None
+Improve Mobility,Deltoids,4 to 6,Any,None
+Improve Mobility,Deltoids,7 to 10,Any,None
+Strengthen Muscle,Deltoids,1 to 3,Any,None
+Strengthen Muscle,Deltoids,4 to 6,Any,None
+Strengthen Muscle,Deltoids,7 to 10,Any,None
+Strengthen Muscle,Deltoids,7 to 10,Any,Triceps
+,,,,
+Alleviate Pain,Biceps,1 to 3,Any,None
+Alleviate Pain,Biceps,4 to 6,Any,None
+Alleviate Pain,Biceps,7 to 10,Any,None
+Improve Mobility,Biceps,1 to 3,Any,None
+Improve Mobility,Biceps,4 to 6,Any,None
+Improve Mobility,Biceps,7 to 10,Any,None
+Strengthen Muscle,Biceps,1 to 3,Any,None
+Strengthen Muscle,Biceps,4 to 6,Any,None
+Strengthen Muscle,Biceps,7 to 10,Any,None
+Strengthen Muscle,Biceps,7 to 10,Any,Triceps
+,,,,
+Alleviate Pain,Triceps,1 to 3,Any,None
+Alleviate Pain,Triceps,4 to 6,Any,None
+Alleviate Pain,Triceps,7 to 10,Any,None
+Improve Mobility,Triceps,1 to 3,Any,None
+Improve Mobility,Triceps,4 to 6,Any,None
+Improve Mobility,Triceps,7 to 10,Any,None
+Strengthen Muscle,Triceps,1 to 3,Any,None
+Strengthen Muscle,Triceps,4 to 6,Any,None
+Strengthen Muscle,Triceps,7 to 10,Any,None
+Strengthen Muscle,Triceps,7 to 10,Any,Deltoids
+,,,,
+Alleviate Pain,Quadriceps,1 to 3,Any,None
+Alleviate Pain,Quadriceps,4 to 6,Any,None
+Alleviate Pain,Quadriceps,7 to 10,Any,None
+Improve Mobility,Quadriceps,1 to 3,Any,None
+Improve Mobility,Quadriceps,4 to 6,Any,None
+Improve Mobility,Quadriceps,7 to 10,Any,None
+Strengthen Muscle,Quadriceps,1 to 3,Any,None
+Strengthen Muscle,Quadriceps,4 to 6,Any,None
+Strengthen Muscle,Quadriceps,7 to 10,Any,None
+Strengthen Muscle,Quadriceps,7 to 10,Any,Hamstrings
+,,,,
+Alleviate Pain,Hamstrings,1 to 3,Any,None
+Alleviate Pain,Hamstrings,4 to 6,Any,None
+Alleviate Pain,Hamstrings,7 to 10,Any,None
+Improve Mobility,Hamstrings,1 to 3,Any,None
+Improve Mobility,Hamstrings,4 to 6,Any,None
+Improve Mobility,Hamstrings,7 to 10,Any,None
+Strengthen Muscle,Hamstrings,1 to 3,Any,None
+Strengthen Muscle,Hamstrings,4 to 6,Any,None
+Strengthen Muscle,Hamstrings,7 to 10,Any,None
+Strengthen Muscle,Hamstrings,7 to 10,Any,Gluteals
+,,,,
+Alleviate Pain,Calf,1 to 3,Any,None
+Alleviate Pain,Calf,4 to 6,Any,None
+Alleviate Pain,Calf,7 to 10,Any,None
+Improve Mobility,Calf,1 to 3,Any,None
+Improve Mobility,Calf,4 to 6,Any,None
+Improve Mobility,Calf,7 to 10,Any,None
+Strengthen Muscle,Calf,1 to 3,Any,None
+Strengthen Muscle,Calf,4 to 6,Any,None
+Strengthen Muscle,Calf,7 to 10,Any,None
+Strengthen Muscle,Calf,7 to 10,Any,Hamstrings
+,,,,
+Alleviate Pain,Gluteals,1 to 3,Any,None
+Alleviate Pain,Gluteals,4 to 6,Any,None
+Alleviate Pain,Gluteals,7 to 10,Any,None
+Improve Mobility,Gluteals,1 to 3,Any,None
+Improve Mobility,Gluteals,4 to 6,Any,None
+Improve Mobility,Gluteals,7 to 10,Any,None
+Strengthen Muscle,Gluteals,1 to 3,Any,None
+Strengthen Muscle,Gluteals,4 to 6,Any,None
+Strengthen Muscle,Gluteals,7 to 10,Any,None
+Strengthen Muscle,Gluteals,7 to 10,Any,Lower Back
+,,,,
+Alleviate Pain,Abdominals,1 to 3,Any,None
+Alleviate Pain,Abdominals,4 to 6,Any,None
+Alleviate Pain,Abdominals,7 to 10,Any,None
+Improve Mobility,Abdominals,1 to 3,Any,None
+Improve Mobility,Abdominals,4 to 6,Any,None
+Improve Mobility,Abdominals,7 to 10,Any,None
+Strengthen Muscle,Abdominals,1 to 3,Any,None
+Strengthen Muscle,Abdominals,4 to 6,Any,None
+Strengthen Muscle,Abdominals,7 to 10,Any,None
+Strengthen Muscle,Abdominals,7 to 10,Any,Lower Back
+,,,,
+Alleviate Pain,Obliques,1 to 3,Any,None
+Alleviate Pain,Obliques,4 to 6,Any,None
+Alleviate Pain,Obliques,7 to 10,Any,None
+Improve Mobility,Obliques,1 to 3,Any,None
+Improve Mobility,Obliques,4 to 6,Any,None
+Improve Mobility,Obliques,7 to 10,Any,None
+Strengthen Muscle,Obliques,1 to 3,Any,None
+Strengthen Muscle,Obliques,4 to 6,Any,None
+Strengthen Muscle,Obliques,7 to 10,Any,None
+Strengthen Muscle,Obliques,7 to 10,Any,Abdominals
+,,,,
+Alleviate Pain,Lower Back,1 to 3,Any,None
+Alleviate Pain,Lower Back,4 to 6,Any,None
+Alleviate Pain,Lower Back,7 to 10,Any,None
+Improve Mobility,Lower Back,1 to 3,Any,None
+Improve Mobility,Lower Back,4 to 6,Any,None
+Improve Mobility,Lower Back,7 to 10,Any,None
+Strengthen Muscle,Lower Back,1 to 3,Any,None
+Strengthen Muscle,Lower Back,4 to 6,Any,None
+Strengthen Muscle,Lower Back,7 to 10,Any,None
+Strengthen Muscle,Lower Back,7 to 10,Any,Abdominals
+,,,,
+Alleviate Pain,Multifidus,1 to 3,Any,None
+Alleviate Pain,Multifidus,4 to 6,Any,None
+Alleviate Pain,Multifidus,7 to 10,Any,None
+Improve Mobility,Multifidus,1 to 3,Any,None
+Improve Mobility,Multifidus,4 to 6,Any,None
+Improve Mobility,Multifidus,7 to 10,Any,None
+Strengthen Muscle,Multifidus,1 to 3,Any,None
+Strengthen Muscle,Multifidus,4 to 6,Any,None
+Strengthen Muscle,Multifidus,7 to 10,Any,None
+Strengthen Muscle,Multifidus,7 to 10,Any,Abdominals
+,,,,
+Alleviate Pain,Deltoids,1 to 3,Less than 48 hours ago,None
+,,,,
+"Any = do not choose ""Less than 48 hours ago""",,,,
+
+
+
+
+
+
+

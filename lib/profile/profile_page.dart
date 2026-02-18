@@ -12,11 +12,14 @@ import '../data/data_persistence_service.dart';
 import '../data/auth_persistence_service.dart';
 import '../data/user_data_notifier.dart';
 import '../data/guest_mode_service.dart';
+import '../data/rehabilitation_plan.dart';
 import '../widgets/responsive_dialog.dart';
 import '../demo/pose_estimation_demo.dart';
 import '../main.dart';
 import '../reports/services/pdf_export_service.dart';
 import '../tutorials/tutorial_config.dart';
+import '../ai/evaluation_results_page.dart';
+import '../data/exercise_ranking_service.dart';
 // Temporarily hidden: import '../tutorials/tutorial_preferences.dart';
 // Temporarily hidden: import '../tutorials/tutorial_service.dart';
 // removed loader: using direct global data like a_goal1.dart
@@ -215,6 +218,19 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // AI Evaluation (temporary debug section)
+                AnimationConfiguration.staggeredList(
+                  position: 4,
+                  duration: PocketPTAnimations.pageTransition,
+                  child: SlideAnimation(
+                    verticalOffset: 50.0,
+                    child: FadeInAnimation(
+                      child: _buildAIEvaluationSection(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 
                 // AI & Machine Learning Section (temporarily hidden)
                 /*
@@ -240,7 +256,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 
                 // Account Actions Section (moved to bottom)
                 AnimationConfiguration.staggeredList(
-                  position: 5,
+                  position: 6,
                   duration: PocketPTAnimations.pageTransition,
                   child: SlideAnimation(
                     verticalOffset: 50.0,
@@ -669,6 +685,211 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         ],
       ),
     );
+  }
+
+  Widget _buildAIEvaluationSection() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE5E7EB),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'AI Evaluation (Temporary)',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Debug tools for exercise ranking and evaluation metrics (remove before release)',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: mainColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const EvaluationResultsPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.analytics),
+                  label: const Text('View Metrics'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: mainColor,
+                    side: const BorderSide(color: mainColor, width: 1.5),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: _runExerciseRankingPreview,
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Run Ranking'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _runExerciseRankingPreview() async {
+    try {
+      // Load some exercises
+      final exercises = await ExerciseDataService.loadAllExercises();
+      if (exercises.isEmpty) {
+        if (!mounted) return;
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('No Exercises'),
+            content: const Text('No exercises loaded. Check assets/data/exercises.csv.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+            ],
+          ),
+        );
+        return;
+      }
+
+      final filtered = exercises.where((e) {
+        return e.muscle.toLowerCase() == UserAssess.specificMuscle.toLowerCase() ||
+            e.painLevel.toLowerCase() == UserAssess.painLevel.toLowerCase();
+      }).toList();
+
+      final testExercises = (filtered.isNotEmpty ? filtered : exercises).take(10).toList();
+
+      final ranked = await ExerciseRankingService.rankExercises(
+        exercises: testExercises,
+        specificMuscle: UserAssess.specificMuscle,
+        painLevel: UserAssess.painLevel,
+        rehabGoal: UserAssess.rehabGoal,
+      );
+
+      final metrics = await ExerciseRankingService.getEvaluationMetrics(
+        testExercises: testExercises,
+        specificMuscle: UserAssess.specificMuscle,
+        painLevel: UserAssess.painLevel,
+        rehabGoal: UserAssess.rehabGoal,
+      );
+
+      if (!mounted) return;
+
+      final top3 = ranked.take(3).toList();
+      final evalStatus = metrics['evaluationStatus']?.toString() ?? 'Unknown';
+      final ai = metrics['aiRanking'] as Map<String, dynamic>?;
+
+      final ndcg = ai?['ndcg@3'];
+      final precision = ai?['precision@3'];
+      final recall = ai?['recall@3'];
+
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Ranking Preview'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Top exercises (n=${testExercises.length})',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                for (int i = 0; i < top3.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      '${i + 1}. ${top3[i].exercise.exerciseName}  (score: ${top3[i].suitabilityScore.toStringAsFixed(3)})',
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                Text(
+                  'Metrics status: $evalStatus',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text('NDCG@3: ${ndcg is num ? ndcg.toStringAsFixed(3) : '—'}'),
+                Text('Precision@3: ${precision is num ? precision.toStringAsFixed(3) : '—'}'),
+                Text('Recall@3: ${recall is num ? recall.toStringAsFixed(3) : '—'}'),
+                if (metrics['note'] != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Note: ${metrics['note']}',
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EvaluationResultsPage()),
+                );
+              },
+              child: const Text('Open Metrics Page'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Error'),
+          content: Text('Failed to run ranking preview: $e'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildSettingItem(String title, String subtitle, IconData icon, bool value, ValueChanged<bool> onChanged) {

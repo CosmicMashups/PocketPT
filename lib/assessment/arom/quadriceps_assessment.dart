@@ -5,8 +5,13 @@ import 'assessment_constants.dart';
 
 /// Quadriceps ROM assessment module
 /// 
-/// Uses COCO format landmarks: ${side}Hip, ${side}Knee, ${side}Ankle
-/// where side is 'left' or 'right' (lowercase).
+/// Measurement:
+///   - Hip–Knee–Ankle angle (vertex at the knee)
+/// 
+/// Uses COCO format landmarks (side is 'left' or 'right', lowercase):
+///   - ${side}Hip
+///   - ${side}Knee
+///   - ${side}Ankle
 class QuadricepsAssessment {
   /// Calculate quadriceps angle between hip, knee, and ankle
   /// 
@@ -55,24 +60,27 @@ class QuadricepsAssessment {
 
   /// Evaluate ROM level based on quadriceps angle
   static String _evaluateROM(double angle) {
-    // Quadriceps: Knee flexion angle (hip-knee-ankle)
-    // Angle < 120° -> Severe (Good flexion, leg well bent)
-    // 120° <= angle < 140° -> Moderate (Partial flexion)
-    // Angle >= 140° -> Low (Leg nearly straight, poor flexion)
-    if (angle < AssessmentConstants.quadricepsSevereThreshold) return 'severe';      // Angle < 120° -> Severe
-    if (angle < AssessmentConstants.quadricepsModerateThreshold) return 'moderate';  // 120° <= Angle < 140° -> Moderate
-    return 'low';                                                                   // Angle >= 140° -> Low
+    // Quadriceps: Knee flexion angle (hip–knee–ankle)
+    //
+    // Severe:   angle <= 90°   -> Leg bent (good flexion)
+    // Moderate: 90° < angle < 115° -> Partial flexion
+    // Low:      angle >= 135°  -> Leg nearly straight
+    if (angle <= 90.0) return 'severe';
+    if (angle < 115.0) return 'moderate';
+    if (angle >= 135.0) return 'low';
+    // For the intermediate band (115°–134°), treat as low flexion clinically.
+    return 'low';
   }
 
   /// Get ROM label for display
   static String _getROMLabel(double angle, String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Quadriceps ROM: Severe (< ${AssessmentConstants.quadricepsSevereThreshold.toInt()}°)';
+        return 'Quadriceps ROM: Severe (≤90° - leg bent)';
       case 'moderate':
-        return 'Quadriceps ROM: Moderate (${AssessmentConstants.quadricepsSevereThreshold.toInt()}-${AssessmentConstants.quadricepsModerateThreshold.toInt() - 1}°)';
+        return 'Quadriceps ROM: Moderate (91-114° - partial flexion)';
       case 'low':
-        return 'Quadriceps ROM: Low (>= ${AssessmentConstants.quadricepsModerateThreshold.toInt()}°)';
+        return 'Quadriceps ROM: Low (≥135° - leg nearly straight)';
       default:
         return 'Quadriceps ROM: Unknown';
     }

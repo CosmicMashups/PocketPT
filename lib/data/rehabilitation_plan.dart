@@ -14,6 +14,7 @@ import '../assessment/services/muscle_injury_dialog_service.dart';
 import '../assessment/models/muscle_injury_choice.dart';
 import '../data/user_data_notifier.dart';
 import 'custom_exercise_service.dart';
+import 'exercise_ranking_service.dart';
 
 // Service to handle CSV data retrieval
 class ExerciseDataService {
@@ -1966,18 +1967,68 @@ Future<RehabilitationPlan?> generateRehabilitationPlanFromCSV(BuildContext conte
       return null;
     }
 
-    final random = Random();
-    deduplicatedExercises.shuffle(random);
+    // Try AI-based ranking, fallback to random if unavailable
+    List<ExerciseReference> selected;
+    
+    try {
+      // Load exercises for ranking
+      final allExercises = await ExerciseDataService.loadAllExercises();
+      final filteredExerciseObjects = deduplicatedExercises.map((row) {
+        final exerciseId = col('Exercise_ID') >= 0 ? row[col('Exercise_ID')].toString() : '';
+        return allExercises.firstWhere(
+          (e) => e.exerciseId == exerciseId,
+          orElse: () => Exercise(
+            exerciseId: exerciseId,
+            exerciseName: col('Exercise') >= 0 ? row[col('Exercise')].toString() : '',
+            description: '',
+            muscle: col('Muscle_Involved') >= 0 ? row[col('Muscle_Involved')].toString() : '',
+            painLevel: col('Pain_Level') >= 0 ? row[col('Pain_Level')].toString() : '',
+            goal: col('Functional_Goal') >= 0 ? row[col('Functional_Goal')].toString() : '',
+            repetitions: col('Repetition') >= 0 ? int.tryParse(row[col('Repetition')].toString()) ?? 0 : 0,
+            sets: col('Set') >= 0 ? int.tryParse(row[col('Set')].toString()) ?? 0 : 0,
+            imageUrl: '',
+            videoUrl: '',
+            otherMuscles: col('Other_Muscles') >= 0 ? row[col('Other_Muscles')].toString() : '',
+          ),
+        );
+      }).toList();
 
-    final selected = deduplicatedExercises.take(3).map((row) {
-      final name = col('Exercise') >= 0 ? row[col('Exercise')] : '';
-      print('Selected exercise: $name');
-      return ExerciseReference(
-        exerciseId: col('Exercise_ID') >= 0 ? row[col('Exercise_ID')].toString() : '',
-        repetitions: col('Repetition') >= 0 ? int.tryParse(row[col('Repetition')].toString()) ?? 0 : 0,
-        sets: col('Set') >= 0 ? int.tryParse(row[col('Set')].toString()) ?? 0 : 0,
+      // Use AI ranking service
+      final rankedExercises = await ExerciseRankingService.rankExercises(
+        exercises: filteredExerciseObjects,
+        specificMuscle: UserAssess.specificMuscle,
+        painLevel: UserAssess.painLevel,
+        rehabGoal: UserAssess.rehabGoal,
       );
-    }).toList();
+
+      // Select top 3 ranked exercises
+      selected = rankedExercises.take(3).map((ranked) {
+        final exercise = ranked.exercise;
+        print('Selected exercise (AI-ranked): ${exercise.exerciseName} (score: ${ranked.suitabilityScore.toStringAsFixed(3)})');
+        return ExerciseReference(
+          exerciseId: exercise.exerciseId,
+          repetitions: exercise.repetitions,
+          sets: exercise.sets,
+        );
+      }).toList();
+
+      print('ExerciseRankingService: Selected ${selected.length} exercises using AI ranking');
+    } catch (e) {
+      // Fallback to random selection if ranking fails
+      print('ExerciseRankingService: Ranking failed, using random selection: $e');
+      final random = Random();
+      deduplicatedExercises.shuffle(random);
+
+      selected = deduplicatedExercises.take(3).map((row) {
+        final name = col('Exercise') >= 0 ? row[col('Exercise')] : '';
+        print('Selected exercise (random): $name');
+        return ExerciseReference(
+          exerciseId: col('Exercise_ID') >= 0 ? row[col('Exercise_ID')].toString() : '',
+          repetitions: col('Repetition') >= 0 ? int.tryParse(row[col('Repetition')].toString()) ?? 0 : 0,
+          sets: col('Set') >= 0 ? int.tryParse(row[col('Set')].toString()) ?? 0 : 0,
+        );
+      }).toList();
+    }
 
     return RehabilitationPlan(weekNumber: 1, exerciseReferences: selected);
   } catch (e) {

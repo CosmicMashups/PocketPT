@@ -5,23 +5,29 @@ import 'assessment_constants.dart';
 
 /// Triceps ROM assessment module
 /// 
-/// Uses COCO format landmarks: ${side}Shoulder, ${side}Elbow, ${side}Hip
-/// where side is 'left' or 'right' (lowercase).
+/// Measurement:
+///   - Shoulder–Elbow–Wrist angle (vertex at the elbow)
+/// 
+/// Uses COCO format landmarks (side is 'left' or 'right', lowercase):
+///   - ${side}Shoulder
+///   - ${side}Elbow
+///   - ${side}Wrist
 class TricepsAssessment {
   /// Calculate triceps angle between hip, shoulder, and elbow
   /// 
   /// Uses COCO landmarks: ${side}Hip, ${side}Shoulder, ${side}Elbow
   static double? calculateAngle(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
-    final hip = landmarks['${sideLower}Hip'];
     final shoulder = landmarks['${sideLower}Shoulder'];
     final elbow = landmarks['${sideLower}Elbow'];
+    final wrist = landmarks['${sideLower}Wrist'];
 
-    if (hip == null || shoulder == null || elbow == null) {
+    if (shoulder == null || elbow == null || wrist == null) {
       return null;
     }
 
-    return _calculateAngleBetweenPoints(hip, shoulder, elbow);
+    // Shoulder–Elbow–Wrist angle, with the elbow as the vertex
+    return _calculateAngleBetweenPoints(shoulder, elbow, wrist);
   }
 
   /// Perform triceps ROM assessment
@@ -55,21 +61,25 @@ class TricepsAssessment {
 
   /// Evaluate ROM level based on triceps angle
   static String _evaluateROM(double angle) {
-    // Triceps: 0° (flexed) -> 180° (extended)
-    if (angle < AssessmentConstants.tricepsSevereThreshold) return 'low';      // Angle < 90° -> Low
-    if (angle < AssessmentConstants.tricepsModerateThreshold) return 'moderate';  // 90° <= Angle < 135° -> Moderate
-    return 'severe';                      // Angle >= 135° -> Severe
+    // Triceps: 0° (heavily flexed) -> 180° (fully extended)
+    //
+    // Severe (Bent):   angle < 90°   -> Poor extension, arm heavily bent
+    // Moderate:        90°–134°      -> Partial extension
+    // Low:             angle ≥ 135°  -> Good extension, arm nearly straight
+    if (angle < 90.0) return 'severe';
+    if (angle < 135.0) return 'moderate';
+    return 'low';
   }
 
   /// Get ROM label for display
   static String _getROMLabel(double angle, String romLevel) {
     switch (romLevel) {
       case 'severe':
-        return 'Triceps ROM: Severe (>=135°)';
+        return 'Triceps ROM: Severe (<90° - poor extension, arm heavily bent)';
       case 'moderate':
-        return 'Triceps ROM: Moderate (90-134°)';
+        return 'Triceps ROM: Moderate (90-134° - partial extension)';
       case 'low':
-        return 'Triceps ROM: Low (<90°)';
+        return 'Triceps ROM: Low (>=135° - good extension, arm nearly straight)';
       default:
         return 'Triceps ROM: Unknown';
     }

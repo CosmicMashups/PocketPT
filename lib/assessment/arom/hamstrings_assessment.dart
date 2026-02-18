@@ -88,22 +88,28 @@ class HamstringsAssessment {
 
   /// Evaluate ROM level based on hamstring angle
   static String _evaluateROM(double angle) {
-    // Hamstring: Shoulder-Hip-Knee angle
-    if (angle >= AssessmentConstants.hamstringSevereThreshold) return 'severe';        // Angle >= 180° -> Severe (Extended)
-    if (angle >= AssessmentConstants.hamstringLowThreshold &&
-        angle < AssessmentConstants.hamstringModerateUpperThreshold) return 'moderate'; // 140° <= Angle < 160° -> Moderate
-    return 'low';                                                                       // Angle < 140° -> Low
+    // Hamstrings: Shoulder-Hip-Knee angle
+    //
+    // Low:      angle <= 130°          -> Leg extended, good flexion
+    // Moderate: 145° <= angle < 160°   -> Partial flexion
+    // Severe:   angle < 190°           -> Poor flexion (default for other angles)
+    if (angle <= 130.0) return 'low';
+    if (angle >= 145.0 && angle < 160.0) return 'moderate';
+    // For all remaining angles (including 131°–144° and 160°–189°), treat as severe (poor flexion)
+    if (angle < 190.0) return 'severe';
+    // Fallback (should rarely be hit with typical human ROM ranges)
+    return 'severe';
   }
 
   /// Get ROM label for display
   static String _getROMLabel(double angle, String romLevel) {
     switch (romLevel) {
       case 'low':
-        return 'Hamstring ROM: Low (< ${AssessmentConstants.hamstringLowThreshold.toInt()}°)';
+        return 'Hamstring ROM: Low (≤130° - leg extended, good flexion)';
       case 'moderate':
-        return 'Hamstring ROM: Moderate (${AssessmentConstants.hamstringLowThreshold.toInt()}-${(AssessmentConstants.hamstringModerateUpperThreshold.toInt() - 1)}°)';
+        return 'Hamstring ROM: Moderate (145-159° - partial flexion)';
       case 'severe':
-        return 'Hamstring ROM: Severe (>= ${AssessmentConstants.hamstringSevereThreshold.toInt()}°)';
+        return 'Hamstring ROM: Severe (<190° - poor flexion)';
       default:
         return 'Hamstring ROM: Unknown';
     }

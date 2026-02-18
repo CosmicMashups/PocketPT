@@ -1,0 +1,451 @@
+PocketPT Test Cases
+==================
+
+NOTES: For "Any" values, do not choose "Less than 48 hours ago"
+
+ASSESSMENT TEST CASES
+---------------------
+
+Test Case 1:
+- Rehab Goal: Alleviate Pain
+- Muscle: Deltoids
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 2:
+- Rehab Goal: Improve Mobility
+- Muscle: Deltoids
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 3:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Deltoids
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 4:
+- Rehab Goal: Alleviate Pain
+- Muscle: Deltoids
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Triceps
+- Expected Plan: Exercises, Treatment
+
+Test Case 5:
+- Rehab Goal: Alleviate Pain
+- Muscle: Biceps
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 6:
+- Rehab Goal: Improve Mobility
+- Muscle: Biceps
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 7:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Biceps
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 8:
+- Rehab Goal: Improve Mobility
+- Muscle: Biceps
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Triceps
+- Expected Plan: Exercises, Treatment
+
+Test Case 9:
+- Rehab Goal: Alleviate Pain
+- Muscle: Triceps
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 10:
+- Rehab Goal: Improve Mobility
+- Muscle: Triceps
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 11:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Triceps
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 12:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Triceps
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Deltoids
+- Expected Plan: Exercises, Treatment
+
+Test Case 13:
+- Rehab Goal: Alleviate Pain
+- Muscle: Quadriceps
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 14:
+- Rehab Goal: Improve Mobility
+- Muscle: Quadriceps
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 15:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Quadriceps
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 16:
+- Rehab Goal: Alleviate Pain
+- Muscle: Quadriceps
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Hamstrings
+- Expected Plan: Exercises, Treatment
+
+Test Case 17:
+- Rehab Goal: Alleviate Pain
+- Muscle: Hamstrings
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 18:
+- Rehab Goal: Improve Mobility
+- Muscle: Hamstrings
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 19:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Hamstrings
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 20:
+- Rehab Goal: Improve Mobility
+- Muscle: Hamstrings
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Gluteals
+- Expected Plan: Exercises, Treatment
+
+Test Case 21:
+- Rehab Goal: Alleviate Pain
+- Muscle: Calf
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 22:
+- Rehab Goal: Improve Mobility
+- Muscle: Calf
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 23:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Calf
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 24:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Calf
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Hamstrings
+- Expected Plan: Exercises, Treatment
+
+Test Case 25:
+- Rehab Goal: Alleviate Pain
+- Muscle: Gluteals
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 26:
+- Rehab Goal: Improve Mobility
+- Muscle: Gluteals
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 27:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Gluteals
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 28:
+- Rehab Goal: Alleviate Pain
+- Muscle: Gluteals
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Lower Back
+- Expected Plan: Exercises, Treatment
+
+Test Case 29:
+- Rehab Goal: Alleviate Pain
+- Muscle: Abdominals
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 30:
+- Rehab Goal: Improve Mobility
+- Muscle: Abdominals
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 31:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Abdominals
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 32:
+- Rehab Goal: Improve Mobility
+- Muscle: Abdominals
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Lower Back
+- Expected Plan: Exercises, Treatment
+
+Test Case 33:
+- Rehab Goal: Alleviate Pain
+- Muscle: Obliques
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 34:
+- Rehab Goal: Improve Mobility
+- Muscle: Obliques
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 35:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Obliques
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 36:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Obliques
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Abdominals
+- Expected Plan: Exercises, Treatment
+
+Test Case 37:
+- Rehab Goal: Alleviate Pain
+- Muscle: Lower Back
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 38:
+- Rehab Goal: Improve Mobility
+- Muscle: Lower Back
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 39:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Lower Back
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 40:
+- Rehab Goal: Alleviate Pain
+- Muscle: Lower Back
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Abdominals
+- Expected Plan: Exercises, Treatment
+
+Test Case 41:
+- Rehab Goal: Alleviate Pain
+- Muscle: Multifidus
+- Pain Level: 1 to 3
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 42:
+- Rehab Goal: Improve Mobility
+- Muscle: Multifidus
+- Pain Level: 4 to 6
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Exercises, Treatment
+
+Test Case 43:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Multifidus
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: None
+- Expected Plan: Treatment Only
+
+Test Case 44:
+- Rehab Goal: Improve Mobility
+- Muscle: Multifidus
+- Pain Level: 7 to 10
+- Pain Duration: Any (do not choose "Less than 48 hours ago")
+- Injury History: Abdominals
+- Expected Plan: Exercises, Treatment
+
+Test Case 45:
+- Rehab Goal: Strengthen Muscle
+- Muscle: Deltoids
+- Pain Level: 1 to 3
+- Pain Duration: Less than 48 hours ago
+- Injury History: None
+- Expected Plan: Treatment Only
+
+
+LOGIN TEST CASES
+----------------
+
+Test Case 1:
+- E-mail Address: Registered e-mail
+- Password: Any incorrect password
+- Expected Result: Login should fail
+
+Test Case 2:
+- E-mail Address: Not registered e-mail
+- Password: Any
+- Expected Result: Login should fail
+
+Test Case 3:
+- E-mail Address: Registered e-mail
+- Password: Correct password
+- Expected Result: Login should succeed
+
+
+REGISTER TEST CASES
+-------------------
+
+Test Case 1:
+- First Name: Any
+- Last Name: Any
+- E-mail Address: Unregistered e-mail
+- Password: Missing lowercase
+- Confirm Password: Any
+- Expected Result: Registration should fail (password validation error)
+
+Test Case 2:
+- First Name: Any
+- Last Name: Any
+- E-mail Address: Unregistered e-mail
+- Password: Missing uppercase
+- Confirm Password: Any
+- Expected Result: Registration should fail (password validation error)
+
+Test Case 3:
+- First Name: Any
+- Last Name: Any
+- E-mail Address: Unregistered e-mail
+- Password: Missing symbol
+- Confirm Password: Any
+- Expected Result: Registration should fail (password validation error)
+
+Test Case 4:
+- First Name: Any
+- Last Name: Any
+- E-mail Address: Unregistered e-mail
+- Password: Missing number
+- Confirm Password: Any
+- Expected Result: Registration should fail (password validation error)
+
+Test Case 5:
+- First Name: Any
+- Last Name: Any
+- E-mail Address: Registered e-mail
+- Password: Any
+- Confirm Password: Any
+- Expected Result: Registration should fail (email already exists)
+
+Test Case 6:
+- First Name: Any
+- Last Name: Any
+- E-mail Address: Unregistered e-mail
+- Password: Complete password
+- Confirm Password: Different value as Password
+- Expected Result: Registration should fail (password mismatch)
+
+Test Case 7:
+- First Name: Any
+- Last Name: Any
+- E-mail Address: Unregistered e-mail
+- Password: Complete password
+- Confirm Password: Same value as Password
+- Expected Result: Registration should succeed
+
+
+
+
+

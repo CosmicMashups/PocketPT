@@ -10,6 +10,7 @@ class CalvesAssessment {
   /// Calculate normalized displacement for calf dorsiflexion
   /// 
   /// Uses COCO landmarks: ${side}Hip, ${side}Knee, ${side}Ankle
+  /// Landmarks are normalized to 0.0-1.0 range
   static double? calculateNormalizedDisplacement(Map<String, Offset> landmarks, String side) {
     final sideLower = side.toLowerCase();
     final hip = landmarks['${sideLower}Hip'];
@@ -24,10 +25,14 @@ class CalvesAssessment {
     final horizontalDisplacement = knee.dx - ankle.dx;
     
     // Calculate vertical distance between hip and ankle as body height proxy
+    // Since landmarks are normalized (0.0-1.0), this will be between 0.0 and 1.0
     final bodySegmentHeight = (hip.dy - ankle.dy).abs();
     
-    if (bodySegmentHeight < 10) {
-      return null; // Position adjustment needed
+    // Use a normalized threshold (0.005 = 0.5% of image height)
+    // This ensures we have a reasonable body segment to normalize against
+    // Only reject if landmarks are extremely close (likely invalid pose)
+    if (bodySegmentHeight < 0.005) {
+      return null; // Position adjustment needed - body segment too small
     }
 
     // Normalize horizontal displacement by body segment height
